@@ -27,15 +27,37 @@ class Roster:
 
 @dataclass
 class Substitution:
-    """② 实战替代挖掘的输出：一条「谁可以被谁替」的建议。"""
+    """②a 实战替代挖掘的输出（L3）：一条「谁可以被谁替」的关卡绑定建议。"""
 
     removed: str                     # 视频阵容中被替换的干员
     replacement: str                 # 替代干员
     stage: str                       # 所属关卡
     evidence: str                    # 弹幕/评论原文引用
     source: str                      # danmaku | comment | pinned
+    kind: str = "operator_swap"      # 替换类型，见 KIND_* 常量
     likes: int = 0                   # 点赞/热度，可信度权重
     verified: bool = False           # 干员名字典校验通过
+
+
+# 替换类型（L2 图表底部的语义注解表明替代是多粒度的）
+KIND_OPERATOR_SWAP = "operator_swap"   # 换干员（默认）
+KIND_SKILL_SWAP = "skill_swap"         # 换技能/攻速
+KIND_POSITION_SWAP = "position_swap"   # 换部署位置
+KIND_MANUAL = "manual"                 # 该格放弃挂机，改手动操作
+
+
+@dataclass
+class GenericSubstitution:
+    """②b 泛化替代知识（L2）：UP主替换分析图表的条件式知识，不绑定单一关卡。"""
+
+    removed: str                     # 可被替换的干员
+    replacement: str | None = None   # 具体替代者；None 表示「可被同类干员替」
+    kind: str = KIND_OPERATOR_SWAP   # 替换类型
+    conditions: str = ""             # 可替换的情况（环境条件）
+    risks: str = ""                  # 可能出现的问题
+    semantics: str = ""              # 语义注解（如「攻奶不换，部署位置不换」）
+    source_video: str = ""           # 来源视频 BV 号
+    origin: str = "chart"            # chart | narration（图表帧 / 解说词）
 
 
 @dataclass
@@ -66,7 +88,8 @@ class RecommendedSlot:
     original: RosterSlot
     final_operator: str | None = None
     status: str = "keep"             # keep | substituted | unresolved
-    via: Substitution | None = None  # 采用的实战建议（substituted 时有值）
+    kind: str = KIND_OPERATOR_SWAP   # 替换类型
+    via: Substitution | GenericSubstitution | None = None  # 采用的知识条目
     risk: str = "low"                # low | medium | high；关键位替换 → high
     evidence_url: str = ""           # 评论区溯源链接
     note: str = ""                   # 给用户看的说明（如「建议回评论区验证」）
