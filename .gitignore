@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 运行时配置（从 config.default.yaml 生成，含密钥）
+config/config.yaml
+config/*_auth.json
+
+# 构建产物
+build/
+dist/
+*.spec
+
+# 临时文件
+temp/
+data/cache/
+*.log
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+Thumbs.db
+.DS_Store
