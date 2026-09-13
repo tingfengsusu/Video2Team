@@ -29,8 +29,10 @@ export async function callDeepSeek(
     throw new Error("未配置 DeepSeek API Key，请右键插件图标打开「选项」填写");
   }
 
+  // 多模态（带图）响应明显慢于纯文本，默认 240 秒
+  const timeoutMs = options?.timeoutMs ?? 240_000;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), options?.timeoutMs ?? 120_000);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const resp = await fetch(API_URL, {
       method: "POST",
@@ -49,6 +51,13 @@ export async function callDeepSeek(
     const content = data?.choices?.[0]?.message?.content;
     if (typeof content !== "string") throw new Error("DeepSeek 返回格式异常");
     return content;
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new Error(
+        `DeepSeek 请求超时（${Math.round(timeoutMs / 1000)} 秒），请再点一次「分析此关卡」重试；持续超时可稍后再试`,
+      );
+    }
+    throw err;
   } finally {
     clearTimeout(timer);
   }
