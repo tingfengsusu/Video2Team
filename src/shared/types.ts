@@ -25,10 +25,11 @@ export interface RosterSlot {
   keyReason?: string; // 关键原因（来自解说/简介/置顶评论）
 }
 
-/** ① 阵容提取的输出：单个视频对应的关卡阵容 */
+/** ① 阵容提取的输出：单个关卡对应的阵容 */
 export interface Roster {
   stage: string; // 关卡名，如 "EX-8"
   videoId: string; // 来源视频 BV 号
+  page: number | null; // 分P索引（多分P合集形态）；独立视频为 null
   slots: RosterSlot[];
   source: "description" | "pinned_comment" | "ocr_llm";
 }
