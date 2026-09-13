@@ -10,13 +10,16 @@
       .check { font-size: 13px; line-height: 1.9; }
       .ok { color: #1a7f37; }
       .bad { color: #c0392b; }
-      button { margin: 8px 0; padding: 8px 14px; font-size: 14px; cursor: pointer;
+      button { margin: 4px 0; padding: 8px 14px; font-size: 14px; cursor: pointer;
                border: none; border-radius: 6px; background: #23ade5; color: #fff; }
       button:disabled { background: #aaa; cursor: not-allowed; }
+      .hint { font-size: 12px; color: #888; line-height: 1.6; }
+      #dropzone { border: 1.5px dashed #c8d0d6; border-radius: 8px; padding: 10px;
+                  text-align: center; margin: 8px 0; }
+      #preview { max-width: 100%; display: none; border-radius: 6px; margin: 6px 0; }
       #status { font-size: 12px; color: #666; margin: 6px 0; }
       .video-title { font-size: 12px; color: #555; margin: 6px 0; }
       .stage { font-size: 14px; font-weight: bold; margin: 8px 0 4px; }
-      .roster-src { font-size: 11px; color: #999; margin-bottom: 6px; }
       .slot { font-size: 13px; line-height: 1.5; padding: 4px 6px; border-radius: 4px; margin-bottom: 3px; }
       .keep { background: #f0f9f0; }
       .sub { background: #fff7e6; }
@@ -31,6 +34,14 @@
     <h1>🎮 Video2Team</h1>
     <div class="tagline">把大佬的作业，改成你抄得动的作业</div>
     <div class="check" id="checklist"></div>
+
+    <div id="dropzone">
+      <button id="grabBtn">📷 抓取当前画面</button>
+      <div class="hint">把视频暂停在<strong>编队/阵容画面</strong>，点上方按钮抓帧；<br>或直接 <strong>Ctrl+V 粘贴截图</strong> / <a href="#" id="pickFile">选择图片文件</a></div>
+      <input type="file" id="fileInput" accept="image/*" style="display:none" />
+      <img id="preview" alt="" />
+    </div>
+
     <button id="analyzeBtn" disabled>分析此关卡</button>
     <div id="status"></div>
     <div id="result"></div>

@@ -1,9 +1,12 @@
 /**
- * ① 阵容提取（设计见 docs/design.md §4-①）。
+ * ① 阵容提取（设计见 docs/design.md §4-① / §4.1，2026-09-13 修订）。
  *
- * v0 路径：视频简介 / 置顶评论（UP主通常写明阵容）→ DeepSeek 提取。
- * 兜底路径：抽帧 OCR + 多模态（依赖 v1+ 可选本地分析服务），文本路径失败时明确告知用户。
- * 同时从素材中标记关键位（isKey），供风险分级用。
+ * 主路径 = 用户提供的画面（三通道：content script 抓视频当前帧 / Ctrl+V 粘贴 / 文件导入）：
+ * DeepSeek 多模态从编队页帧提取干员名单（含助战位）→ 干员名字典校验。
+ *
+ * 简介/置顶评论**降级为辅助上下文**（帮助 LLM 识别技能/专精说明），
+ * 不再单独产出结果集（实测：简介列的是全合集常用干员，非本关部署）。
+ * 开局帧部署顺序字幕：暂缓（并非所有视频都有）。
  */
 
 import { callDeepSeek, parseJsonLoose } from "./deepseek";
@@ -30,89 +33,95 @@ export async function locateStage(bvid: string, page?: number): Promise<StageMet
   return { video, page: null, stage: video.title, cid: video.cid };
 }
 
-interface ExtractedSlot {
-  operator?: string;
-  skill?: number;
-  mastery?: number;
-  deployOrder?: number;
-  isKey?: boolean;
-  keyReason?: string;
-}
-
-export async function extractRoster(meta: StageMeta, opDB: OperatorDB): Promise<Roster> {
-  const comments = await fetchComments(meta.video.aid, 20);
+/** 辅助上下文：简介 + 置顶评论（供画面提取时参考技能/练度说明） */
+export async function fetchTextContext(video: VideoInfo): Promise<string> {
+  const comments = await fetchComments(video.aid, 20).catch(() => []);
   const pinned = comments
     .filter((c) => c.isPinned)
     .map((c) => c.text)
     .join("\n---\n");
-  const sources = [
-    meta.video.desc ? `【视频简介】\n${meta.video.desc}` : "",
+  return [
+    video.desc ? `【视频简介】\n${video.desc}` : "",
     pinned ? `【置顶评论】\n${pinned}` : "",
   ]
     .filter(Boolean)
     .join("\n\n");
+}
 
-  if (!sources) {
-    throw new Error(
-      "视频简介和置顶评论均为空，无法提取阵容。该视频需要抽帧 OCR 兜底（依赖可选本地分析服务，v1 提供）",
-    );
-  }
+interface ExtractedOperator {
+  name?: string;
+  support?: boolean;
+  isKey?: boolean;
+  keyReason?: string;
+}
 
+/** 主路径：从用户提供的编队页画面提取阵容 */
+export async function extractRosterFromImage(
+  meta: StageMeta,
+  imageDataUrl: string,
+  opDB: OperatorDB,
+  textContext: string,
+): Promise<Roster> {
   const raw = await callDeepSeek([
     { role: "system", content: "你是明日方舟攻略阵容提取引擎，只输出 JSON。" },
     {
       role: "user",
       content: [
-        `任务：从攻略视频的简介/置顶评论中提取关卡 ${meta.stage} 的挂机阵容。`,
-        `干员名可能使用昵称/黑话，请按对照表还原为全名：`,
-        JSON.stringify(ALIASES.aliases),
-        ``,
-        `素材：`,
-        sources,
-        ``,
-        `规则：`,
-        `- 素材中若列出的是「常用干员」等未区分关卡的泛列（合集视频常见），视作本关可用阵容提取`,
-        `- skill：技能序号(1/2/3)；mastery：专精等级(1-3)；deployOrder：部署顺序（素材有说明才填）`,
-        `- isKey：素材明确强调的关键/核心干员（如「必须有」「核心」「关键」），keyReason 说明原因`,
-        `- 素材无法确认的字段留空`,
-        ``,
-        `仅输出 JSON：{"stage":"${meta.stage}","slots":[{"operator":"","skill":null,"mastery":null,"deployOrder":null,"isKey":false,"keyReason":""}]}`,
-      ].join("\n"),
+        {
+          type: "text",
+          text: [
+            `任务：这是明日方舟关卡 ${meta.stage} 攻略视频的画面截图（编队页/阵容展示/摆位画面）。提取画面中的干员名单。`,
+            ``,
+            `视频文字材料（辅助参考，画面为准）：`,
+            textContext || "（无）",
+            ``,
+            `昵称/黑话对照表：`,
+            JSON.stringify(ALIASES.aliases),
+            ``,
+            `规则：`,
+            `- name：画面卡片/单位上的干员名（编队页在卡片下方；摆位画面在干员血条旁），逐字识别后对照表还原全名`,
+            `- 编队页的「助战干员」位（SUPPORT UNIT）的干员 support: true`,
+            `- 视频简介中强调为「核心/关键/必须有」的干员 isKey: true，keyReason 说明`,
+            `- 只输出画面中确认存在的干员，不要从简介推测补充；名字不确定的跳过`,
+            ``,
+            `仅输出 JSON：{"operators":[{"name":"","support":false,"isKey":false,"keyReason":""}]}`,
+          ].join("\n"),
+        },
+        { type: "image_url", image_url: { url: imageDataUrl } },
+      ],
     },
   ]);
 
-  let parsed: { slots?: ExtractedSlot[] };
+  let parsed: { operators?: ExtractedOperator[] };
   try {
-    parsed = parseJsonLoose<{ slots?: ExtractedSlot[] }>(raw);
+    parsed = parseJsonLoose<{ operators?: ExtractedOperator[] }>(raw);
   } catch {
-    throw new Error("阵容提取失败：LLM 返回无法解析，请重试");
+    throw new Error("画面识别失败：LLM 返回无法解析，请重试");
   }
 
   const slots: RosterSlot[] = [];
   const rejected: string[] = [];
-  for (const s of parsed.slots ?? []) {
-    const name = opDB.resolve((s.operator ?? "").trim());
+  for (const op of parsed.operators ?? []) {
+    const name = opDB.resolve((op.name ?? "").trim());
     if (!name) continue;
     if (!opDB.exists(name)) {
-      rejected.push(s.operator ?? "");
-      continue; // 字典校验失败：幻觉名或还原错误，拦截
+      rejected.push(op.name ?? "");
+      continue; // 字典校验：拦截幻觉名/误识别
     }
     slots.push({
       operator: opDB.get(name)!.name,
-      skill: s.skill ?? undefined,
-      mastery: s.mastery ?? undefined,
-      deployOrder: s.deployOrder ?? undefined,
-      isKey: !!s.isKey,
-      keyReason: s.keyReason || undefined,
+      isKey: !!op.isKey,
+      keyReason: op.keyReason || undefined,
+      support: !!op.support,
     });
   }
   const dedup = [...new Map(slots.map((s) => [s.operator, s])).values()];
 
   if (dedup.length === 0) {
     throw new Error(
-      `未能从简介/置顶评论识别出阵容` +
+      `画面中未能识别出干员` +
         (rejected.length ? `（字典无法识别：${rejected.join("、")}）` : "") +
-        `。该视频可能需要抽帧 OCR 兜底（v1 可选本地服务）`,
+        `。请确认截图是编队/阵容画面后重试`,
     );
   }
 
@@ -121,6 +130,6 @@ export async function extractRoster(meta: StageMeta, opDB: OperatorDB): Promise<
     videoId: meta.video.bvid,
     page: meta.page,
     slots: dedup,
-    source: pinned ? "pinned_comment" : "description",
+    source: "screenshot",
   };
 }

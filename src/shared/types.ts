@@ -23,6 +23,7 @@ export interface RosterSlot {
   deployOrder?: number; // 部署顺序
   isKey: boolean; // 关键位标记
   keyReason?: string; // 关键原因（来自解说/简介/置顶评论）
+  support?: boolean; // 助战干员（好友干员，不在用户 box）
 }
 
 /** ① 阵容提取的输出：单个关卡对应的阵容 */
@@ -31,7 +32,7 @@ export interface Roster {
   videoId: string; // 来源视频 BV 号
   page: number | null; // 分P索引（多分P合集形态）；独立视频为 null
   slots: RosterSlot[];
-  source: "description" | "pinned_comment" | "ocr_llm";
+  source: "screenshot" | "description" | "pinned_comment" | "ocr_llm";
 }
 
 /** ②a 实战替代挖掘的输出（L3）：关卡绑定的「谁可以被谁替」建议 */
