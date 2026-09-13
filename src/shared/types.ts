@@ -86,8 +86,7 @@ export interface RecommendedSlot {
   status: "keep" | "substituted" | "unresolved";
   kind?: SubstitutionKind; // 替换类型（keep 时无替换发生）
   via: Substitution | GenericSubstitution | null; // 采用的知识条目
-  alternatives: Substitution[]; // 其他可直接采用的实战建议（替代者在你 box）
-  unavailable: Substitution[]; // 有实战建议但替代者不在你 box（参考用）
+  alternatives: Substitution[]; // 该槽位的其余实战建议（substituted = 除主推荐外；unresolved = 全部）
   risk: "low" | "medium" | "high"; // 关键位替换 → high
   evidenceUrl: string; // 评论区溯源链接
   note: string; // 给用户看的说明（如「建议回评论区验证」）

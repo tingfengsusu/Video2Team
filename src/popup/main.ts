@@ -175,30 +175,26 @@ function renderSlot(slot: RecommendedSlot): string {
   const op = esc(slot.original.operator);
   const keyTag = slot.original.isKey ? " <b>关键</b>" : "";
   const supTag = slot.original.support ? " <i>助战</i>" : "";
+  const alts = slot.alternatives.length
+    ? `<div class="alts">${slot.alternatives.map(renderSubLine).join("；")}</div>`
+    : "";
   if (slot.status === "keep") {
     return `<div class="slot keep">✓ ${op}${keyTag}${supTag} — 你有，保留</div>`;
   }
   if (slot.status === "substituted" && slot.via && "source" in slot.via) {
-    const extra = [
-      slot.alternatives.length ? `其他可用备选：${slot.alternatives.map(renderSubLine).join("；")}` : "",
-      slot.unavailable.length
-        ? `<span class="dim">评论还有建议但你暂无对应干员：${slot.unavailable.map((s) => esc(s.replacement)).join("、")}</span>`
-        : "",
-    ]
-      .filter(Boolean)
-      .map((s) => `<div class="alts">${s}</div>`)
-      .join("");
     return (
       `<div class="slot sub">⚠ ${op}${keyTag}${supTag} → <b>${esc(slot.finalOperator!)}</b> <span class="dim">${renderSubLine(slot.via)}</span>` +
       (slot.note ? `<div class="note">${esc(slot.note)}</div>` : "") +
-      extra +
+      (alts ? `<div class="alts"><span class="dim">其他实战建议：</span>${alts}</div>` : "") +
       `</div>`
     );
   }
-  const unavail = slot.unavailable.length
-    ? `<div class="alts">${slot.unavailable.map(renderSubLine).join("；")}</div>`
-    : "";
-  return `<div class="slot unresolved">✗ ${op}${keyTag}${supTag} — 无解<div class="note">${esc(slot.note)}</div>${unavail}</div>`;
+  return (
+    `<div class="slot unresolved">✗ ${op}${keyTag}${supTag} — 无解` +
+    (slot.note ? `<div class="note">${esc(slot.note)}</div>` : "") +
+    (alts ? `<div class="alts"><span class="dim">实战建议：</span>${alts}</div>` : "") +
+    `</div>`
+  );
 }
 
 function renderResult(out: AnalysisOutput): void {
