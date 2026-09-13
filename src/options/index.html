@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Video2Team 设置</title>
+    <style>
+      body { font-family: system-ui, sans-serif; max-width: 560px; margin: 24px auto; padding: 0 16px; }
+      section { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+      h2 { font-size: 15px; margin-top: 0; }
+      input[type="password"], input[type="text"] { width: 100%; padding: 6px; box-sizing: border-box; }
+    </style>
+  </head>
+  <body>
+    <h1>🎮 Video2Team 设置</h1>
+
+    <section>
+      <h2>DeepSeek API</h2>
+      <label>API Key <input type="password" id="apiKey" placeholder="sk-..." /></label>
+      <!-- v0：保存到 chrome.storage.local -->
+    </section>
+
+    <section>
+      <h2>我的干员 box</h2>
+      <p style="font-size: 13px; color: #555">
+        前往 <a href="https://ark.yituliu.cn/survey/operators" target="_blank">一图流</a>
+        「我的干员 → 导出为 Excel」，然后导入下方文件（纯本地解析，不上传）。
+      </p>
+      <input type="file" id="excelFile" accept=".xlsx,.xls" />
+      <div id="boxStatus" style="font-size: 13px; margin-top: 8px"></div>
+      <!-- v2：森空岛扫码登录（cred 仅内存使用） -->
+    </section>
+
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

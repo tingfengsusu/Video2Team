@@ -85,6 +85,26 @@ Video2Shop 约 60-70% 代码可直接复用（下载、抽帧 OCR、DeepSeek 双
 
 推荐错了玩家会真实翻车，容错要求远高于「买错一瓶酱油」，所以**每个替换位必须带来源与风险等级**。
 
+### 3.5 产品形态与技术栈（已拍板：浏览器插件）
+
+**形态：浏览器插件（Chrome Manifest V3 + TypeScript + Vite 构建）。**
+
+选择依据：v0 管道全是轻请求（简介/置顶评论、弹幕/评论 API、Excel 解析、LLM 调用），无重计算，插件装得下；入口体验最好（看视频时点一下）；B站请求携带用户登录态，风控最友好；低频工具适合「装完躺着」的形态。
+
+| 项 | 决策 |
+|----|------|
+| 运行时 | Chrome MV3（Edge 兼容） |
+| 语言/构建 | TypeScript + Vite（+ @crxjs/vite-plugin 或手写 manifest） |
+| 入口 | content script 在视频页注入分析入口 + popup 面板展示结果 |
+| 配置 | `chrome.storage` + options 设置页（API key、box 管理），**不再使用 YAML 配置文件** |
+| Excel 解析 | SheetJS（xlsx）纯前端解析，用户本地选择文件，不上传 |
+| 分发 | Edge 商店（国内可直接访问）+ crx 手动安装双通道 |
+| 依赖的服务 | B站公开 API（用户身份）+ DeepSeek API（用户自己的 key 存 chrome.storage） |
+
+**可选本地分析服务（v1+，形态缺口补丁）**：插件检测 `localhost` 是否运行 Python 分析服务，有则解锁「视频下载+抽帧 OCR」兜底路径和 L2 图表帧提取，没有则主流程照跑。重活永远是可选项，不绑架形态。
+
+**复用策略变化**：Video2Shop 的 Python 代码复用率趋近于零（v0 用不上抽帧 OCR），真正复用的是流程设计、prompt 设计与接口知识。
+
 ## 4. 系统管道
 
 ```
@@ -126,7 +146,7 @@ Video2Shop 约 60-70% 代码可直接复用（下载、抽帧 OCR、DeepSeek 双
 
 ## 5. 数据模型（核心结构）
 
-定义见 `src/models.py`，此处为设计总览：
+定义见 `src/shared/types.ts`，此处为设计总览：
 
 ```
 Roster（阵容）                    —— ① 的输出
@@ -172,17 +192,19 @@ RecommendedSlot（推荐结果）       —— ③ 的输出
 
 ## 6. 模块划分（对照 Video2Shop）
 
-| 模块 | 来源 | 说明 |
+| 模块（src/shared/） | 来源 | 说明 |
 |------|------|------|
-| `bili_downloader` | ♻️ 复用 | 视频下载（durl + DASH/ffmpeg） |
-| `video_processor` | ♻️ 复用 | 抽帧 + OCR |
-| `roster_extractor` | 🔧 改造 | prompt 从「提取食材」改为「提取干员+技能+顺序+关键位」 |
-| `comment_miner` | ✨ 新写 | ②a 弹幕 XML / 评论 API 抓取 + 实战替代映射提取（L3） |
-| `knowledge_extractor` | ✨ 新写 | ②b 抽帧 → 图表帧检测 → 多模态提取泛化替代知识（L2） |
-| `box_importer` | ✨ 新写 | v1 Excel 解析（一图流格式）；v2 森空岛扫码 + cred 签名 |
-| `operator_db` | ✨ 新写 | 干员数据 JSON：名字典 + 属性上下文 |
-| `recommender` | ✨ 新写 | 匹配推荐引擎（映射命中 → LLM 推断 → 风险标注） |
-| `preflight` / GUI / Web 骨架 | ♻️ 复用 | 三入口共享同一后端管道 |
+| `bilibili.ts` | ✨ 新写 | B站 API 封装：视频信息/置顶评论/评论/弹幕 XML |
+| `deepseek.ts` | 🔧 移植 | DeepSeek API 调用（prompt 从「提取食材」改为「提取干员+技能+顺序+关键位」） |
+| `roster.ts` | 🔧 改造 | ① 阵容提取：优先简介/置顶评论，兜底走可选本地服务 |
+| `miner.ts` | ✨ 新写 | ②a 弹幕 XML / 评论 API 抓取 + 实战替代映射提取（L3） |
+| `knowledge.ts` | ✨ 新写 | ②b 图表帧检测 → 多模态提取泛化替代知识（L2，v1，依赖可选本地服务） |
+| `box.ts` | ✨ 新写 | box 导入：SheetJS 解析一图流 Excel（v1）；森空岛扫码（v2） |
+| `operatorDB.ts` | ✨ 新写 | 干员数据 JSON：名字典 + 属性上下文 |
+| `recommender.ts` | ✨ 新写 | ③ 匹配推荐引擎（L3 命中 → L2 条件匹配 → LLM 推断 → 风险标注） |
+| `background/index.ts` | ✨ 新写 | Service Worker：消息路由 + 管道编排 |
+| `content/index.ts` | ✨ 新写 | 视频页识别 + 分析入口注入 |
+| `popup/`、`options/` | ✨ 新写 | 结果面板 / 设置页（API key、Excel 导入、box 管理） |
 
 ## 7. 数据源清单
 
@@ -199,11 +221,11 @@ RecommendedSlot（推荐结果）       —— ③ 的输出
 ## 8. 版本规划
 
 ### v0（MVP）—— 验证核心价值：「给出的阵容能不能过」
-- 输入：单个视频链接
-- box：一图流 Excel 导入
+- 插件形态：视频页一键分析（content script 识别 BV 号）
+- box：一图流 Excel 导入（SheetJS 前端解析）
 - 替代挖掘：仅该视频评论区（置顶 + 高赞优先）
 - 推荐：仅「映射命中」（实战建议直接匹配），不做 LLM 推断
-- 输出：最终阵容 + 来源标注
+- 输出：popup 面板展示最终阵容 + 来源标注
 
 ### v1 —— 完整体验
 - 合集（系列）链接遍历，按关卡汇总
@@ -229,7 +251,8 @@ RecommendedSlot（推荐结果）       —— ③ 的输出
 
 ## 10. 待定决策
 
-- [ ] UI 形态：沿用 Video2Shop 三入口（CLI/GUI/Web）还是先只做 Web？*（建议：MVP 先 CLI + Web，GUI 随后）*
-- [ ] 技术栈确认：Python + DeepSeek 双模式（API/网页版）是否沿用？*（建议：沿用，API 为主）*
+- [x] ~~产品形态~~ → 已拍板：浏览器插件（§3.5）
+- [x] ~~技术栈~~ → 已定：TypeScript + MV3 + Vite
 - [ ] 干员数据 JSON 的具体来源与更新方式（PRTS vs 一图流，或两者合并）
 - [ ] Excel 解析的容错：一图流导出格式变更时的兼容策略
+- [ ] 插件构建方案：@crxjs/vite-plugin vs 手写 manifest + tsc（首次跑通构建时定）

@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "Video2Team",
+  "version": "0.1.0",
+  "description": "把大佬的作业，改成你抄得动的作业 — B站明日方舟挂机攻略阵容适配",
+  "permissions": ["storage"],
+  "host_permissions": [
+    "https://api.bilibili.com/*",
+    "https://api.deepseek.com/*",
+    "https://comment.bilibili.com/*"
+  ],
+  "background": {
+    "service_worker": "src/background/index.ts",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "src/popup/index.html",
+    "default_title": "Video2Team — 把大佬的作业，改成你抄得动的作业"
+  },
+  "options_page": "src/options/index.html",
+  "content_scripts": [
+    {
+      "matches": ["https://www.bilibili.com/video/*"],
+      "js": ["src/content/index.ts"]
+    }
+  ]
+}

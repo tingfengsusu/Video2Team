@@ -1,6 +1,0 @@
-requests
-PyYAML
-opencv-python
-easyocr
-openpyxl
-numpy
