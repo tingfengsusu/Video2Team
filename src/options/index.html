@@ -16,7 +16,8 @@
     <section>
       <h2>DeepSeek API</h2>
       <label>API Key <input type="password" id="apiKey" placeholder="sk-..." /></label>
-      <!-- v0：保存到 chrome.storage.local -->
+      <button id="saveKey" style="margin-top: 8px">保存</button>
+      <span id="keyStatus" style="font-size: 13px; margin-left: 8px; color: #1a7f37"></span>
     </section>
 
     <section>
@@ -27,6 +28,7 @@
       </p>
       <input type="file" id="excelFile" accept=".xlsx,.xls" />
       <div id="boxStatus" style="font-size: 13px; margin-top: 8px"></div>
+      <div id="boxError" style="font-size: 13px; margin-top: 8px; color: #c0392b"></div>
       <!-- v2：森空岛扫码登录（cred 仅内存使用） -->
     </section>
 

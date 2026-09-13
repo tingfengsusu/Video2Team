@@ -5,6 +5,9 @@ __pycache__/
 .venv/
 venv/
 
+# Node
+node_modules/
+
 # 运行时配置（从 config.default.yaml 生成，含密钥）
 config/config.yaml
 config/*_auth.json

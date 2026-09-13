@@ -1,0 +1,4382 @@
+{
+ "char_145_prove": {
+  "name": "普罗旺斯",
+  "profession": "SNIPER",
+  "branch": "closerange",
+  "rarity": 5,
+  "skills": [
+   "狼眼",
+   "杀戮嗅觉"
+  ]
+ },
+ "char_4182_oblvns": {
+  "name": "丰川祥子",
+  "profession": "WARRIOR",
+  "branch": "lord",
+  "rarity": 6,
+  "skills": [
+   "新月的苏醒",
+   "满月的舞会",
+   "残月的余响"
+  ]
+ },
+ "char_271_spikes": {
+  "name": "芳汀",
+  "profession": "WARRIOR",
+  "branch": "lord",
+  "rarity": 4,
+  "skills": [
+   "小玩笑",
+   "致命恶作剧"
+  ]
+ },
+ "char_363_toddi": {
+  "name": "熔泉",
+  "profession": "SNIPER",
+  "branch": "siegesniper",
+  "rarity": 5,
+  "skills": [
+   "信号矢",
+   "便携破城矢"
+  ]
+ },
+ "char_4171_wulfen": {
+  "name": "钼铅",
+  "profession": "SPECIAL",
+  "branch": "traper",
+  "rarity": 5,
+  "skills": [
+   "“驱兽专用”",
+   "“顽石专用”"
+  ]
+ },
+ "char_4222_taraxa": {
+  "name": "风絮",
+  "profession": "MEDIC",
+  "branch": "watchman",
+  "rarity": 5,
+  "skills": [
+   "何处着",
+   "扶风起"
+  ]
+ },
+ "char_433_windft": {
+  "name": "掠风",
+  "profession": "SUPPORT",
+  "branch": "craftsman",
+  "rarity": 5,
+  "skills": [
+   "此身为筑",
+   "此身为源"
+  ]
+ },
+ "char_174_slbell": {
+  "name": "初雪",
+  "profession": "SUPPORT",
+  "branch": "underminer",
+  "rarity": 5,
+  "skills": [
+   "传音回响",
+   "自然震慑"
+  ]
+ },
+ "char_340_shwaz": {
+  "name": "黑",
+  "profession": "SNIPER",
+  "branch": "closerange",
+  "rarity": 6,
+  "skills": [
+   "强弩",
+   "暮眼锐瞳",
+   "战术的终结"
+  ]
+ },
+ "char_1029_yato2": {
+  "name": "麒麟R夜刀",
+  "profession": "SPECIAL",
+  "branch": "executor",
+  "rarity": 6,
+  "skills": [
+   "鬼人化",
+   "乱舞",
+   "空中回旋乱舞"
+  ]
+ },
+ "char_1039_thorn2": {
+  "name": "引星棘刺",
+  "profession": "SPECIAL",
+  "branch": "alchemist",
+  "rarity": 6,
+  "skills": [
+   "度算浪波",
+   "解构涌潮",
+   "“我的海疆”"
+  ]
+ },
+ "char_4000_jnight": {
+  "name": "正义骑士号",
+  "profession": "SNIPER",
+  "branch": "fastshot",
+  "rarity": 1,
+  "skills": []
+ },
+ "char_135_halo": {
+  "name": "星源",
+  "profession": "CASTER",
+  "branch": "chain",
+  "rarity": 5,
+  "skills": [
+   "双端导流",
+   "星束交汇"
+  ]
+ },
+ "char_4137_udflow": {
+  "name": "深巡",
+  "profession": "TANK",
+  "branch": "shotprotector",
+  "rarity": 5,
+  "skills": [
+   "侵袭破坏应对",
+   "行动能力剥夺"
+  ]
+ },
+ "char_4133_logos": {
+  "name": "逻各斯",
+  "profession": "CASTER",
+  "branch": "corecaster",
+  "rarity": 6,
+  "skills": [
+   "殁亡",
+   "提喻",
+   "延异视阈"
+  ]
+ },
+ "char_345_folnic": {
+  "name": "亚叶",
+  "profession": "MEDIC",
+  "branch": "physician",
+  "rarity": 5,
+  "skills": [
+   "最大剂量输注",
+   "复合型药物弹片"
+  ]
+ },
+ "char_180_amgoat": {
+  "name": "艾雅法拉",
+  "profession": "CASTER",
+  "branch": "corecaster",
+  "rarity": 6,
+  "skills": [
+   "二重咏唱",
+   "点燃",
+   "火山"
+  ]
+ },
+ "char_4109_baslin": {
+  "name": "深律",
+  "profession": "TANK",
+  "branch": "guardian",
+  "rarity": 5,
+  "skills": [
+   "急救",
+   "沉音宁神"
+  ]
+ },
+ "char_4117_ray": {
+  "name": "莱伊",
+  "profession": "SNIPER",
+  "branch": "hunter",
+  "rarity": 6,
+  "skills": [
+   "脱身矢",
+   "广域警觉",
+   "“得见光芒”"
+  ]
+ },
+ "char_4056_titi": {
+  "name": "缇缇",
+  "profession": "MEDIC",
+  "branch": "incantationmedic",
+  "rarity": 6,
+  "skills": [
+   "缓蚀",
+   "封护",
+   "旧日绽放"
+  ]
+ },
+ "char_140_whitew": {
+  "name": "拉普兰德",
+  "profession": "WARRIOR",
+  "branch": "lord",
+  "rarity": 5,
+  "skills": [
+   "日晷",
+   "狼魂"
+  ]
+ },
+ "char_4004_pudd": {
+  "name": "布丁",
+  "profession": "CASTER",
+  "branch": "chain",
+  "rarity": 4,
+  "skills": [
+   "战术咏唱·β型",
+   "扩散电流"
+  ]
+ },
+ "char_492_quercu": {
+  "name": "夏栎",
+  "profession": "SUPPORT",
+  "branch": "blessing",
+  "rarity": 5,
+  "skills": [
+   "大地的慈悲",
+   "生灵的回响"
+  ]
+ },
+ "char_332_archet": {
+  "name": "空弦",
+  "profession": "SNIPER",
+  "branch": "fastshot",
+  "rarity": 6,
+  "skills": [
+   "箭矢·散逸",
+   "箭矢·追猎",
+   "箭矢·暴风"
+  ]
+ },
+ "char_1050_chen3": {
+  "name": "赤刃明霄陈",
+  "profession": "WARRIOR",
+  "branch": "artsfghter",
+  "rarity": 6,
+  "skills": [
+   "赤霄·奔夜",
+   "赤霄·绝影-驰",
+   "赤霄·天喟"
+  ]
+ },
+ "char_4143_sensi": {
+  "name": "森西",
+  "profession": "TANK",
+  "branch": "guardian",
+  "rarity": 5,
+  "skills": [
+   "单人份料理",
+   "团体魔物大餐"
+  ]
+ },
+ "char_4130_luton": {
+  "name": "露托",
+  "profession": "TANK",
+  "branch": "unyield",
+  "rarity": 4,
+  "skills": [
+   "强力击·β型",
+   "强磁防卫"
+  ]
+ },
+ "char_401_elysm": {
+  "name": "极境",
+  "profession": "PIONEER",
+  "branch": "bearer",
+  "rarity": 5,
+  "skills": [
+   "支援号令·γ型",
+   "聆听"
+  ]
+ },
+ "char_274_astesi": {
+  "name": "星极",
+  "profession": "WARRIOR",
+  "branch": "artsfghter",
+  "rarity": 5,
+  "skills": [
+   "星座守护",
+   "星辉剑"
+  ]
+ },
+ "char_1041_angel2": {
+  "name": "新约能天使",
+  "profession": "SPECIAL",
+  "branch": "geek",
+  "rarity": 6,
+  "skills": [
+   "天空大扫除",
+   "开火成瘾症",
+   "使命必达！"
+  ]
+ },
+ "char_400_weedy": {
+  "name": "温蒂",
+  "profession": "SPECIAL",
+  "branch": "pusher",
+  "rarity": 6,
+  "skills": [
+   "炮管敲击",
+   "水炮模式",
+   "液氮大炮"
+  ]
+ },
+ "char_198_blackd": {
+  "name": "讯使",
+  "profession": "PIONEER",
+  "branch": "pioneer",
+  "rarity": 4,
+  "skills": [
+   "冲锋号令·β型",
+   "冲锋号令·防御"
+  ]
+ },
+ "char_4065_judge": {
+  "name": "斥罪",
+  "profession": "TANK",
+  "branch": "unyield",
+  "rarity": 6,
+  "skills": [
+   "一锤定音",
+   "坚心苦修",
+   "披荆斩棘"
+  ]
+ },
+ "char_405_absin": {
+  "name": "苦艾",
+  "profession": "CASTER",
+  "branch": "corecaster",
+  "rarity": 5,
+  "skills": [
+   "执法模式",
+   "终结连射"
+  ]
+ },
+ "char_402_tuye": {
+  "name": "图耶",
+  "profession": "MEDIC",
+  "branch": "physician",
+  "rarity": 5,
+  "skills": [
+   "水流环",
+   "强心剂"
+  ]
+ },
+ "char_143_ghost": {
+  "name": "幽灵鲨",
+  "profession": "WARRIOR",
+  "branch": "centurion",
+  "rarity": 5,
+  "skills": [
+   "攻击力强化·γ型",
+   "肉斩骨断"
+  ]
+ },
+ "char_4082_qiubai": {
+  "name": "仇白",
+  "profession": "WARRIOR",
+  "branch": "lord",
+  "rarity": 6,
+  "skills": [
+   "留羽",
+   "承影",
+   "问雪"
+  ]
+ },
+ "char_362_saga": {
+  "name": "嵯峨",
+  "profession": "PIONEER",
+  "branch": "pioneer",
+  "rarity": 6,
+  "skills": [
+   "冲锋号令·γ型",
+   "除恶",
+   "怒目"
+  ]
+ },
+ "char_1027_greyy2": {
+  "name": "承曦格雷伊",
+  "profession": "SNIPER",
+  "branch": "bombarder",
+  "rarity": 5,
+  "skills": [
+   "迅捷打击·γ型",
+   "晨曦信标"
+  ]
+ },
+ "char_4079_haini": {
+  "name": "海霓",
+  "profession": "SUPPORT",
+  "branch": "underminer",
+  "rarity": 5,
+  "skills": [
+   "迷惑性洋流图",
+   "阻滞性显色剂"
+  ]
+ },
+ "char_4078_bdhkgt": {
+  "name": "截云",
+  "profession": "SNIPER",
+  "branch": "aoesniper",
+  "rarity": 5,
+  "skills": [
+   "探前路",
+   "掷旧尘"
+  ]
+ },
+ "char_4220_kormr": {
+  "name": "虎狼丸",
+  "profession": "WARRIOR",
+  "branch": "sword",
+  "rarity": 1,
+  "skills": []
+ },
+ "char_4140_lasher": {
+  "name": "衡沙",
+  "profession": "SUPPORT",
+  "branch": "summoner",
+  "rarity": 5,
+  "skills": [
+   "上紧发条",
+   "权知轻重"
+  ]
+ },
+ "char_137_brownb": {
+  "name": "猎蜂",
+  "profession": "WARRIOR",
+  "branch": "fighter",
+  "rarity": 4,
+  "skills": [
+   "高机动",
+   "急速拳"
+  ]
+ },
+ "char_218_cuttle": {
+  "name": "安哲拉",
+  "profession": "SNIPER",
+  "branch": "longrange",
+  "rarity": 5,
+  "skills": [
+   "攻击力强化·γ型",
+   "阻滞射击战术"
+  ]
+ },
+ "char_485_pallas": {
+  "name": "帕拉斯",
+  "profession": "WARRIOR",
+  "branch": "instructor",
+  "rarity": 6,
+  "skills": [
+   "胜利的连击",
+   "信念的长鞭",
+   "英勇的祝福"
+  ]
+ },
+ "char_163_hpsts": {
+  "name": "火神",
+  "profession": "TANK",
+  "branch": "unyield",
+  "rarity": 5,
+  "skills": [
+   "坚守模式",
+   "武力模式"
+  ]
+ },
+ "char_4225_tanya": {
+  "name": "裂响",
+  "profession": "TANK",
+  "branch": "primprotector",
+  "rarity": 5,
+  "skills": [
+   "涤净",
+   "溃决"
+  ]
+ },
+ "char_252_bibeak": {
+  "name": "柏喙",
+  "profession": "WARRIOR",
+  "branch": "sword",
+  "rarity": 5,
+  "skills": [
+   "飞针剑羽",
+   "异刃斩"
+  ]
+ },
+ "char_411_tomimi": {
+  "name": "特米米",
+  "profession": "CASTER",
+  "branch": "corecaster",
+  "rarity": 5,
+  "skills": [
+   "部族技艺",
+   "嘉维尔保护方案"
+  ]
+ },
+ "char_4006_melnte": {
+  "name": "玫拉",
+  "profession": "SNIPER",
+  "branch": "closerange",
+  "rarity": 5,
+  "skills": [
+   "饱和脉冲",
+   "临界爆发"
+  ]
+ },
+ "char_497_ctable": {
+  "name": "晓歌",
+  "profession": "PIONEER",
+  "branch": "agent",
+  "rarity": 5,
+  "skills": [
+   "观火",
+   "浮光"
+  ]
+ },
+ "char_4011_lessng": {
+  "name": "止颂",
+  "profession": "WARRIOR",
+  "branch": "fearless",
+  "rarity": 6,
+  "skills": [
+   "强力击·γ型",
+   "虔修对决",
+   "苦修破誓"
+  ]
+ },
+ "char_2025_shu": {
+  "name": "黍",
+  "profession": "TANK",
+  "branch": "guardian",
+  "rarity": 6,
+  "skills": [
+   "化被草木",
+   "嘉禾盈仓",
+   "离离枯荣"
+  ]
+ },
+ "char_275_breeze": {
+  "name": "微风",
+  "profession": "MEDIC",
+  "branch": "ringhealer",
+  "rarity": 5,
+  "skills": [
+   "集束疗法",
+   "扩散疗法"
+  ]
+ },
+ "char_4218_aigis": {
+  "name": "埃癸斯",
+  "profession": "SNIPER",
+  "branch": "skybreaker",
+  "rarity": 5,
+  "skills": [
+   "启动狂宴模式",
+   "全弹发射"
+  ]
+ },
+ "char_261_sddrag": {
+  "name": "苇草",
+  "profession": "PIONEER",
+  "branch": "charger",
+  "rarity": 5,
+  "skills": [
+   "迅捷打击·γ型",
+   "生灵火花"
+  ]
+ },
+ "char_473_mberry": {
+  "name": "桑葚",
+  "profession": "MEDIC",
+  "branch": "wandermedic",
+  "rarity": 5,
+  "skills": [
+   "治愈云雾",
+   "安全区域"
+  ]
+ },
+ "char_260_durnar": {
+  "name": "坚雷",
+  "profession": "TANK",
+  "branch": "artsprotector",
+  "rarity": 4,
+  "skills": [
+   "攻击力强化·β型",
+   "起盾回击"
+  ]
+ },
+ "char_437_mizuki": {
+  "name": "水月",
+  "profession": "SPECIAL",
+  "branch": "stalker",
+  "rarity": 6,
+  "skills": [
+   "唤醒",
+   "囚徒困境",
+   "镜花水月"
+  ]
+ },
+ "char_1035_wisdel": {
+  "name": "维什戴尔",
+  "profession": "SNIPER",
+  "branch": "bombarder",
+  "rarity": 6,
+  "skills": [
+   "定点清算",
+   "饱和复仇",
+   "爆裂黎明"
+  ]
+ },
+ "char_1014_nearl2": {
+  "name": "耀骑士临光",
+  "profession": "WARRIOR",
+  "branch": "fearless",
+  "rarity": 6,
+  "skills": [
+   "灿焰长刃",
+   "逐夜烁光",
+   "耀阳颔首"
+  ]
+ },
+ "char_365_aprl": {
+  "name": "四月",
+  "profession": "SNIPER",
+  "branch": "fastshot",
+  "rarity": 5,
+  "skills": [
+   "精准射击",
+   "灵活伪装"
+  ]
+ },
+ "char_212_ansel": {
+  "name": "安赛尔",
+  "profession": "MEDIC",
+  "branch": "physician",
+  "rarity": 3,
+  "skills": [
+   "治疗范围强化"
+  ]
+ },
+ "char_355_ethan": {
+  "name": "伊桑",
+  "profession": "SPECIAL",
+  "branch": "stalker",
+  "rarity": 4,
+  "skills": [
+   "花式回旋",
+   "十字悬挂"
+  ]
+ },
+ "char_286_cast3": {
+  "name": "Castle-3",
+  "profession": "WARRIOR",
+  "branch": "fearless",
+  "rarity": 1,
+  "skills": []
+ },
+ "char_4219_yukari": {
+  "name": "岳羽由加莉",
+  "profession": "SUPPORT",
+  "branch": "supportiveranger",
+  "rarity": 5,
+  "skills": [
+   "龙卷箭",
+   "明镜止水"
+  ]
+ },
+ "char_4009_irene": {
+  "name": "艾丽妮",
+  "profession": "WARRIOR",
+  "branch": "sword",
+  "rarity": 6,
+  "skills": [
+   "起风",
+   "裂潮",
+   "判决"
+  ]
+ },
+ "char_476_blkngt": {
+  "name": "夜半",
+  "profession": "PIONEER",
+  "branch": "tactician",
+  "rarity": 5,
+  "skills": [
+   "半醒",
+   "安眠"
+  ]
+ },
+ "char_4191_tippi": {
+  "name": "蒂比",
+  "profession": "SPECIAL",
+  "branch": "skywalker",
+  "rarity": 5,
+  "skills": [
+   "专业喷绘技巧",
+   "紧急赶场通知"
+  ]
+ },
+ "char_479_sleach": {
+  "name": "琴柳",
+  "profession": "PIONEER",
+  "branch": "bearer",
+  "rarity": 6,
+  "skills": [
+   "支援号令·γ型",
+   "信仰传承",
+   "光辉旗帜"
+  ]
+ },
+ "char_4048_doroth": {
+  "name": "多萝西",
+  "profession": "SPECIAL",
+  "branch": "traper",
+  "rarity": 6,
+  "skills": [
+   "危险目标清除",
+   "流沙区域生成",
+   "高速共振排障"
+  ]
+ },
+ "char_455_nothin": {
+  "name": "乌有",
+  "profession": "SPECIAL",
+  "branch": "merchant",
+  "rarity": 5,
+  "skills": [
+   "知难而退",
+   "阴晴圆缺"
+  ]
+ },
+ "char_144_red": {
+  "name": "红",
+  "profession": "SPECIAL",
+  "branch": "executor",
+  "rarity": 5,
+  "skills": [
+   "处决模式",
+   "狼群"
+  ]
+ },
+ "char_496_wildmn": {
+  "name": "野鬃",
+  "profession": "PIONEER",
+  "branch": "charger",
+  "rarity": 5,
+  "skills": [
+   "骑枪刺击",
+   "夹枪冲锋"
+  ]
+ },
+ "char_183_skgoat": {
+  "name": "地灵",
+  "profession": "SUPPORT",
+  "branch": "slower",
+  "rarity": 4,
+  "skills": [
+   "攻击力强化·β型",
+   "流沙化"
+  ]
+ },
+ "char_4045_heidi": {
+  "name": "海蒂",
+  "profession": "SUPPORT",
+  "branch": "bard",
+  "rarity": 5,
+  "skills": [
+   "虚构故事·怒士",
+   "虚构故事·锈城"
+  ]
+ },
+ "char_478_kirara": {
+  "name": "绮良",
+  "profession": "SPECIAL",
+  "branch": "stalker",
+  "rarity": 5,
+  "skills": [
+   "锚击",
+   "锚点捕捉"
+  ]
+ },
+ "char_366_acdrop": {
+  "name": "酸糖",
+  "profession": "SNIPER",
+  "branch": "closerange",
+  "rarity": 4,
+  "skills": [
+   "花式点射",
+   "扳机时刻"
+  ]
+ },
+ "char_4054_malist": {
+  "name": "至简",
+  "profession": "CASTER",
+  "branch": "funnel",
+  "rarity": 5,
+  "skills": [
+   "迅捷打击·γ型",
+   "神工意匠"
+  ]
+ },
+ "char_192_falco": {
+  "name": "翎羽",
+  "profession": "PIONEER",
+  "branch": "charger",
+  "rarity": 3,
+  "skills": [
+   "迅捷打击·α型"
+  ]
+ },
+ "char_291_aglina": {
+  "name": "安洁莉娜",
+  "profession": "SUPPORT",
+  "branch": "slower",
+  "rarity": 6,
+  "skills": [
+   "秘杖·速充模式",
+   "秘杖·微粒模式",
+   "秘杖·反重力模式"
+  ]
+ },
+ "char_236_rope": {
+  "name": "暗索",
+  "profession": "SPECIAL",
+  "branch": "hookmaster",
+  "rarity": 4,
+  "skills": [
+   "勾爪发射",
+   "复式勾爪"
+  ]
+ },
+ "char_2026_yu": {
+  "name": "余",
+  "profession": "TANK",
+  "branch": "primprotector",
+  "rarity": 6,
+  "skills": [
+   "今日做东",
+   "厚礼上宾",
+   "灶里乾坤"
+  ]
+ },
+ "char_127_estell": {
+  "name": "艾丝黛尔",
+  "profession": "WARRIOR",
+  "branch": "centurion",
+  "rarity": 4,
+  "skills": [
+   "攻击力强化·β型",
+   "舍身突击"
+  ]
+ },
+ "char_4215_buddy": {
+  "name": "罗德岛隐秘队",
+  "profession": "PIONEER",
+  "branch": "tactician",
+  "rarity": 1,
+  "skills": []
+ },
+ "char_243_waaifu": {
+  "name": "槐琥",
+  "profession": "SPECIAL",
+  "branch": "executor",
+  "rarity": 5,
+  "skills": [
+   "寸劲",
+   "七武掠阵踢"
+  ]
+ },
+ "char_254_vodfox": {
+  "name": "巫恋",
+  "profession": "SUPPORT",
+  "branch": "underminer",
+  "rarity": 5,
+  "skills": [
+   "病入膏肓",
+   "诅咒娃娃"
+  ]
+ },
+ "char_126_shotst": {
+  "name": "流星",
+  "profession": "SNIPER",
+  "branch": "fastshot",
+  "rarity": 4,
+  "skills": [
+   "碎甲击",
+   "碎甲击·扩散"
+  ]
+ },
+ "char_4198_christ": {
+  "name": "Miss.Christine",
+  "profession": "CASTER",
+  "branch": "primcaster",
+  "rarity": 5,
+  "skills": [
+   "自由用餐礼仪",
+   "狂饮之宴"
+  ]
+ },
+ "char_4166_varkis": {
+  "name": "摆渡人",
+  "profession": "WARRIOR",
+  "branch": "centurion",
+  "rarity": 5,
+  "skills": [
+   "奔流",
+   "同胞的意志"
+  ]
+ },
+ "char_457_blitz": {
+  "name": "闪击",
+  "profession": "TANK",
+  "branch": "shotprotector",
+  "rarity": 5,
+  "skills": [
+   "闪光护盾",
+   "突破防线"
+  ]
+ },
+ "char_194_leto": {
+  "name": "烈夏",
+  "profession": "WARRIOR",
+  "branch": "lord",
+  "rarity": 5,
+  "skills": [
+   "迅捷打击·γ型",
+   "一呼百应"
+  ]
+ },
+ "char_500_noirc": {
+  "name": "黑角",
+  "profession": "TANK",
+  "branch": "protector",
+  "rarity": 2,
+  "skills": []
+ },
+ "char_326_glacus": {
+  "name": "格劳克斯",
+  "profession": "SUPPORT",
+  "branch": "slower",
+  "rarity": 5,
+  "skills": [
+   "双线装填",
+   "反制电磁脉冲"
+  ]
+ },
+ "char_4199_makiri": {
+  "name": "松桐",
+  "profession": "PIONEER",
+  "branch": "counsellor",
+  "rarity": 5,
+  "skills": [
+   "入场安排",
+   "万手成局"
+  ]
+ },
+ "char_381_bubble": {
+  "name": "泡泡",
+  "profession": "TANK",
+  "branch": "protector",
+  "rarity": 4,
+  "skills": [
+   "防御力强化·β型",
+   "“挨打”"
+  ]
+ },
+ "char_4155_talr": {
+  "name": "裁度",
+  "profession": "SPECIAL",
+  "branch": "merchant",
+  "rarity": 5,
+  "skills": [
+   "量衣尺",
+   "缝线缠身"
+  ]
+ },
+ "char_115_headbr": {
+  "name": "凛冬",
+  "profession": "PIONEER",
+  "branch": "pioneer",
+  "rarity": 5,
+  "skills": [
+   "冲锋号令·γ型",
+   "乌萨斯战吼"
+  ]
+ },
+ "char_1001_amiya2": {
+  "name": "阿米娅（近卫）",
+  "profession": "WARRIOR",
+  "branch": "artsfghter",
+  "rarity": 5,
+  "skills": [
+   "影霄·奔夜",
+   "影霄·绝影"
+  ]
+ },
+ "char_1012_skadi2": {
+  "name": "浊心斯卡蒂",
+  "profession": "SUPPORT",
+  "branch": "bard",
+  "rarity": 6,
+  "skills": [
+   "同归殊途之吟",
+   "同葬无光之愿",
+   "\"潮涌，潮枯\""
+  ]
+ },
+ "char_373_lionhd": {
+  "name": "莱恩哈特",
+  "profession": "CASTER",
+  "branch": "splashcaster",
+  "rarity": 5,
+  "skills": [
+   "攻击力强化·γ型",
+   "解构与爆破"
+  ]
+ },
+ "char_4173_nowell": {
+  "name": "诺威尔",
+  "profession": "MEDIC",
+  "branch": "healer",
+  "rarity": 5,
+  "skills": [
+   "步履不停",
+   "生命不息"
+  ]
+ },
+ "char_293_thorns": {
+  "name": "棘刺",
+  "profession": "WARRIOR",
+  "branch": "lord",
+  "rarity": 6,
+  "skills": [
+   "攻击力强化·γ型",
+   "护身尖刺",
+   "至高之术"
+  ]
+ },
+ "char_337_utage": {
+  "name": "宴",
+  "profession": "WARRIOR",
+  "branch": "musha",
+  "rarity": 4,
+  "skills": [
+   "分神",
+   "落地斩·破门"
+  ]
+ },
+ "char_456_ash": {
+  "name": "灰烬",
+  "profession": "SNIPER",
+  "branch": "fastshot",
+  "rarity": 6,
+  "skills": [
+   "支援射击",
+   "突击战术",
+   "攻坚榴弹"
+  ]
+ },
+ "char_4187_graceb": {
+  "name": "聆音",
+  "profession": "WARRIOR",
+  "branch": "primguard",
+  "rarity": 5,
+  "skills": [
+   "开颅挽歌",
+   "破膛弥撒"
+  ]
+ },
+ "char_385_finlpp": {
+  "name": "清流",
+  "profession": "MEDIC",
+  "branch": "healer",
+  "rarity": 4,
+  "skills": [
+   "治愈水波",
+   "涌泉"
+  ]
+ },
+ "char_249_mlyss": {
+  "name": "缪尔赛思",
+  "profession": "PIONEER",
+  "branch": "tactician",
+  "rarity": 6,
+  "skills": [
+   "渐进性润化",
+   "生态耦合",
+   "浅层非熵适应"
+  ]
+ },
+ "char_1036_fang2": {
+  "name": "历阵锐枪芬",
+  "profession": "PIONEER",
+  "branch": "charger",
+  "rarity": 5,
+  "skills": [
+   "贯敌刺枪",
+   "执守阵线"
+  ]
+ },
+ "char_4046_ebnhlz": {
+  "name": "黑键",
+  "profession": "CASTER",
+  "branch": "mystic",
+  "rarity": 6,
+  "skills": [
+   "渐快急板",
+   "荒芜回响",
+   "寂静之声"
+  ]
+ },
+ "char_017_huang": {
+  "name": "煌",
+  "profession": "WARRIOR",
+  "branch": "centurion",
+  "rarity": 6,
+  "skills": [
+   "强力击·γ型",
+   "链锯延伸模块",
+   "沸腾爆裂"
+  ]
+ },
+ "char_4087_ines": {
+  "name": "伊内丝",
+  "profession": "PIONEER",
+  "branch": "agent",
+  "rarity": 6,
+  "skills": [
+   "淬影突袭",
+   "暗夜无明",
+   "独影归途"
+  ]
+ },
+ "char_501_durin": {
+  "name": "杜林",
+  "profession": "CASTER",
+  "branch": "corecaster",
+  "rarity": 2,
+  "skills": []
+ },
+ "char_106_franka": {
+  "name": "芙兰卡",
+  "profession": "WARRIOR",
+  "branch": "fearless",
+  "rarity": 5,
+  "skills": [
+   "迅捷打击·γ型",
+   "极致锋度"
+  ]
+ },
+ "char_430_fartth": {
+  "name": "远牙",
+  "profession": "SNIPER",
+  "branch": "longrange",
+  "rarity": 6,
+  "skills": [
+   "迅捷打击·γ型",
+   "同盟支援",
+   "光羽箭"
+  ]
+ },
+ "char_379_sesa": {
+  "name": "慑砂",
+  "profession": "SNIPER",
+  "branch": "aoesniper",
+  "rarity": 5,
+  "skills": [
+   "攻击力强化·γ型",
+   "延时震荡零件"
+  ]
+ },
+ "char_4058_pepe": {
+  "name": "佩佩",
+  "profession": "WARRIOR",
+  "branch": "hammer",
+  "rarity": 6,
+  "skills": [
+   "盖戳！",
+   "阻遏混乱锤",
+   "时光震荡"
+  ]
+ },
+ "char_263_skadi": {
+  "name": "斯卡蒂",
+  "profession": "WARRIOR",
+  "branch": "fearless",
+  "rarity": 6,
+  "skills": [
+   "迅捷打击·γ型",
+   "跃浪击",
+   "涌潮悲歌"
+  ]
+ },
+ "char_4226_veen": {
+  "name": "维伊",
+  "profession": "CASTER",
+  "branch": "mystic",
+  "rarity": 6,
+  "skills": [
+   "“自呼号生发”",
+   "“以鲜血洗去”",
+   "“用赤铁铭记”"
+  ]
+ },
+ "char_4208_wintim": {
+  "name": "冬时",
+  "profession": "PIONEER",
+  "branch": "agent",
+  "rarity": 4,
+  "skills": [
+   "数据分析",
+   "循理归因"
+  ]
+ },
+ "char_2014_nian": {
+  "name": "年",
+  "profession": "TANK",
+  "branch": "protector",
+  "rarity": 6,
+  "skills": [
+   "锡灼",
+   "铜印",
+   "铁御"
+  ]
+ },
+ "char_150_snakek": {
+  "name": "蛇屠箱",
+  "profession": "TANK",
+  "branch": "protector",
+  "rarity": 4,
+  "skills": [
+   "防御力强化·β型",
+   "壳状防御"
+  ]
+ },
+ "char_110_deepcl": {
+  "name": "深海色",
+  "profession": "SUPPORT",
+  "branch": "summoner",
+  "rarity": 4,
+  "skills": [
+   "光影之触",
+   "视觉陷阱"
+  ]
+ },
+ "char_1034_jesca2": {
+  "name": "涤火杰西卡",
+  "profession": "TANK",
+  "branch": "shotprotector",
+  "rarity": 6,
+  "skills": [
+   "坚守阵线",
+   "掩蔽护卫",
+   "饱和迸射"
+  ]
+ },
+ "char_4072_ironmn": {
+  "name": "白铁",
+  "profession": "SUPPORT",
+  "branch": "craftsman",
+  "rarity": 6,
+  "skills": [
+   "极致火力",
+   "高效补给",
+   "铁钳号·原型机"
+  ]
+ },
+ "char_282_catap": {
+  "name": "空爆",
+  "profession": "SNIPER",
+  "branch": "aoesniper",
+  "rarity": 3,
+  "skills": [
+   "爆破范围提升·α型"
+  ]
+ },
+ "char_133_mm": {
+  "name": "梅",
+  "profession": "SNIPER",
+  "branch": "fastshot",
+  "rarity": 4,
+  "skills": [
+   "麻痹弹",
+   "束缚电击"
+  ]
+ },
+ "char_4141_marcil": {
+  "name": "玛露西尔",
+  "profession": "CASTER",
+  "branch": "splashcaster",
+  "rarity": 6,
+  "skills": [
+   "才女的实力",
+   "召唤使魔",
+   "爆破魔法"
+  ]
+ },
+ "char_4013_kjera": {
+  "name": "耶拉",
+  "profession": "CASTER",
+  "branch": "funnel",
+  "rarity": 5,
+  "skills": [
+   "攻击力强化·γ型",
+   "心随意动"
+  ]
+ },
+ "char_214_kafka": {
+  "name": "卡夫卡",
+  "profession": "SPECIAL",
+  "branch": "executor",
+  "rarity": 5,
+  "skills": [
+   "怪异魔方",
+   "诡异剪刀"
+  ]
+ },
+ "char_451_robin": {
+  "name": "罗宾",
+  "profession": "SPECIAL",
+  "branch": "traper",
+  "rarity": 5,
+  "skills": [
+   "束缚“夹子”",
+   "弹射“夹子”"
+  ]
+ },
+ "char_237_gravel": {
+  "name": "砾",
+  "profession": "SPECIAL",
+  "branch": "executor",
+  "rarity": 4,
+  "skills": [
+   "影袭",
+   "鼠群"
+  ]
+ },
+ "char_4236_tmslot": {
+  "name": "时隙",
+  "profession": "CASTER",
+  "branch": "funnel",
+  "rarity": 5,
+  "skills": [
+   "攻击力强化·γ型",
+   "科技与传统仪式"
+  ]
+ },
+ "char_117_myrrh": {
+  "name": "末药",
+  "profession": "MEDIC",
+  "branch": "physician",
+  "rarity": 4,
+  "skills": [
+   "二重治疗",
+   "医疗力场"
+  ]
+ },
+ "char_136_hsguma": {
+  "name": "星熊",
+  "profession": "TANK",
+  "branch": "protector",
+  "rarity": 6,
+  "skills": [
+   "战意",
+   "荆棘",
+   "力之锯"
+  ]
+ },
+ "char_4071_peper": {
+  "name": "明椒",
+  "profession": "MEDIC",
+  "branch": "chainhealer",
+  "rarity": 5,
+  "skills": [
+   "掩护作战·γ型",
+   "同伴意识"
+  ]
+ },
+ "char_494_vendla": {
+  "name": "刺玫",
+  "profession": "MEDIC",
+  "branch": "incantationmedic",
+  "rarity": 5,
+  "skills": [
+   "战术咏唱·γ型",
+   "荆藤庇荫"
+  ]
+ },
+ "char_151_myrtle": {
+  "name": "桃金娘",
+  "profession": "PIONEER",
+  "branch": "bearer",
+  "rarity": 4,
+  "skills": [
+   "支援号令·β型",
+   "治愈之翼"
+  ]
+ },
+ "char_4105_almond": {
+  "name": "杏仁",
+  "profession": "SPECIAL",
+  "branch": "hookmaster",
+  "rarity": 5,
+  "skills": [
+   "磁力抓取",
+   "强力牵引"
+  ]
+ },
+ "char_159_peacok": {
+  "name": "断罪者",
+  "profession": "WARRIOR",
+  "branch": "fearless",
+  "rarity": 4,
+  "skills": [
+   "断罪",
+   "创世纪"
+  ]
+ },
+ "char_4066_highmo": {
+  "name": "海沫",
+  "profession": "WARRIOR",
+  "branch": "reaper",
+  "rarity": 5,
+  "skills": [
+   "回首，断舍",
+   "泡影，殆尽"
+  ]
+ },
+ "char_196_sunbr": {
+  "name": "古米",
+  "profession": "TANK",
+  "branch": "guardian",
+  "rarity": 4,
+  "skills": [
+   "备用军粮",
+   "食粮烹制"
+  ]
+ },
+ "char_302_glaze": {
+  "name": "安比尔",
+  "profession": "SNIPER",
+  "branch": "longrange",
+  "rarity": 4,
+  "skills": [
+   "阻挡弹",
+   "雷达定位"
+  ]
+ },
+ "char_1040_blaze2": {
+  "name": "烛煌",
+  "profession": "CASTER",
+  "branch": "primcaster",
+  "rarity": 6,
+  "skills": [
+   "炙手之援",
+   "沸血燎原",
+   "众恶的焚场"
+  ]
+ },
+ "char_4107_vrdant": {
+  "name": "维荻",
+  "profession": "SPECIAL",
+  "branch": "dollkeeper",
+  "rarity": 4,
+  "skills": [
+   "苍翠屏障",
+   "双刃毒藤"
+  ]
+ },
+ "char_4124_iana": {
+  "name": "双月",
+  "profession": "SPECIAL",
+  "branch": "dollkeeper",
+  "rarity": 5,
+  "skills": [
+   "幻影诡雷",
+   "全知者的战术"
+  ]
+ },
+ "char_258_podego": {
+  "name": "波登可",
+  "profession": "SUPPORT",
+  "branch": "slower",
+  "rarity": 4,
+  "skills": [
+   "花香疗法",
+   "孢子扩散"
+  ]
+ },
+ "char_101_sora": {
+  "name": "空",
+  "profession": "SUPPORT",
+  "branch": "bard",
+  "rarity": 5,
+  "skills": [
+   "睡眠之歌",
+   "战斗之歌"
+  ]
+ },
+ "char_502_nblade": {
+  "name": "夜刀",
+  "profession": "PIONEER",
+  "branch": "pioneer",
+  "rarity": 2,
+  "skills": []
+ },
+ "char_123_fang": {
+  "name": "芬",
+  "profession": "PIONEER",
+  "branch": "pioneer",
+  "rarity": 3,
+  "skills": [
+   "冲锋号令·α型"
+  ]
+ },
+ "char_226_hmau": {
+  "name": "吽",
+  "profession": "TANK",
+  "branch": "guardian",
+  "rarity": 5,
+  "skills": [
+   "反制治疗",
+   "反制医疗模式"
+  ]
+ },
+ "char_4134_cetsyr": {
+  "name": "魔王",
+  "profession": "SUPPORT",
+  "branch": "bard",
+  "rarity": 6,
+  "skills": [
+   "往昔萦绕身旁",
+   "明日渺远不及",
+   "编织重构现世"
+  ]
+ },
+ "char_1019_siege2": {
+  "name": "维娜·维多利亚",
+  "profession": "WARRIOR",
+  "branch": "artsfghter",
+  "rarity": 6,
+  "skills": [
+   "重铸晖光",
+   "进赴故土",
+   "俱以我之名"
+  ]
+ },
+ "char_4126_fuze": {
+  "name": "导火索",
+  "profession": "WARRIOR",
+  "branch": "centurion",
+  "rarity": 5,
+  "skills": [
+   "火力侦察",
+   "霰射炸药"
+  ]
+ },
+ "char_4211_snhunt": {
+  "name": "雪猎",
+  "profession": "SNIPER",
+  "branch": "hunter",
+  "rarity": 5,
+  "skills": [
+   "强力击·β型",
+   "风雪连弩"
+  ]
+ },
+ "char_181_flower": {
+  "name": "调香师",
+  "profession": "MEDIC",
+  "branch": "ringhealer",
+  "rarity": 4,
+  "skills": [
+   "治疗强化·β型",
+   "精调"
+  ]
+ },
+ "char_298_susuro": {
+  "name": "苏苏洛",
+  "profession": "MEDIC",
+  "branch": "physician",
+  "rarity": 4,
+  "skills": [
+   "治疗强化·β型",
+   "深度治疗"
+  ]
+ },
+ "char_4172_xingzh": {
+  "name": "行箸",
+  "profession": "SUPPORT",
+  "branch": "blessing",
+  "rarity": 5,
+  "skills": [
+   "盈帙满笥",
+   "食不厌精"
+  ]
+ },
+ "char_4228_closur": {
+  "name": "可露希尔",
+  "profession": "PIONEER",
+  "branch": "tactician",
+  "rarity": 6,
+  "skills": [
+   "递归策略",
+   "模型扩展",
+   "Q.E.D."
+  ]
+ },
+ "char_4062_totter": {
+  "name": "铅踝",
+  "profession": "SNIPER",
+  "branch": "siegesniper",
+  "rarity": 4,
+  "skills": [
+   "贯日",
+   "破虹"
+  ]
+ },
+ "char_154_morgan": {
+  "name": "摩根",
+  "profession": "WARRIOR",
+  "branch": "fearless",
+  "rarity": 5,
+  "skills": [
+   "街头好手",
+   "无畏招架"
+  ]
+ },
+ "char_486_takila": {
+  "name": "龙舌兰",
+  "profession": "WARRIOR",
+  "branch": "librator",
+  "rarity": 5,
+  "skills": [
+   "当机立断",
+   "剑走偏锋"
+  ]
+ },
+ "char_4213_skybx": {
+  "name": "天空盒",
+  "profession": "SNIPER",
+  "branch": "skybreaker",
+  "rarity": 5,
+  "skills": [
+   "源石火药驾临",
+   "电磁脉冲恩宠"
+  ]
+ },
+ "char_215_mantic": {
+  "name": "狮蝎",
+  "profession": "SPECIAL",
+  "branch": "stalker",
+  "rarity": 5,
+  "skills": [
+   "蝎毒",
+   "蓄力毒尾击"
+  ]
+ },
+ "char_304_zebra": {
+  "name": "暴雨",
+  "profession": "TANK",
+  "branch": "protector",
+  "rarity": 5,
+  "skills": [
+   "应急迷彩",
+   "群体迷彩"
+  ]
+ },
+ "char_4217_makoto": {
+  "name": "结城理",
+  "profession": "SPECIAL",
+  "branch": "dollkeeper",
+  "rarity": 6,
+  "skills": [
+   "俄耳甫斯的竖琴",
+   "塔纳托斯的囚锁",
+   "开辟明日的剑刃"
+  ]
+ },
+ "char_4081_warmy": {
+  "name": "温米",
+  "profession": "CASTER",
+  "branch": "primcaster",
+  "rarity": 5,
+  "skills": [
+   "炎炎火焰",
+   "滔滔热流"
+  ]
+ },
+ "char_172_svrash": {
+  "name": "银灰",
+  "profession": "WARRIOR",
+  "branch": "lord",
+  "rarity": 6,
+  "skills": [
+   "强力击·γ型",
+   "雪境生存法则",
+   "真银斩"
+  ]
+ },
+ "char_4015_spuria": {
+  "name": "空构",
+  "profession": "SPECIAL",
+  "branch": "geek",
+  "rarity": 5,
+  "skills": [
+   "见机行事",
+   "临场铳械改装"
+  ]
+ },
+ "char_426_billro": {
+  "name": "卡涅利安",
+  "profession": "CASTER",
+  "branch": "phalanx",
+  "rarity": 6,
+  "skills": [
+   "沙暴守卫",
+   "沙缚镣锁",
+   "食噬之印"
+  ]
+ },
+ "char_4194_rmixer": {
+  "name": "信仰搅拌机",
+  "profession": "TANK",
+  "branch": "shotprotector",
+  "rarity": 6,
+  "skills": [
+   "铳骑主考官",
+   "八臂电锯侠",
+   "退休前布道"
+  ]
+ },
+ "char_010_chen": {
+  "name": "陈",
+  "profession": "WARRIOR",
+  "branch": "sword",
+  "rarity": 6,
+  "skills": [
+   "鞘击",
+   "赤霄·拔刀",
+   "赤霄·绝影"
+  ]
+ },
+ "char_394_hadiya": {
+  "name": "哈蒂娅",
+  "profession": "WARRIOR",
+  "branch": "mercenary",
+  "rarity": 5,
+  "skills": [
+   "沙地战术改良",
+   "剑角之锋"
+  ]
+ },
+ "char_1049_catap2": {
+  "name": "雷狼龙S空爆",
+  "profession": "WARRIOR",
+  "branch": "mercenary",
+  "rarity": 5,
+  "skills": [
+   "高压回填斩",
+   "超高输出属性解放斩"
+  ]
+ },
+ "char_4234_pedro": {
+  "name": "佩德洛",
+  "profession": "SUPPORT",
+  "branch": "supportiveranger",
+  "rarity": 5,
+  "skills": [
+   "标记射击",
+   "交替撤离"
+  ]
+ },
+ "char_290_vigna": {
+  "name": "红豆",
+  "profession": "PIONEER",
+  "branch": "charger",
+  "rarity": 4,
+  "skills": [
+   "攻击力强化·β型",
+   "槌音"
+  ]
+ },
+ "char_4146_nymph": {
+  "name": "妮芙",
+  "profession": "CASTER",
+  "branch": "primcaster",
+  "rarity": 6,
+  "skills": [
+   "笞心击",
+   "怵然震爆",
+   "心防溃决"
+  ]
+ },
+ "char_4132_ascln": {
+  "name": "阿斯卡纶",
+  "profession": "SPECIAL",
+  "branch": "stalker",
+  "rarity": 6,
+  "skills": [
+   "追袭",
+   "恩赐",
+   "降临"
+  ]
+ },
+ "char_350_surtr": {
+  "name": "史尔特尔",
+  "profession": "WARRIOR",
+  "branch": "artsfghter",
+  "rarity": 6,
+  "skills": [
+   "烈焰魔剑",
+   "熔核巨影",
+   "黄昏"
+  ]
+ },
+ "char_225_haak": {
+  "name": "阿",
+  "profession": "SPECIAL",
+  "branch": "geek",
+  "rarity": 6,
+  "skills": [
+   "快速射击",
+   "爆发剂·γ型",
+   "爆发剂·榴莲味"
+  ]
+ },
+ "char_230_savage": {
+  "name": "暴行",
+  "profession": "WARRIOR",
+  "branch": "centurion",
+  "rarity": 5,
+  "skills": [
+   "强力击·β型",
+   "微差爆破"
+  ]
+ },
+ "char_349_chiave": {
+  "name": "贾维",
+  "profession": "PIONEER",
+  "branch": "pioneer",
+  "rarity": 5,
+  "skills": [
+   "冲锋号令·γ型",
+   "火焰剥离"
+  ]
+ },
+ "char_450_necras": {
+  "name": "死芒",
+  "profession": "CASTER",
+  "branch": "soulcaster",
+  "rarity": 6,
+  "skills": [
+   "噩愿",
+   "折朽",
+   "冠死以冕"
+  ]
+ },
+ "char_4036_forcer": {
+  "name": "见行者",
+  "profession": "SPECIAL",
+  "branch": "pusher",
+  "rarity": 5,
+  "skills": [
+   "护身射击",
+   "惊爆射击"
+  ]
+ },
+ "char_158_milu": {
+  "name": "守林人",
+  "profession": "SNIPER",
+  "branch": "longrange",
+  "rarity": 5,
+  "skills": [
+   "环境伪装",
+   "战术电台"
+  ]
+ },
+ "char_4091_ulika": {
+  "name": "U-Official",
+  "profession": "SUPPORT",
+  "branch": "bard",
+  "rarity": 1,
+  "skills": []
+ },
+ "char_112_siege": {
+  "name": "推进之王",
+  "profession": "PIONEER",
+  "branch": "pioneer",
+  "rarity": 6,
+  "skills": [
+   "冲锋号令·γ型",
+   "跃空锤",
+   "碎颅击"
+  ]
+ },
+ "char_4031_liesel": {
+  "name": "复奏",
+  "profession": "CASTER",
+  "branch": "splashcaster",
+  "rarity": 5,
+  "skills": [
+   "合奏起拍",
+   "直到终曲"
+  ]
+ },
+ "char_4032_provs": {
+  "name": "但书",
+  "profession": "SUPPORT",
+  "branch": "slower",
+  "rarity": 5,
+  "skills": [
+   "纠纷起诉",
+   "致胜立论"
+  ]
+ },
+ "char_149_scave": {
+  "name": "清道夫",
+  "profession": "PIONEER",
+  "branch": "pioneer",
+  "rarity": 4,
+  "skills": [
+   "冲锋号令·β型",
+   "冲锋号令·攻击"
+  ]
+ },
+ "char_4080_lin": {
+  "name": "林",
+  "profession": "CASTER",
+  "branch": "phalanx",
+  "rarity": 6,
+  "skills": [
+   "玲珑",
+   "荫庇",
+   "流光乍裂"
+  ]
+ },
+ "char_347_jaksel": {
+  "name": "杰克",
+  "profession": "WARRIOR",
+  "branch": "fighter",
+  "rarity": 4,
+  "skills": [
+   "给你一拳！",
+   "全神贯注！"
+  ]
+ },
+ "char_2024_chyue": {
+  "name": "重岳",
+  "profession": "WARRIOR",
+  "branch": "fighter",
+  "rarity": 6,
+  "skills": [
+   "冲盈",
+   "拂尘",
+   "我无"
+  ]
+ },
+ "char_201_moeshd": {
+  "name": "可颂",
+  "profession": "TANK",
+  "branch": "protector",
+  "rarity": 5,
+  "skills": [
+   "自动防御",
+   "磁爆锤"
+  ]
+ },
+ "char_493_firwhl": {
+  "name": "火哨",
+  "profession": "TANK",
+  "branch": "fortress",
+  "rarity": 5,
+  "skills": [
+   "野火",
+   "焦土"
+  ]
+ },
+ "char_4142_laios": {
+  "name": "莱欧斯",
+  "profession": "WARRIOR",
+  "branch": "fearless",
+  "rarity": 5,
+  "skills": [
+   "胆小剑助",
+   "威吓战法"
+  ]
+ },
+ "char_102_texas": {
+  "name": "德克萨斯",
+  "profession": "PIONEER",
+  "branch": "pioneer",
+  "rarity": 5,
+  "skills": [
+   "冲锋号令·γ型",
+   "剑雨"
+  ]
+ },
+ "char_4040_rockr": {
+  "name": "洛洛",
+  "profession": "CASTER",
+  "branch": "funnel",
+  "rarity": 5,
+  "skills": [
+   "战术咏唱·γ型",
+   "自负此轭"
+  ]
+ },
+ "char_4147_mitm": {
+  "name": "渡桥",
+  "profession": "PIONEER",
+  "branch": "tactician",
+  "rarity": 5,
+  "skills": [
+   "遥控解体",
+   "承压功率"
+  ]
+ },
+ "char_421_crow": {
+  "name": "羽毛笔",
+  "profession": "WARRIOR",
+  "branch": "reaper",
+  "rarity": 5,
+  "skills": [
+   "高速切割",
+   "收割"
+  ]
+ },
+ "char_4183_mortis": {
+  "name": "若叶睦",
+  "profession": "SPECIAL",
+  "branch": "dollkeeper",
+  "rarity": 5,
+  "skills": [
+   "多首野兽",
+   "破坏与滋养"
+  ]
+ },
+ "char_4037_demetr": {
+  "name": "贝洛内",
+  "profession": "WARRIOR",
+  "branch": "fighter",
+  "rarity": 6,
+  "skills": [
+   "家主的余裕",
+   "军师的手段",
+   "清算"
+  ]
+ },
+ "char_4039_horn": {
+  "name": "号角",
+  "profession": "TANK",
+  "branch": "fortress",
+  "rarity": 6,
+  "skills": [
+   "照明榴弹",
+   "暴风号令",
+   "终极防线"
+  ]
+ },
+ "char_1028_texas2": {
+  "name": "缄默德克萨斯",
+  "profession": "SPECIAL",
+  "branch": "executor",
+  "rarity": 6,
+  "skills": [
+   "细雨无声",
+   "阵雨连绵",
+   "剑雨滂沱"
+  ]
+ },
+ "char_4016_kazema": {
+  "name": "风丸",
+  "profession": "SPECIAL",
+  "branch": "dollkeeper",
+  "rarity": 5,
+  "skills": [
+   "纸艺·迅击",
+   "纸艺·双影"
+  ]
+ },
+ "char_4186_tmoris": {
+  "name": "八幡海铃",
+  "profession": "SPECIAL",
+  "branch": "stalker",
+  "rarity": 5,
+  "skills": [
+   "颤栗之弦",
+   "无存之所"
+  ]
+ },
+ "char_4055_bgsnow": {
+  "name": "鸿雪",
+  "profession": "SNIPER",
+  "branch": "closerange",
+  "rarity": 6,
+  "skills": [
+   "抑扬格",
+   "点题",
+   "锐笔速写"
+  ]
+ },
+ "char_328_cammou": {
+  "name": "卡达",
+  "profession": "CASTER",
+  "branch": "funnel",
+  "rarity": 4,
+  "skills": [
+   "攻击力强化·β型",
+   "同步索敌攻击"
+  ]
+ },
+ "char_4224_turdus": {
+  "name": "乌啾",
+  "profession": "MEDIC",
+  "branch": "chainhealer",
+  "rarity": 5,
+  "skills": [
+   "火钳秘咒",
+   "“捉迷藏！”"
+  ]
+ },
+ "char_4164_tecno": {
+  "name": "特克诺",
+  "profession": "CASTER",
+  "branch": "soulcaster",
+  "rarity": 5,
+  "skills": [
+   "关节锁定",
+   "恣意挥洒"
+  ]
+ },
+ "char_4139_papyrs": {
+  "name": "莎草",
+  "profession": "MEDIC",
+  "branch": "chainhealer",
+  "rarity": 5,
+  "skills": [
+   "巧思乍现",
+   "临考发挥"
+  ]
+ },
+ "char_383_snsant": {
+  "name": "雪雉",
+  "profession": "SPECIAL",
+  "branch": "hookmaster",
+  "rarity": 5,
+  "skills": [
+   "倒刺钩爪",
+   "伸缩式电捕网"
+  ]
+ },
+ "char_325_bison": {
+  "name": "拜松",
+  "profession": "TANK",
+  "branch": "protector",
+  "rarity": 5,
+  "skills": [
+   "防御力强化·γ型",
+   "深化阵线"
+  ]
+ },
+ "char_376_therex": {
+  "name": "THRM-EX",
+  "profession": "SPECIAL",
+  "branch": "executor",
+  "rarity": 1,
+  "skills": []
+ },
+ "char_4027_heyak": {
+  "name": "霍尔海雅",
+  "profession": "CASTER",
+  "branch": "corecaster",
+  "rarity": 6,
+  "skills": [
+   "但为求索",
+   "群星逶迤",
+   "博览者的狂语"
+  ]
+ },
+ "char_1015_aglna2": {
+  "name": "予愿安洁莉娜",
+  "profession": "SPECIAL",
+  "branch": "skywalker",
+  "rarity": 6,
+  "skills": [
+   "极速送达",
+   "重力自定义",
+   "酸橙的心事"
+  ]
+ },
+ "char_209_ardign": {
+  "name": "卡缇",
+  "profession": "TANK",
+  "branch": "protector",
+  "rarity": 3,
+  "skills": [
+   "生命回复·α型"
+  ]
+ },
+ "char_4083_chimes": {
+  "name": "铎铃",
+  "profession": "WARRIOR",
+  "branch": "crusher",
+  "rarity": 5,
+  "skills": [
+   "攻击力强化·γ型",
+   "乡心无改"
+  ]
+ },
+ "char_283_midn": {
+  "name": "月见夜",
+  "profession": "WARRIOR",
+  "branch": "lord",
+  "rarity": 3,
+  "skills": [
+   "武器附魔·α型"
+  ]
+ },
+ "char_4227_gallus": {
+  "name": "GALLUS²",
+  "profession": "CASTER",
+  "branch": "corecaster",
+  "rarity": 1,
+  "skills": []
+ },
+ "char_498_inside": {
+  "name": "隐现",
+  "profession": "SNIPER",
+  "branch": "fastshot",
+  "rarity": 5,
+  "skills": [
+   "“不惹麻烦”",
+   "“解决麻烦”"
+  ]
+ },
+ "char_311_mudrok": {
+  "name": "泥岩",
+  "profession": "TANK",
+  "branch": "unyield",
+  "rarity": 6,
+  "skills": [
+   "防御力强化·γ型",
+   "岩崩锤",
+   "秽壤的血脉"
+  ]
+ },
+ "char_190_clour": {
+  "name": "红云",
+  "profession": "SNIPER",
+  "branch": "fastshot",
+  "rarity": 4,
+  "skills": [
+   "攻击力强化·β型",
+   "双弦开弓"
+  ]
+ },
+ "char_458_rfrost": {
+  "name": "霜华",
+  "profession": "SPECIAL",
+  "branch": "traper",
+  "rarity": 5,
+  "skills": [
+   "陷阱部署",
+   "击倒猎物"
+  ]
+ },
+ "char_4051_akkord": {
+  "name": "协律",
+  "profession": "CASTER",
+  "branch": "blastcaster",
+  "rarity": 4,
+  "skills": [
+   "反拍重音",
+   "震爆调谐"
+  ]
+ },
+ "char_134_ifrit": {
+  "name": "伊芙利特",
+  "profession": "CASTER",
+  "branch": "blastcaster",
+  "rarity": 6,
+  "skills": [
+   "狂热",
+   "炎爆",
+   "灼地"
+  ]
+ },
+ "char_346_aosta": {
+  "name": "奥斯塔",
+  "profession": "SNIPER",
+  "branch": "reaperrange",
+  "rarity": 5,
+  "skills": [
+   "迅捷打击·γ型",
+   "影钉"
+  ]
+ },
+ "char_279_excu": {
+  "name": "送葬人",
+  "profession": "SNIPER",
+  "branch": "reaperrange",
+  "rarity": 5,
+  "skills": [
+   "铳口收束",
+   "最终旅程"
+  ]
+ },
+ "char_446_aroma": {
+  "name": "阿罗玛",
+  "profession": "CASTER",
+  "branch": "blastcaster",
+  "rarity": 5,
+  "skills": [
+   "强效清洁",
+   "小心地滑"
+  ]
+ },
+ "char_4207_branch": {
+  "name": "折桠",
+  "profession": "TANK",
+  "branch": "unyield",
+  "rarity": 5,
+  "skills": [
+   "绝境抵抗",
+   "生存决心"
+  ]
+ },
+ "char_469_indigo": {
+  "name": "深靛",
+  "profession": "CASTER",
+  "branch": "mystic",
+  "rarity": 4,
+  "skills": [
+   "灯塔守卫者",
+   "光影迷宫"
+  ]
+ },
+ "char_378_asbest": {
+  "name": "石棉",
+  "profession": "TANK",
+  "branch": "artsprotector",
+  "rarity": 5,
+  "skills": [
+   "固守模式",
+   "火电模式"
+  ]
+ },
+ "char_308_swire": {
+  "name": "诗怀雅",
+  "profession": "WARRIOR",
+  "branch": "instructor",
+  "rarity": 5,
+  "skills": [
+   "指挥调度",
+   "协同作战"
+  ]
+ },
+ "char_242_otter": {
+  "name": "梅尔",
+  "profession": "SUPPORT",
+  "branch": "summoner",
+  "rarity": 5,
+  "skills": [
+   "迷惑装置",
+   "爆破回收"
+  ]
+ },
+ "char_4229_aphris": {
+  "name": "谬因",
+  "profession": "CASTER",
+  "branch": "blastcaster",
+  "rarity": 6,
+  "skills": [
+   "连续映射",
+   "临界瞬爆",
+   "混沌的本质"
+  ]
+ },
+ "char_264_f12yin": {
+  "name": "山",
+  "profession": "WARRIOR",
+  "branch": "fighter",
+  "rarity": 6,
+  "skills": [
+   "左勾扫拳",
+   "横扫架势",
+   "震地碎岩击"
+  ]
+ },
+ "char_1022_flwr2": {
+  "name": "撷英调香师",
+  "profession": "SUPPORT",
+  "branch": "blessing",
+  "rarity": 5,
+  "skills": [
+   "“山中的喜悦”",
+   "“神殿的余烬”"
+  ]
+ },
+ "char_1502_crosly": {
+  "name": "弑君者",
+  "profession": "SPECIAL",
+  "branch": "executor",
+  "rarity": 6,
+  "skills": [
+   "尘烟蔽目",
+   "硝烟震爆",
+   "烽烟行刑场"
+  ]
+ },
+ "char_1043_leizi2": {
+  "name": "司霆惊蛰",
+  "profession": "WARRIOR",
+  "branch": "librator",
+  "rarity": 6,
+  "skills": [
+   "浩气长存",
+   "正霆摄威",
+   "天地通明"
+  ]
+ },
+ "char_199_yak": {
+  "name": "角峰",
+  "profession": "TANK",
+  "branch": "protector",
+  "rarity": 4,
+  "skills": [
+   "体能强化",
+   "抗寒体质"
+  ]
+ },
+ "char_157_dagda": {
+  "name": "达格达",
+  "profession": "WARRIOR",
+  "branch": "fighter",
+  "rarity": 5,
+  "skills": [
+   "反制技巧",
+   "精准捕杀"
+  ]
+ },
+ "char_487_bobb": {
+  "name": "波卜",
+  "profession": "SUPPORT",
+  "branch": "ritualist",
+  "rarity": 5,
+  "skills": [
+   "非和平劝说",
+   "“此路不通”"
+  ]
+ },
+ "char_211_adnach": {
+  "name": "安德切尔",
+  "profession": "SNIPER",
+  "branch": "fastshot",
+  "rarity": 3,
+  "skills": [
+   "攻击力强化·α型"
+  ]
+ },
+ "char_1023_ghost2": {
+  "name": "归溟幽灵鲨",
+  "profession": "SPECIAL",
+  "branch": "dollkeeper",
+  "rarity": 6,
+  "skills": [
+   "生存的技巧",
+   "生存的渴望",
+   "生存的重压"
+  ]
+ },
+ "char_122_beagle": {
+  "name": "米格鲁",
+  "profession": "TANK",
+  "branch": "protector",
+  "rarity": 3,
+  "skills": [
+   "防御力强化·α型"
+  ]
+ },
+ "char_185_frncat": {
+  "name": "慕斯",
+  "profession": "WARRIOR",
+  "branch": "artsfghter",
+  "rarity": 4,
+  "skills": [
+   "挠伤",
+   "炸毛"
+  ]
+ },
+ "char_423_blemsh": {
+  "name": "瑕光",
+  "profession": "TANK",
+  "branch": "guardian",
+  "rarity": 6,
+  "skills": [
+   "光芒涌动",
+   "慑敌辉光",
+   "先贤化身"
+  ]
+ },
+ "char_1030_noirc2": {
+  "name": "火龙S黑角",
+  "profession": "WARRIOR",
+  "branch": "musha",
+  "rarity": 5,
+  "skills": [
+   "居合拔刀气刃斩",
+   "气刃兜割"
+  ]
+ },
+ "char_124_kroos": {
+  "name": "克洛丝",
+  "profession": "SNIPER",
+  "branch": "fastshot",
+  "rarity": 3,
+  "skills": [
+   "二连射·自动"
+  ]
+ },
+ "char_4025_aprot2": {
+  "name": "暮落",
+  "profession": "TANK",
+  "branch": "artsprotector",
+  "rarity": 5,
+  "skills": [
+   "速战速决",
+   "燃命狂欢"
+  ]
+ },
+ "char_422_aurora": {
+  "name": "极光",
+  "profession": "TANK",
+  "branch": "duelist",
+  "rarity": 5,
+  "skills": [
+   "固守家园",
+   "人工降雪"
+  ]
+ },
+ "char_141_nights": {
+  "name": "夜烟",
+  "profession": "CASTER",
+  "branch": "corecaster",
+  "rarity": 4,
+  "skills": [
+   "攻击力强化·β型",
+   "赤色之瞳"
+  ]
+ },
+ "char_1045_svash2": {
+  "name": "凛御银灰",
+  "profession": "PIONEER",
+  "branch": "counsellor",
+  "rarity": 6,
+  "skills": [
+   "周旋的谋略",
+   "御敌的锋锐",
+   "变革已至"
+  ]
+ },
+ "char_1037_amiya3": {
+  "name": "阿米娅（医疗）",
+  "profession": "MEDIC",
+  "branch": "incantationmedic",
+  "rarity": 5,
+  "skills": [
+   "哀恸共情",
+   "慈悲愿景"
+  ]
+ },
+ "char_4203_kichi": {
+  "name": "吉星",
+  "profession": "SNIPER",
+  "branch": "reaperrange",
+  "rarity": 5,
+  "skills": [
+   "欢迎您来！",
+   "吉星高照！"
+  ]
+ },
+ "char_103_angel": {
+  "name": "能天使",
+  "profession": "SNIPER",
+  "branch": "fastshot",
+  "rarity": 6,
+  "skills": [
+   "冲锋模式",
+   "扫射模式",
+   "过载模式"
+  ]
+ },
+ "char_265_sophia": {
+  "name": "鞭刃",
+  "profession": "WARRIOR",
+  "branch": "instructor",
+  "rarity": 5,
+  "skills": [
+   "激励艺术",
+   "鞭刃"
+  ]
+ },
+ "char_301_cutter": {
+  "name": "刻刀",
+  "profession": "WARRIOR",
+  "branch": "sword",
+  "rarity": 4,
+  "skills": [
+   "红移",
+   "绯红刺刀"
+  ]
+ },
+ "char_1038_whitw2": {
+  "name": "荒芜拉普兰德",
+  "profession": "CASTER",
+  "branch": "funnel",
+  "rarity": 6,
+  "skills": [
+   "慵怠者悲鸣",
+   "逐猎狂飙",
+   "终幕·浩劫"
+  ]
+ },
+ "char_4088_hodrer": {
+  "name": "赫德雷",
+  "profession": "WARRIOR",
+  "branch": "crusher",
+  "rarity": 6,
+  "skills": [
+   "重锋不熄",
+   "余烬重荷",
+   "死境硝烟"
+  ]
+ },
+ "char_484_robrta": {
+  "name": "罗比菈塔",
+  "profession": "SUPPORT",
+  "branch": "craftsman",
+  "rarity": 4,
+  "skills": [
+   "叙拉古式上妆",
+   "全自动造型仪"
+  ]
+ },
+ "char_108_silent": {
+  "name": "赫默",
+  "profession": "MEDIC",
+  "branch": "physician",
+  "rarity": 5,
+  "skills": [
+   "治疗强化·γ型",
+   "医疗无人机"
+  ]
+ },
+ "char_4067_lolxh": {
+  "name": "罗小黑",
+  "profession": "WARRIOR",
+  "branch": "lord",
+  "rarity": 4,
+  "skills": [
+   "掠光尾影",
+   "碎金为刃"
+  ]
+ },
+ "char_113_cqbw": {
+  "name": "W",
+  "profession": "SNIPER",
+  "branch": "aoesniper",
+  "rarity": 6,
+  "skills": [
+   "红桃K",
+   "惊吓盒子",
+   "D12"
+  ]
+ },
+ "char_210_stward": {
+  "name": "史都华德",
+  "profession": "CASTER",
+  "branch": "corecaster",
+  "rarity": 3,
+  "skills": [
+   "强力击·α型"
+  ]
+ },
+ "char_285_medic2": {
+  "name": "Lancet-2",
+  "profession": "MEDIC",
+  "branch": "physician",
+  "rarity": 1,
+  "skills": []
+ },
+ "char_4177_brigid": {
+  "name": "水灯心",
+  "profession": "SNIPER",
+  "branch": "loopshooter",
+  "rarity": 5,
+  "skills": [
+   "所熟知的",
+   "可驯服的"
+  ]
+ },
+ "char_4123_ela": {
+  "name": "艾拉",
+  "profession": "SPECIAL",
+  "branch": "traper",
+  "rarity": 6,
+  "skills": [
+   "眩目阻滞",
+   "震荡坚守",
+   "“博萨克风暴”"
+  ]
+ },
+ "char_173_slchan": {
+  "name": "崖心",
+  "profession": "SPECIAL",
+  "branch": "hookmaster",
+  "rarity": 5,
+  "skills": [
+   "锁链勾爪",
+   "束缚链"
+  ]
+ },
+ "char_248_mgllan": {
+  "name": "麦哲伦",
+  "profession": "SUPPORT",
+  "branch": "summoner",
+  "rarity": 6,
+  "skills": [
+   "高效制冷模块",
+   "激光开采模块",
+   "武装打击模块"
+  ]
+ },
+ "char_147_shining": {
+  "name": "闪灵",
+  "profession": "MEDIC",
+  "branch": "physician",
+  "rarity": 6,
+  "skills": [
+   "信条",
+   "自动掩护",
+   "教条力场"
+  ]
+ },
+ "char_002_amiya": {
+  "name": "阿米娅",
+  "profession": "CASTER",
+  "branch": "corecaster",
+  "rarity": 5,
+  "skills": [
+   "战术咏唱·γ型",
+   "精神爆发",
+   "奇美拉"
+  ]
+ },
+ "char_284_spot": {
+  "name": "斑点",
+  "profession": "TANK",
+  "branch": "guardian",
+  "rarity": 3,
+  "skills": [
+   "次级治疗模式"
+  ]
+ },
+ "char_003_kalts": {
+  "name": "凯尔希",
+  "profession": "MEDIC",
+  "branch": "physician",
+  "rarity": 6,
+  "skills": [
+   "指令：结构加固",
+   "指令：战术协同",
+   "指令：熔毁"
+  ]
+ },
+ "char_341_sntlla": {
+  "name": "寒檀",
+  "profession": "CASTER",
+  "branch": "splashcaster",
+  "rarity": 5,
+  "skills": [
+   "迅捷打击·γ型",
+   "“女巫之泪”"
+  ]
+ },
+ "char_1026_gvial2": {
+  "name": "百炼嘉维尔",
+  "profession": "WARRIOR",
+  "branch": "centurion",
+  "rarity": 6,
+  "skills": [
+   "精准痛击",
+   "链锯强袭",
+   "丛林之魂"
+  ]
+ },
+ "char_197_poca": {
+  "name": "早露",
+  "profession": "SNIPER",
+  "branch": "siegesniper",
+  "rarity": 6,
+  "skills": [
+   "攻击力强化·γ型",
+   "分裂射击",
+   "雪崩击"
+  ]
+ },
+ "char_4179_monstr": {
+  "name": "Mon3tr",
+  "profession": "MEDIC",
+  "branch": "chainhealer",
+  "rarity": 6,
+  "skills": [
+   "策略：超压链接",
+   "策略：超负荷",
+   "策略：熔毁"
+  ]
+ },
+ "char_338_iris": {
+  "name": "爱丽丝",
+  "profession": "CASTER",
+  "branch": "mystic",
+  "rarity": 5,
+  "skills": [
+   "童话守卫者",
+   "梦乡摇篮"
+  ]
+ },
+ "char_367_swllow": {
+  "name": "灰喉",
+  "profession": "SNIPER",
+  "branch": "fastshot",
+  "rarity": 5,
+  "skills": [
+   "飞羽",
+   "回流"
+  ]
+ },
+ "char_171_bldsk": {
+  "name": "华法琳",
+  "profession": "MEDIC",
+  "branch": "physician",
+  "rarity": 5,
+  "skills": [
+   "紧急包扎",
+   "不稳定血浆"
+  ]
+ },
+ "char_4077_palico": {
+  "name": "泰拉大陆调查团",
+  "profession": "SNIPER",
+  "branch": "bombarder",
+  "rarity": 1,
+  "skills": []
+ },
+ "char_489_serum": {
+  "name": "蚀清",
+  "profession": "CASTER",
+  "branch": "blastcaster",
+  "rarity": 5,
+  "skills": [
+   "专注力超载",
+   "传导蚀滞弹"
+  ]
+ },
+ "char_459_tachak": {
+  "name": "战车",
+  "profession": "WARRIOR",
+  "branch": "sword",
+  "rarity": 5,
+  "skills": [
+   "燃烧榴弹",
+   "倾泻弹药"
+  ]
+ },
+ "char_4064_mlynar": {
+  "name": "玛恩纳",
+  "profession": "WARRIOR",
+  "branch": "librator",
+  "rarity": 6,
+  "skills": [
+   "未声张的怒火",
+   "未宽解的悲哀",
+   "未照耀的荣光"
+  ]
+ },
+ "char_1016_agoat2": {
+  "name": "纯烬艾雅法拉",
+  "profession": "MEDIC",
+  "branch": "wandermedic",
+  "rarity": 6,
+  "skills": [
+   "无声润物",
+   "云霭荫佑",
+   "火山回响"
+  ]
+ },
+ "char_488_buildr": {
+  "name": "青枳",
+  "profession": "PIONEER",
+  "branch": "pioneer",
+  "rarity": 5,
+  "skills": [
+   "冲锋号令·γ型",
+   "工程者之愿"
+  ]
+ },
+ "char_250_phatom": {
+  "name": "傀影",
+  "profession": "SPECIAL",
+  "branch": "executor",
+  "rarity": 6,
+  "skills": [
+   "暗夜魅影",
+   "血色乐章",
+   "夜幕突袭"
+  ]
+ },
+ "char_1011_lava2": {
+  "name": "炎狱炎熔",
+  "profession": "CASTER",
+  "branch": "splashcaster",
+  "rarity": 5,
+  "skills": [
+   "焰淬匕首",
+   "狱火之环"
+  ]
+ },
+ "char_009_12fce": {
+  "name": "12F",
+  "profession": "CASTER",
+  "branch": "splashcaster",
+  "rarity": 2,
+  "skills": []
+ },
+ "char_491_humus": {
+  "name": "休谟斯",
+  "profession": "WARRIOR",
+  "branch": "reaper",
+  "rarity": 4,
+  "skills": [
+   "固废切割",
+   "高效处理"
+  ]
+ },
+ "char_4138_narant": {
+  "name": "娜仁图亚",
+  "profession": "SNIPER",
+  "branch": "loopshooter",
+  "rarity": 6,
+  "skills": [
+   "旋刃",
+   "恶魇",
+   "吞日"
+  ]
+ },
+ "char_118_yuki": {
+  "name": "白雪",
+  "profession": "SNIPER",
+  "branch": "aoesniper",
+  "rarity": 4,
+  "skills": [
+   "敌飙",
+   "凝武"
+  ]
+ },
+ "char_420_flamtl": {
+  "name": "焰尾",
+  "profession": "PIONEER",
+  "branch": "pioneer",
+  "rarity": 6,
+  "skills": [
+   "迅敏直觉",
+   "“红松林”",
+   "焰心"
+  ]
+ },
+ "char_4017_puzzle": {
+  "name": "谜图",
+  "profession": "PIONEER",
+  "branch": "agent",
+  "rarity": 5,
+  "skills": [
+   "关键线索",
+   "疑点追踪"
+  ]
+ },
+ "char_297_hamoni": {
+  "name": "和弦",
+  "profession": "CASTER",
+  "branch": "mystic",
+  "rarity": 5,
+  "skills": [
+   "轻巧舞步",
+   "沉溺之灾"
+  ]
+ },
+ "char_193_frostl": {
+  "name": "霜叶",
+  "profession": "WARRIOR",
+  "branch": "lord",
+  "rarity": 4,
+  "skills": [
+   "寒霜枪刃",
+   "凝冰枪刃"
+  ]
+ },
+ "char_2015_dusk": {
+  "name": "夕",
+  "profession": "CASTER",
+  "branch": "splashcaster",
+  "rarity": 6,
+  "skills": [
+   "工笔入化",
+   "泼墨淋漓",
+   "写意胜形"
+  ]
+ },
+ "char_369_bena": {
+  "name": "贝娜",
+  "profession": "SPECIAL",
+  "branch": "dollkeeper",
+  "rarity": 5,
+  "skills": [
+   "奋力修剪",
+   "快速修剪"
+  ]
+ },
+ "char_4043_erato": {
+  "name": "埃拉托",
+  "profession": "SNIPER",
+  "branch": "siegesniper",
+  "rarity": 5,
+  "skills": [
+   "安眠旋律",
+   "英雄赞歌"
+  ]
+ },
+ "char_4110_delphn": {
+  "name": "戴菲恩",
+  "profession": "CASTER",
+  "branch": "mystic",
+  "rarity": 5,
+  "skills": [
+   "“贯注”",
+   "“抢攻”"
+  ]
+ },
+ "char_348_ceylon": {
+  "name": "锡兰",
+  "profession": "MEDIC",
+  "branch": "healer",
+  "rarity": 5,
+  "skills": [
+   "集中式水疗",
+   "水灵庇护"
+  ]
+ },
+ "char_4202_haruka": {
+  "name": "遥",
+  "profession": "SUPPORT",
+  "branch": "blessing",
+  "rarity": 6,
+  "skills": [
+   "夜啼彩羽",
+   "幽隙栖萤",
+   "夏末游鳞"
+  ]
+ },
+ "char_415_flint": {
+  "name": "燧石",
+  "profession": "WARRIOR",
+  "branch": "fighter",
+  "rarity": 5,
+  "skills": [
+   "不息",
+   "锋芒毕露"
+  ]
+ },
+ "char_4195_radian": {
+  "name": "电弧",
+  "profession": "SUPPORT",
+  "branch": "summoner",
+  "rarity": 6,
+  "skills": [
+   "律动线",
+   "环形鳞地",
+   "手牵手"
+  ]
+ },
+ "char_1020_reed2": {
+  "name": "焰影苇草",
+  "profession": "MEDIC",
+  "branch": "incantationmedic",
+  "rarity": 6,
+  "skills": [
+   "迅捷打击·γ型",
+   "枯荣共息",
+   "生命火种"
+  ]
+ },
+ "char_4196_reckpr": {
+  "name": "录武官",
+  "profession": "MEDIC",
+  "branch": "physician",
+  "rarity": 5,
+  "skills": [
+   "触类旁通",
+   "一点关窍"
+  ]
+ },
+ "char_4136_phonor": {
+  "name": "PhonoR-0",
+  "profession": "SUPPORT",
+  "branch": "ritualist",
+  "rarity": 1,
+  "skills": []
+ },
+ "char_452_bstalk": {
+  "name": "豆苗",
+  "profession": "PIONEER",
+  "branch": "tactician",
+  "rarity": 4,
+  "skills": [
+   "定点指令",
+   "“大家一起上”"
+  ]
+ },
+ "char_377_gdglow": {
+  "name": "澄闪",
+  "profession": "CASTER",
+  "branch": "funnel",
+  "rarity": 6,
+  "skills": [
+   "火花四溅",
+   "电流翻涌",
+   "澄净闪耀"
+  ]
+ },
+ "char_131_flameb": {
+  "name": "炎客",
+  "profession": "WARRIOR",
+  "branch": "fearless",
+  "rarity": 5,
+  "skills": [
+   "歃血",
+   "刃鬼"
+  ]
+ },
+ "char_440_pinecn": {
+  "name": "松果",
+  "profession": "SNIPER",
+  "branch": "reaperrange",
+  "rarity": 4,
+  "skills": [
+   "RMA长钉",
+   "电能过载"
+  ]
+ },
+ "char_464_cement": {
+  "name": "洋灰",
+  "profession": "TANK",
+  "branch": "duelist",
+  "rarity": 5,
+  "skills": [
+   "突破矿层",
+   "结构加固"
+  ]
+ },
+ "char_187_ccheal": {
+  "name": "嘉维尔",
+  "profession": "MEDIC",
+  "branch": "physician",
+  "rarity": 4,
+  "skills": [
+   "活力再生",
+   "活力再生·广域"
+  ]
+ },
+ "char_503_rang": {
+  "name": "巡林者",
+  "profession": "SNIPER",
+  "branch": "fastshot",
+  "rarity": 2,
+  "skills": []
+ },
+ "char_277_sqrrel": {
+  "name": "阿消",
+  "profession": "SPECIAL",
+  "branch": "pusher",
+  "rarity": 4,
+  "skills": [
+   "水蒸气泵",
+   "高压水炮"
+  ]
+ },
+ "char_4104_coldst": {
+  "name": "冰酿",
+  "profession": "SNIPER",
+  "branch": "hunter",
+  "rarity": 5,
+  "skills": [
+   "攻击力强化·γ型",
+   "酣醉之夜"
+  ]
+ },
+ "char_1051_headb2": {
+  "name": "怒潮凛冬",
+  "profession": "WARRIOR",
+  "branch": "hammer",
+  "rarity": 6,
+  "skills": [
+   "誓不低头",
+   "绝不罢休",
+   "无可抵挡"
+  ]
+ },
+ "char_4119_wanqin": {
+  "name": "万顷",
+  "profession": "PIONEER",
+  "branch": "bearer",
+  "rarity": 5,
+  "skills": [
+   "支援号令·γ型",
+   "应东风"
+  ]
+ },
+ "char_213_mostma": {
+  "name": "莫斯提马",
+  "profession": "CASTER",
+  "branch": "splashcaster",
+  "rarity": 6,
+  "skills": [
+   "攻击力强化·γ型",
+   "荒时之锁",
+   "序时之匙"
+  ]
+ },
+ "char_4093_frston": {
+  "name": "Friston-3",
+  "profession": "TANK",
+  "branch": "protector",
+  "rarity": 1,
+  "skills": []
+ },
+ "char_109_fmout": {
+  "name": "远山",
+  "profession": "CASTER",
+  "branch": "splashcaster",
+  "rarity": 4,
+  "skills": [
+   "战术咏唱·β型",
+   "命运"
+  ]
+ },
+ "char_499_kaitou": {
+  "name": "折光",
+  "profession": "CASTER",
+  "branch": "primcaster",
+  "rarity": 5,
+  "skills": [
+   "镭射穿凿",
+   "热处理变色"
+  ]
+ },
+ "char_294_ayer": {
+  "name": "断崖",
+  "profession": "WARRIOR",
+  "branch": "lord",
+  "rarity": 5,
+  "skills": [
+   "多导向散射弹丸",
+   "浮游刃启动"
+  ]
+ },
+ "char_1032_excu2": {
+  "name": "圣约送葬人",
+  "profession": "WARRIOR",
+  "branch": "reaper",
+  "rarity": 6,
+  "skills": [
+   "遗嘱执行",
+   "近身铳斗",
+   "圣约决裁"
+  ]
+ },
+ "char_253_greyy": {
+  "name": "格雷伊",
+  "profession": "CASTER",
+  "branch": "splashcaster",
+  "rarity": 4,
+  "skills": [
+   "战术咏唱·β型",
+   "静电释放"
+  ]
+ },
+ "char_333_sidero": {
+  "name": "铸铁",
+  "profession": "WARRIOR",
+  "branch": "artsfghter",
+  "rarity": 5,
+  "skills": [
+   "生命回复·γ型",
+   "破浪回神"
+  ]
+ },
+ "char_179_cgbird": {
+  "name": "夜莺",
+  "profession": "MEDIC",
+  "branch": "ringhealer",
+  "rarity": 6,
+  "skills": [
+   "治疗强化·γ型",
+   "法术护盾",
+   "圣域"
+  ]
+ },
+ "char_4151_tinman": {
+  "name": "锡人",
+  "profession": "SPECIAL",
+  "branch": "alchemist",
+  "rarity": 5,
+  "skills": [
+   "“老科利”",
+   "“大拉里”"
+  ]
+ },
+ "char_436_whispr": {
+  "name": "絮雨",
+  "profession": "MEDIC",
+  "branch": "healer",
+  "rarity": 5,
+  "skills": [
+   "定向诊断",
+   "痛觉抑制"
+  ]
+ },
+ "char_4041_chnut": {
+  "name": "褐果",
+  "profession": "MEDIC",
+  "branch": "wandermedic",
+  "rarity": 4,
+  "skills": [
+   "积微成著",
+   "厚土迸发"
+  ]
+ },
+ "char_4122_grabds": {
+  "name": "小满",
+  "profession": "SUPPORT",
+  "branch": "slower",
+  "rarity": 5,
+  "skills": [
+   "竹笛飞声",
+   "乡音沉沉"
+  ]
+ },
+ "char_241_panda": {
+  "name": "食铁兽",
+  "profession": "SPECIAL",
+  "branch": "pusher",
+  "rarity": 5,
+  "skills": [
+   "铁意六合",
+   "崩拳式"
+  ]
+ },
+ "char_1031_slent2": {
+  "name": "淬羽赫默",
+  "profession": "SUPPORT",
+  "branch": "blessing",
+  "rarity": 6,
+  "skills": [
+   "进取之心",
+   "俯瞰视界",
+   "无畏者协议"
+  ]
+ },
+ "char_1052_kalts2": {
+  "name": "凯尔希·思衡托",
+  "profession": "MEDIC",
+  "branch": "watchman",
+  "rarity": 6,
+  "skills": [
+   "应急肃正防线",
+   "保护性拒止",
+   "破梏重生"
+  ]
+ },
+ "char_208_melan": {
+  "name": "玫兰莎",
+  "profession": "WARRIOR",
+  "branch": "fearless",
+  "rarity": 3,
+  "skills": [
+   "攻击力强化·α型"
+  ]
+ },
+ "char_166_skfire": {
+  "name": "天火",
+  "profession": "CASTER",
+  "branch": "splashcaster",
+  "rarity": 5,
+  "skills": [
+   "攻击力强化·γ型",
+   "天坠之火"
+  ]
+ },
+ "char_1024_hbisc2": {
+  "name": "濯尘芙蓉",
+  "profession": "MEDIC",
+  "branch": "incantationmedic",
+  "rarity": 5,
+  "skills": [
+   "攻击力强化·γ型",
+   "抚业之触"
+  ]
+ },
+ "char_474_glady": {
+  "name": "歌蕾蒂娅",
+  "profession": "SPECIAL",
+  "branch": "hookmaster",
+  "rarity": 6,
+  "skills": [
+   "缺水的大洋裂断",
+   "缺水的掌握怒海",
+   "缺水的碎漩狂舞"
+  ]
+ },
+ "char_4193_lemuen": {
+  "name": "蕾缪安",
+  "profession": "SNIPER",
+  "branch": "longrange",
+  "rarity": 6,
+  "skills": [
+   "重逢问候",
+   "归乡邀约",
+   "礼炮·强制追思"
+  ]
+ },
+ "char_306_leizi": {
+  "name": "惊蛰",
+  "profession": "CASTER",
+  "branch": "chain",
+  "rarity": 5,
+  "skills": [
+   "攻击力强化·γ型",
+   "初雷"
+  ]
+ },
+ "char_235_jesica": {
+  "name": "杰西卡",
+  "profession": "SNIPER",
+  "branch": "fastshot",
+  "rarity": 4,
+  "skills": [
+   "强力击·β型",
+   "掩护烟幕"
+  ]
+ },
+ "char_4047_pianst": {
+  "name": "车尔尼",
+  "profession": "TANK",
+  "branch": "artsprotector",
+  "rarity": 5,
+  "skills": [
+   "纷飞十指",
+   "曲惊四座"
+  ]
+ },
+ "char_1013_chen2": {
+  "name": "假日威龙陈",
+  "profession": "SNIPER",
+  "branch": "reaperrange",
+  "rarity": 6,
+  "skills": [
+   "高压冲击",
+   "“堇青之夜”",
+   "“假日风暴”"
+  ]
+ },
+ "char_4214_cairn": {
+  "name": "响石",
+  "profession": "TANK",
+  "branch": "primprotector",
+  "rarity": 5,
+  "skills": [
+   "覆盖式休整",
+   "震撼型指路"
+  ]
+ },
+ "char_416_zumama": {
+  "name": "森蚺",
+  "profession": "TANK",
+  "branch": "duelist",
+  "rarity": 6,
+  "skills": [
+   "轻型挂斧",
+   "震慑劈砍",
+   "钢铁意志"
+  ]
+ },
+ "char_204_platnm": {
+  "name": "白金",
+  "profession": "SNIPER",
+  "branch": "fastshot",
+  "rarity": 5,
+  "skills": [
+   "攻击力强化·γ型",
+   "天马视域"
+  ]
+ },
+ "char_4178_alanna": {
+  "name": "阿兰娜",
+  "profession": "SUPPORT",
+  "branch": "craftsman",
+  "rarity": 5,
+  "skills": [
+   "气动增压",
+   "“万斤顶”"
+  ]
+ },
+ "char_4052_surfer": {
+  "name": "寻澜",
+  "profession": "PIONEER",
+  "branch": "agent",
+  "rarity": 5,
+  "skills": [
+   "探寻",
+   "洞悉"
+  ]
+ },
+ "char_2012_typhon": {
+  "name": "提丰",
+  "profession": "SNIPER",
+  "branch": "siegesniper",
+  "rarity": 6,
+  "skills": [
+   "迅捷打击·γ型",
+   "冰原秩序",
+   "“永恒狩猎”"
+  ]
+ },
+ "char_4204_mantra": {
+  "name": "真言",
+  "profession": "CASTER",
+  "branch": "primcaster",
+  "rarity": 6,
+  "skills": [
+   "共鸣溃缩",
+   "意识联协",
+   "无言为真"
+  ]
+ },
+ "char_4235_thumpy": {
+  "name": "珊比",
+  "profession": "TANK",
+  "branch": "primprotector",
+  "rarity": 6,
+  "skills": [
+   "“还不走？”",
+   "“慢慢走~”",
+   "“不准走！”"
+  ]
+ },
+ "char_2027_wang": {
+  "name": "望",
+  "profession": "SPECIAL",
+  "branch": "traper",
+  "rarity": 6,
+  "skills": [
+   "取势",
+   "连星",
+   "天下劫"
+  ]
+ },
+ "char_219_meteo": {
+  "name": "陨星",
+  "profession": "SNIPER",
+  "branch": "aoesniper",
+  "rarity": 5,
+  "skills": [
+   "霰射弹头",
+   "高爆弹头"
+  ]
+ },
+ "char_475_akafyu": {
+  "name": "赤冬",
+  "profession": "WARRIOR",
+  "branch": "musha",
+  "rarity": 5,
+  "skills": [
+   "信影流·雷刀之势",
+   "信影流·十文字胜"
+  ]
+ },
+ "char_4098_vvana": {
+  "name": "薇薇安娜",
+  "profession": "WARRIOR",
+  "branch": "artsfghter",
+  "rarity": 6,
+  "skills": [
+   "光影迅捷剑",
+   "烛燃影息",
+   "“明灭”"
+  ]
+ },
+ "char_431_ashlok": {
+  "name": "灰毫",
+  "profession": "TANK",
+  "branch": "fortress",
+  "rarity": 5,
+  "skills": [
+   "攻击力强化·γ型",
+   "专注轰击"
+  ]
+ },
+ "char_1021_kroos2": {
+  "name": "寒芒克洛丝",
+  "profession": "SNIPER",
+  "branch": "fastshot",
+  "rarity": 5,
+  "skills": [
+   "无痕",
+   "封喉"
+  ]
+ },
+ "char_4010_etlchi": {
+  "name": "隐德来希",
+  "profession": "WARRIOR",
+  "branch": "reaper",
+  "rarity": 6,
+  "skills": [
+   "玫影觅迹",
+   "绯红壁合",
+   "灵与欲的惜别"
+  ]
+ },
+ "char_289_gyuki": {
+  "name": "缠丸",
+  "profession": "WARRIOR",
+  "branch": "fearless",
+  "rarity": 4,
+  "skills": [
+   "生命回复·β型",
+   "恶鬼之力"
+  ]
+ },
+ "char_278_orchid": {
+  "name": "梓兰",
+  "profession": "SUPPORT",
+  "branch": "slower",
+  "rarity": 3,
+  "skills": [
+   "迅捷打击·α型"
+  ]
+ },
+ "char_128_plosis": {
+  "name": "白面鸮",
+  "profession": "MEDIC",
+  "branch": "ringhealer",
+  "rarity": 5,
+  "skills": [
+   "治疗强化·γ型",
+   "脑啡肽"
+  ]
+ },
+ "char_4116_blkkgt": {
+  "name": "锏",
+  "profession": "WARRIOR",
+  "branch": "sword",
+  "rarity": 6,
+  "skills": [
+   "纯粹的武力",
+   "无声的嘲笑",
+   "归于宁静"
+  ]
+ },
+ "char_2013_cerber": {
+  "name": "刻俄柏",
+  "profession": "CASTER",
+  "branch": "corecaster",
+  "rarity": 6,
+  "skills": [
+   "“很冰的斧”",
+   "“很热的刀”",
+   "“很重的枪”"
+  ]
+ },
+ "char_4023_rfalcn": {
+  "name": "红隼",
+  "profession": "PIONEER",
+  "branch": "pioneer",
+  "rarity": 5,
+  "skills": [
+   "冲锋号令·γ型",
+   "醉刃乱舞"
+  ]
+ },
+ "char_336_folivo": {
+  "name": "稀音",
+  "profession": "SUPPORT",
+  "branch": "summoner",
+  "rarity": 5,
+  "skills": [
+   "保护色隐蔽",
+   "全景过载摄像"
+  ]
+ },
+ "char_245_cello": {
+  "name": "塑心",
+  "profession": "SUPPORT",
+  "branch": "ritualist",
+  "rarity": 6,
+  "skills": [
+   "“黄金的狂喜”",
+   "“安魂的弥撒”",
+   "“自由的探戈”"
+  ]
+ },
+ "char_4230_mcnist": {
+  "name": "机械师",
+  "profession": "TANK",
+  "branch": "shotprotector",
+  "rarity": 6,
+  "skills": [
+   "聚类分析",
+   "协防术式",
+   "工程学十字星"
+  ]
+ },
+ "char_4144_chilc": {
+  "name": "齐尔查克",
+  "profession": "PIONEER",
+  "branch": "agent",
+  "rarity": 5,
+  "skills": [
+   "开锁工具",
+   "随机应变"
+  ]
+ },
+ "char_4125_rdoc": {
+  "name": "医生",
+  "profession": "WARRIOR",
+  "branch": "instructor",
+  "rarity": 5,
+  "skills": [
+   "以暴制暴",
+   "激素手枪"
+  ]
+ },
+ "char_4237_jcinta": {
+  "name": "嘉辛塔",
+  "profession": "PIONEER",
+  "branch": "bearer",
+  "rarity": 5,
+  "skills": [
+   "支援号令·γ型",
+   "伞下乘荫"
+  ]
+ },
+ "char_4223_botany": {
+  "name": "伯塔尼",
+  "profession": "SUPPORT",
+  "branch": "ritualist",
+  "rarity": 5,
+  "skills": [
+   "谐波破坏",
+   "静域回声"
+  ]
+ },
+ "char_4026_vulpis": {
+  "name": "忍冬",
+  "profession": "PIONEER",
+  "branch": "pioneer",
+  "rarity": 6,
+  "skills": [
+   "小施惩戒",
+   "坠刃拷问",
+   "隐狐之艺"
+  ]
+ },
+ "char_164_nightm": {
+  "name": "夜魔",
+  "profession": "CASTER",
+  "branch": "corecaster",
+  "rarity": 5,
+  "skills": [
+   "灵魂汲取",
+   "夜魇魔影"
+  ]
+ },
+ "char_445_wscoot": {
+  "name": "骋风",
+  "profession": "WARRIOR",
+  "branch": "librator",
+  "rarity": 4,
+  "skills": [
+   "以攻为守",
+   "招无虚发"
+  ]
+ },
+ "char_322_lmlee": {
+  "name": "老鲤",
+  "profession": "SPECIAL",
+  "branch": "merchant",
+  "rarity": 6,
+  "skills": [
+   "小惩大诫",
+   "驱凶辟邪",
+   "贵客盈门"
+  ]
+ },
+ "char_155_tiger": {
+  "name": "因陀罗",
+  "profession": "WARRIOR",
+  "branch": "fighter",
+  "rarity": 5,
+  "skills": [
+   "碎甲拳",
+   "裂魂"
+  ]
+ },
+ "char_1048_orchd2": {
+  "name": "焰狐龙梓兰",
+  "profession": "SNIPER",
+  "branch": "closerange",
+  "rarity": 6,
+  "skills": [
+   "刚射",
+   "飞翔瞪射",
+   "龙之箭"
+  ]
+ },
+ "char_129_bluep": {
+  "name": "蓝毒",
+  "profession": "SNIPER",
+  "branch": "fastshot",
+  "rarity": 5,
+  "skills": [
+   "二重射击·自动",
+   "毒液散射"
+  ]
+ },
+ "char_300_phenxi": {
+  "name": "菲亚梅塔",
+  "profession": "SNIPER",
+  "branch": "aoesniper",
+  "rarity": 6,
+  "skills": [
+   "“你须直面”",
+   "“你须愧悔”",
+   "“你须偿还”"
+  ]
+ },
+ "char_1033_swire2": {
+  "name": "琳琅诗怀雅",
+  "profession": "SPECIAL",
+  "branch": "merchant",
+  "rarity": 6,
+  "skills": [
+   "仗义疏财",
+   "“见面礼”",
+   "千金一掷"
+  ]
+ },
+ "char_107_liskam": {
+  "name": "雷蛇",
+  "profession": "TANK",
+  "branch": "shotprotector",
+  "rarity": 5,
+  "skills": [
+   "充能防御",
+   "反击电弧"
+  ]
+ },
+ "char_343_tknogi": {
+  "name": "月禾",
+  "profession": "SUPPORT",
+  "branch": "blessing",
+  "rarity": 5,
+  "skills": [
+   "迹无",
+   "森廻"
+  ]
+ },
+ "char_188_helage": {
+  "name": "赫拉格",
+  "profession": "WARRIOR",
+  "branch": "musha",
+  "rarity": 6,
+  "skills": [
+   "新月",
+   "弦月",
+   "满月"
+  ]
+ },
+ "char_4019_ncdeer": {
+  "name": "九色鹿",
+  "profession": "SUPPORT",
+  "branch": "blessing",
+  "rarity": 5,
+  "skills": [
+   "人间降吉",
+   "仙山去远"
+  ]
+ },
+ "char_148_nearl": {
+  "name": "临光",
+  "profession": "TANK",
+  "branch": "guardian",
+  "rarity": 5,
+  "skills": [
+   "急救",
+   "急救模式"
+  ]
+ },
+ "char_4163_rosesa": {
+  "name": "瑰盐",
+  "profession": "MEDIC",
+  "branch": "ringhealer",
+  "rarity": 5,
+  "skills": [
+   "上佳的应急药呀",
+   "绝妙的长效药呀"
+  ]
+ },
+ "char_4185_amoris": {
+  "name": "祐天寺若麦",
+  "profession": "WARRIOR",
+  "branch": "hammer",
+  "rarity": 5,
+  "skills": [
+   "如焰般热烈",
+   "如麦般生长"
+  ]
+ },
+ "char_4148_philae": {
+  "name": "菲莱",
+  "profession": "TANK",
+  "branch": "primprotector",
+  "rarity": 5,
+  "skills": [
+   "灵河护佑",
+   "冥河诅咒"
+  ]
+ },
+ "char_240_wyvern": {
+  "name": "香草",
+  "profession": "PIONEER",
+  "branch": "pioneer",
+  "rarity": 3,
+  "skills": [
+   "冲锋号令·援军"
+  ]
+ },
+ "char_466_qanik": {
+  "name": "雪绒",
+  "profession": "CASTER",
+  "branch": "corecaster",
+  "rarity": 5,
+  "skills": [
+   "冻风",
+   "坠雪"
+  ]
+ },
+ "char_195_glassb": {
+  "name": "真理",
+  "profession": "SUPPORT",
+  "branch": "slower",
+  "rarity": 5,
+  "skills": [
+   "专心致志",
+   "文学风暴"
+  ]
+ },
+ "char_1044_hsgma2": {
+  "name": "斩业星熊",
+  "profession": "TANK",
+  "branch": "artsprotector",
+  "rarity": 6,
+  "skills": [
+   "恶业苦果",
+   "无始无明",
+   "地狱变相"
+  ]
+ },
+ "char_220_grani": {
+  "name": "格拉尼",
+  "profession": "PIONEER",
+  "branch": "charger",
+  "rarity": 5,
+  "skills": [
+   "防御力强化·γ型",
+   "永不后退！"
+  ]
+ },
+ "char_1042_phatm2": {
+  "name": "酒神",
+  "profession": "SUPPORT",
+  "branch": "ritualist",
+  "rarity": 6,
+  "skills": [
+   "暗夜回声",
+   "群体性谵妄",
+   "空剧场"
+  ]
+ },
+ "char_222_bpipe": {
+  "name": "风笛",
+  "profession": "PIONEER",
+  "branch": "charger",
+  "rarity": 6,
+  "skills": [
+   "迅捷打击·γ型",
+   "高效冲击",
+   "闭膛连发"
+  ]
+ },
+ "char_130_doberm": {
+  "name": "杜宾",
+  "profession": "WARRIOR",
+  "branch": "instructor",
+  "rarity": 4,
+  "skills": [
+   "强力击·β型",
+   "鞭策"
+  ]
+ },
+ "char_281_popka": {
+  "name": "泡普卡",
+  "profession": "WARRIOR",
+  "branch": "centurion",
+  "rarity": 3,
+  "skills": [
+   "攻击力强化·α型"
+  ]
+ },
+ "char_4063_quartz": {
+  "name": "石英",
+  "profession": "WARRIOR",
+  "branch": "crusher",
+  "rarity": 4,
+  "skills": [
+   "攻击力强化·β型",
+   "全力相搏"
+  ]
+ },
+ "char_388_mint": {
+  "name": "薄绿",
+  "profession": "CASTER",
+  "branch": "phalanx",
+  "rarity": 5,
+  "skills": [
+   "风语",
+   "聚能涡旋"
+  ]
+ },
+ "char_4212_nasti": {
+  "name": "娜斯提",
+  "profession": "SUPPORT",
+  "branch": "craftsman",
+  "rarity": 6,
+  "skills": [
+   "“拱卫”",
+   "“执行”",
+   "栖脚地"
+  ]
+ },
+ "char_1046_sbell2": {
+  "name": "圣聆初雪",
+  "profession": "CASTER",
+  "branch": "phalanx",
+  "rarity": 6,
+  "skills": [
+   "铃音吹雪",
+   "霜涛覆岭",
+   "群山俯首"
+  ]
+ },
+ "char_4106_bryota": {
+  "name": "苍苔",
+  "profession": "WARRIOR",
+  "branch": "instructor",
+  "rarity": 5,
+  "skills": [
+   "强力击·β型",
+   "土石的恒心"
+  ]
+ },
+ "char_4121_zuole": {
+  "name": "左乐",
+  "profession": "WARRIOR",
+  "branch": "musha",
+  "rarity": 6,
+  "skills": [
+   "破虏",
+   "行险",
+   "佑序有炎"
+  ]
+ },
+ "char_4100_caper": {
+  "name": "跃跃",
+  "profession": "SNIPER",
+  "branch": "loopshooter",
+  "rarity": 4,
+  "skills": [
+   "强力击·β型",
+   "乐趣加倍"
+  ]
+ },
+ "char_344_beewax": {
+  "name": "蜜蜡",
+  "profession": "CASTER",
+  "branch": "phalanx",
+  "rarity": 5,
+  "skills": [
+   "沙暴扩散",
+   "守卫尖碑"
+  ]
+ },
+ "char_4221_ju": {
+  "name": "矩",
+  "profession": "SNIPER",
+  "branch": "siegesniper",
+  "rarity": 5,
+  "skills": [
+   "良弓难张",
+   "良翼难乘"
+  ]
+ },
+ "char_427_vigil": {
+  "name": "伺夜",
+  "profession": "PIONEER",
+  "branch": "tactician",
+  "rarity": 6,
+  "skills": [
+   "领袖的呼唤",
+   "领袖的馈赠",
+   "领袖的尊严"
+  ]
+ },
+ "char_356_broca": {
+  "name": "布洛卡",
+  "profession": "WARRIOR",
+  "branch": "centurion",
+  "rarity": 5,
+  "skills": [
+   "通电",
+   "高压电流"
+  ]
+ },
+ "char_358_lisa": {
+  "name": "铃兰",
+  "profession": "SUPPORT",
+  "branch": "slower",
+  "rarity": 6,
+  "skills": [
+   "全力以赴",
+   "儿时的舞乐",
+   "狐火渺然"
+  ]
+ },
+ "char_1047_halo2": {
+  "name": "溯光星源",
+  "profession": "SUPPORT",
+  "branch": "slower",
+  "rarity": 6,
+  "skills": [
+   "星图闪烁",
+   "星束引力",
+   "并流连锁"
+  ]
+ },
+ "char_272_strong": {
+  "name": "孑",
+  "profession": "SPECIAL",
+  "branch": "merchant",
+  "rarity": 4,
+  "skills": [
+   "断螯",
+   "刺身拼盘"
+  ]
+ },
+ "char_206_gnosis": {
+  "name": "灵知",
+  "profession": "SUPPORT",
+  "branch": "underminer",
+  "rarity": 6,
+  "skills": [
+   "高速思考",
+   "零度爆发",
+   "失温症"
+  ]
+ },
+ "char_4131_odda": {
+  "name": "奥达",
+  "profession": "WARRIOR",
+  "branch": "hammer",
+  "rarity": 5,
+  "skills": [
+   "火花溅射",
+   "锻锤之力"
+  ]
+ },
+ "char_202_demkni": {
+  "name": "塞雷娅",
+  "profession": "TANK",
+  "branch": "guardian",
+  "rarity": 6,
+  "skills": [
+   "急救",
+   "药物配置",
+   "钙质化"
+  ]
+ },
+ "char_4165_ctrail": {
+  "name": "云迹",
+  "profession": "SPECIAL",
+  "branch": "skywalker",
+  "rarity": 4,
+  "skills": [
+   "紧急升空",
+   "掠空飞翎"
+  ]
+ },
+ "char_449_glider": {
+  "name": "蜜莓",
+  "profession": "MEDIC",
+  "branch": "wandermedic",
+  "rarity": 5,
+  "skills": [
+   "精神护理",
+   "振奋"
+  ]
+ },
+ "char_120_hibisc": {
+  "name": "芙蓉",
+  "profession": "MEDIC",
+  "branch": "physician",
+  "rarity": 3,
+  "skills": [
+   "治疗强化·α型"
+  ]
+ },
+ "char_4162_cathy": {
+  "name": "凯瑟琳",
+  "profession": "SUPPORT",
+  "branch": "craftsman",
+  "rarity": 5,
+  "skills": [
+   "岁月锻打",
+   "战火淬炼"
+  ]
+ },
+ "char_391_rosmon": {
+  "name": "迷迭香",
+  "profession": "SNIPER",
+  "branch": "bombarder",
+  "rarity": 6,
+  "skills": [
+   "思维膨大",
+   "末梢阻断",
+   "“如你所愿”"
+  ]
+ },
+ "char_2023_ling": {
+  "name": "令",
+  "profession": "SUPPORT",
+  "branch": "summoner",
+  "rarity": 6,
+  "skills": [
+   "重进酒",
+   "笑鸣瑟",
+   "宁作吾"
+  ]
+ },
+ "char_4145_ulpia": {
+  "name": "乌尔比安",
+  "profession": "WARRIOR",
+  "branch": "crusher",
+  "rarity": 6,
+  "skills": [
+   "必须促成的接触",
+   "必须维系的界限",
+   "必须开辟的通路"
+  ]
+ },
+ "char_121_lava": {
+  "name": "炎熔",
+  "profession": "CASTER",
+  "branch": "splashcaster",
+  "rarity": 3,
+  "skills": [
+   "战术咏唱·α型"
+  ]
+ },
+ "char_4188_confes": {
+  "name": "CONFESS-47",
+  "profession": "PIONEER",
+  "branch": "pioneer",
+  "rarity": 1,
+  "skills": []
+ },
+ "char_4114_harold": {
+  "name": "哈洛德",
+  "profession": "MEDIC",
+  "branch": "wandermedic",
+  "rarity": 5,
+  "skills": [
+   "治疗强化·γ型",
+   "重症优先"
+  ]
+ },
+ "char_4184_dolris": {
+  "name": "三角初华",
+  "profession": "SUPPORT",
+  "branch": "bard",
+  "rarity": 5,
+  "skills": [
+   "我思念的",
+   "我悲悯的"
+  ]
+ },
+ "char_4014_lunacu": {
+  "name": "子月",
+  "profession": "SNIPER",
+  "branch": "longrange",
+  "rarity": 5,
+  "skills": [
+   "狩猎时刻",
+   "伏击之影"
+  ]
+ },
+ "char_4102_threye": {
+  "name": "凛视",
+  "profession": "SUPPORT",
+  "branch": "ritualist",
+  "rarity": 5,
+  "skills": [
+   "我见崩毁之前",
+   "我见枯朽之后"
+  ]
+ },
+ "char_472_pasngr": {
+  "name": "异客",
+  "profession": "CASTER",
+  "branch": "chain",
+  "rarity": 6,
+  "skills": [
+   "电能之触",
+   "聚焦指令",
+   "辉煌裂片"
+  ]
+ },
+ "char_4042_lumen": {
+  "name": "流明",
+  "profession": "MEDIC",
+  "branch": "healer",
+  "rarity": 6,
+  "skills": [
+   "沐雨",
+   "沛霖",
+   "灯火不灭"
+  ]
+ }
+}

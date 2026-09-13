@@ -3,16 +3,35 @@
  * 管道：① roster.extractRoster → ②a miner.mineSubstitutions → ③ recommender.recommend
  */
 
-import type { StageResult } from "../shared/types";
+import { locateStage, extractRoster } from "../shared/roster";
+import { fetchComments } from "../shared/bilibili";
+import { mineSubstitutions } from "../shared/miner";
+import { recommend } from "../shared/recommender";
+import { OperatorDB } from "../shared/operatorDB";
+import type { AnalysisOutput, Box } from "../shared/types";
 
-async function analyzeVideo(bvid: string): Promise<StageResult> {
-  // TODO(v0): 编排 ①②a③，box 从 chrome.storage 读取，未导入 box 时提示先去 options 导入
-  throw new Error("not implemented: v0 管道编排");
+async function getBox(): Promise<Box> {
+  const { box } = (await chrome.storage.local.get("box")) as { box?: Box };
+  if (!box?.operators || Object.keys(box.operators).length === 0) {
+    throw new Error("尚未导入干员 box，请到插件设置页导入一图流 Excel 练度表");
+  }
+  return box;
+}
+
+async function analyzeVideo(bvid: string, page?: number): Promise<AnalysisOutput> {
+  const box = await getBox();
+  const opDB = await OperatorDB.load();
+  const meta = await locateStage(bvid, page);
+  const roster = await extractRoster(meta, opDB);
+  const comments = await fetchComments(meta.video.aid, 200);
+  const substitutions = await mineSubstitutions(roster, comments, opDB);
+  const recommendations = recommend(roster, substitutions, box);
+  return { roster, substitutions, recommendations, videoTitle: meta.video.title, stage: meta.stage, bvid };
 }
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-  if (msg.type === "ANALYZE_VIDEO") {
-    analyzeVideo(msg.bvid)
+  if (msg?.type === "ANALYZE_VIDEO") {
+    analyzeVideo(msg.bvid, msg.page)
       .then((result) => sendResponse({ ok: true, result }))
       .catch((err: Error) => sendResponse({ ok: false, error: err.message }));
     return true; // async sendResponse

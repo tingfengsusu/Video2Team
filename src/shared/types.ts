@@ -44,6 +44,7 @@ export interface Substitution {
   kind: SubstitutionKind;
   likes: number; // 点赞/热度，可信度权重
   verified: boolean; // 干员名字典校验通过
+  evidenceUrl?: string; // 评论区溯源链接
 }
 
 /** ②b 泛化替代知识（L2）：UP主替换分析图表的条件式知识，不绑定单一关卡 */
@@ -82,7 +83,7 @@ export interface RecommendedSlot {
   original: RosterSlot;
   finalOperator: string | null;
   status: "keep" | "substituted" | "unresolved";
-  kind: SubstitutionKind;
+  kind?: SubstitutionKind; // 替换类型（keep 时无替换发生）
   via: Substitution | GenericSubstitution | null; // 采用的知识条目
   risk: "low" | "medium" | "high"; // 关键位替换 → high
   evidenceUrl: string; // 评论区溯源链接
@@ -94,4 +95,11 @@ export interface StageResult {
   roster: Roster;
   substitutions: Substitution[];
   recommendations: RecommendedSlot[];
+}
+
+/** 管道输出（popup 渲染所需的全量信息） */
+export interface AnalysisOutput extends StageResult {
+  videoTitle: string;
+  stage: string;
+  bvid: string;
 }

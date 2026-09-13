@@ -4,21 +4,37 @@
     <meta charset="UTF-8" />
     <title>Video2Team</title>
     <style>
-      body { width: 360px; font-family: system-ui, sans-serif; padding: 12px; }
-      h1 { font-size: 16px; margin: 0 0 4px; }
-      .tagline { font-size: 12px; color: #666; margin-bottom: 12px; }
-      .checklist { font-size: 13px; line-height: 1.8; }
-      #result { font-size: 13px; }
+      body { width: 380px; font-family: system-ui, sans-serif; padding: 12px; margin: 0; }
+      h1 { font-size: 16px; margin: 0 0 2px; }
+      .tagline { font-size: 12px; color: #888; margin-bottom: 10px; }
+      .check { font-size: 13px; line-height: 1.9; }
+      .ok { color: #1a7f37; }
+      .bad { color: #c0392b; }
+      button { margin: 8px 0; padding: 8px 14px; font-size: 14px; cursor: pointer;
+               border: none; border-radius: 6px; background: #23ade5; color: #fff; }
+      button:disabled { background: #aaa; cursor: not-allowed; }
+      #status { font-size: 12px; color: #666; margin: 6px 0; }
+      .video-title { font-size: 12px; color: #555; margin: 6px 0; }
+      .stage { font-size: 14px; font-weight: bold; margin: 8px 0 4px; }
+      .roster-src { font-size: 11px; color: #999; margin-bottom: 6px; }
+      .slot { font-size: 13px; line-height: 1.5; padding: 4px 6px; border-radius: 4px; margin-bottom: 3px; }
+      .keep { background: #f0f9f0; }
+      .sub { background: #fff7e6; }
+      .unresolved { background: #fdeeee; }
+      .slot .note { color: #c0392b; font-size: 12px; }
+      .slot a { color: #23ade5; text-decoration: none; font-size: 12px; }
+      .err { font-size: 13px; color: #c0392b; }
+      a.settings { font-size: 12px; color: #23ade5; }
     </style>
   </head>
   <body>
     <h1>🎮 Video2Team</h1>
     <div class="tagline">把大佬的作业，改成你抄得动的作业</div>
-    <div class="checklist" id="checklist">
-      <!-- v0：三项就绪检查（当前视频页 / box 已导入 / API key 已配置）+ 分析按钮 -->
-      <!-- 结果容器：StageResult → 按 关卡/槽位 渲染 keep/substituted/unresolved + 来源 + 风险 -->
-    </div>
+    <div class="check" id="checklist"></div>
+    <button id="analyzeBtn" disabled>分析此关卡</button>
+    <div id="status"></div>
     <div id="result"></div>
+    <a class="settings" href="#" id="openOptions">打开设置（API Key / 导入练度表）</a>
     <script type="module" src="./main.ts"></script>
   </body>
 </html>
