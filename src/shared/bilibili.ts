@@ -56,9 +56,10 @@ export interface CommentItem {
 
 export async function fetchComments(aid: number, maxCount = 200): Promise<CommentItem[]> {
   const out: CommentItem[] = [];
-  for (let pn = 1; out.length < maxCount && pn <= 8; pn++) {
+  // ps 实测上限 20（传 49 报 "ps out of bounds"，见端到端验收 2026-09-13）
+  for (let pn = 1; out.length < maxCount && pn <= 10; pn++) {
     const j = await getJson(
-      `https://api.bilibili.com/x/v2/reply?type=1&oid=${aid}&sort=1&pn=${pn}&ps=49`,
+      `https://api.bilibili.com/x/v2/reply?type=1&oid=${aid}&sort=1&pn=${pn}&ps=20`,
     );
     if (pn === 1) {
       // 置顶评论（UP主常在此写阵容/补充说明，优先级最高）
