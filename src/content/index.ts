@@ -1,15 +1,18 @@
 /**
- * Content Script：识别B站视频页（提取 BV 号），注入「分析阵容」入口。
- * 点击后向 background 发 ANALYZE_VIDEO 消息，结果面板 v0 可先跳转 popup 展示。
+ * Content Script：识别B站视频页（提取 BV 号 + 分P序号），响应 popup 的上下文查询。
+ * popup 在 tab.url 不可见（host 权限未授予）时，通过本脚本在页面内拿 location。
  */
 
-const BV_PATTERN = /\/video\/(BV[0-9A-Za-z]+)/;
-
-function extractBvid(): string | null {
-  return window.location.pathname.match(BV_PATTERN)?.[1] ?? null;
+function parseContext(): { bvid: string | null; page: number | null } {
+  const bvid = location.pathname.match(/\/video\/(BV[0-9A-Za-z]+)/)?.[1] ?? null;
+  const p = new URLSearchParams(location.search).get("p");
+  return { bvid, page: p ? parseInt(p, 10) : null };
 }
 
-// TODO(v0): 注入分析按钮到视频操作区，点击后 chrome.runtime.sendMessage({type: "ANALYZE_VIDEO", bvid})
-console.log("[Video2Team] content script loaded, bvid =", extractBvid());
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  if (msg?.type === "GET_PAGE_CONTEXT") {
+    sendResponse(parseContext());
+  }
+});
 
 export {};

@@ -21,7 +21,20 @@ async function getPageContext(): Promise<PageContext> {
   const url = tab?.url ?? "";
   const bvid = url.match(/bilibili\.com\/video\/(BV[0-9A-Za-z]+)/)?.[1] ?? null;
   const p = url.match(/[?&]p=(\d+)/);
-  return { bvid, page: p ? parseInt(p[1]!, 10) : null, videoPage: !!bvid };
+  let page = p ? parseInt(p[1]!, 10) : null;
+
+  if (bvid) return { bvid, page, videoPage: true };
+
+  // 回退：host/activeTab 权限拿不到 URL 时，问页面内的 content script（它一定能看到 location）
+  if (tab?.id) {
+    try {
+      const resp = await chrome.tabs.sendMessage(tab.id, { type: "GET_PAGE_CONTEXT" });
+      if (resp?.bvid) return { bvid: resp.bvid, page: resp.page ?? null, videoPage: true };
+    } catch {
+      /* content script 未注入（扩展加载前已打开的页面） */
+    }
+  }
+  return { bvid: null, page: null, videoPage: false };
 }
 
 async function renderChecklist(): Promise<{ bvid: string | null; page: number | null; ready: boolean }> {
@@ -33,7 +46,7 @@ async function renderChecklist(): Promise<{ bvid: string | null; page: number | 
   const items = [
     ctx.videoPage
       ? `<span class="ok">✓</span> 当前在攻略视频页${ctx.page ? `（第 ${ctx.page} 分P）` : ""}`
-      : `<span class="bad">✗</span> 请在B站视频页使用（未识别到 BV 号）`,
+      : `<span class="bad">✗</span> 未识别到 BV 号（请在B站视频页使用；若已在视频页，刷新页面后重开插件）`,
     boxCount > 0
       ? `<span class="ok">✓</span> 干员 box 已导入（${boxCount} 名）`
       : `<span class="bad">✗</span> 未导入干员 box`,

@@ -3,7 +3,7 @@
   "name": "Video2Team",
   "version": "0.1.0",
   "description": "把大佬的作业，改成你抄得动的作业 — B站明日方舟挂机攻略阵容适配",
-  "permissions": ["storage"],
+  "permissions": ["storage", "activeTab"],
   "host_permissions": [
     "https://api.bilibili.com/*",
     "https://api.deepseek.com/*",
