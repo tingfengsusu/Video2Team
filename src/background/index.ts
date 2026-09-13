@@ -2,6 +2,7 @@
  * Service Worker：消息路由 + 管道编排（设计见 docs/design.md §4）。
  * 管道：① roster.extractRosterFromImage（画面提取）→ ②a miner.mineSubstitutions → ③ recommender.recommend
  * 阵容必须来自用户提供的画面（截图/抓帧）；简介文本仅作辅助上下文。
+ * 任务状态持久化到 storage.session：popup 关闭/重开后可恢复「分析中/结果/错误」。
  */
 
 import { locateStage, fetchTextContext, extractRosterFromImage } from "../shared/roster";
@@ -9,7 +10,13 @@ import { fetchComments, fetchDanmaku } from "../shared/bilibili";
 import { mineSubstitutions } from "../shared/miner";
 import { recommend } from "../shared/recommender";
 import { OperatorDB } from "../shared/operatorDB";
-import type { AnalysisOutput, Box } from "../shared/types";
+import type { AnalysisOutput, Box, TaskState } from "../shared/types";
+
+const TASK_KEY = "task";
+
+async function setTask(task: TaskState): Promise<void> {
+  await chrome.storage.session.set({ [TASK_KEY]: task });
+}
 
 async function getBox(): Promise<Box> {
   const { box } = (await chrome.storage.local.get("box")) as { box?: Box };
@@ -22,13 +29,14 @@ async function getBox(): Promise<Box> {
 async function analyzeVideo(
   bvid: string,
   page: number | undefined,
-  imageDataUrl: string,
+  imageDataUrls: string[],
 ): Promise<AnalysisOutput> {
   const box = await getBox();
   const opDB = await OperatorDB.load();
   const meta = await locateStage(bvid, page);
+  await setTask({ status: "running", startedAt: Date.now(), stage: meta.stage });
   const textContext = await fetchTextContext(meta.video);
-  const roster = await extractRosterFromImage(meta, imageDataUrl, opDB, textContext);
+  const roster = await extractRosterFromImage(meta, imageDataUrls, opDB, textContext);
   const comments = await fetchComments(meta.video.aid, 200);
   const danmaku = meta.cid ? await fetchDanmaku(meta.cid).catch(() => []) : [];
   const substitutions = await mineSubstitutions(roster, comments, danmaku, opDB);
@@ -38,9 +46,23 @@ async function analyzeVideo(
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === "ANALYZE_VIDEO") {
-    analyzeVideo(msg.bvid, msg.page, msg.imageDataUrl)
-      .then((result) => sendResponse({ ok: true, result }))
-      .catch((err: Error) => sendResponse({ ok: false, error: err.message }));
+    // 先落「running」状态，popup 关闭后重开也能看到进行中
+    void setTask({ status: "running", startedAt: Date.now() });
+    analyzeVideo(msg.bvid, msg.page, msg.imageDataUrls)
+      .then(async (result) => {
+        await setTask({ status: "done", startedAt: Date.now(), result });
+        sendResponse({ ok: true, result });
+      })
+      .catch(async (err: Error) => {
+        await setTask({ status: "error", startedAt: Date.now(), error: err.message });
+        sendResponse({ ok: false, error: err.message });
+      });
     return true; // async sendResponse
+  }
+  if (msg?.type === "GET_TASK") {
+    chrome.storage.session
+      .get(TASK_KEY)
+      .then((v) => sendResponse({ task: (v as Record<string, TaskState>)[TASK_KEY] ?? null }));
+    return true;
   }
 });

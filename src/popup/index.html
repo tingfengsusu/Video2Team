@@ -26,7 +26,11 @@
       .unresolved { background: #fdeeee; }
       .slot .note { color: #c0392b; font-size: 12px; }
       .slot a { color: #23ade5; text-decoration: none; font-size: 12px; }
+      .slot .alts { font-size: 12px; color: #555; margin-top: 2px; }
+      .slot .quote { color: #999; }
+      .dim { color: #888; font-size: 12px; }
       .err { font-size: 13px; color: #c0392b; }
+      #imgCount, #clearBtn { display: block; }
       a.settings { font-size: 12px; color: #23ade5; }
     </style>
   </head>
@@ -37,9 +41,11 @@
 
     <div id="dropzone">
       <button id="grabBtn">📷 抓取当前画面</button>
-      <div class="hint">把视频暂停在<strong>编队/阵容画面</strong>，点上方按钮抓帧；<br>或直接 <strong>Ctrl+V 粘贴截图</strong> / <a href="#" id="pickFile">选择图片文件</a></div>
+      <div class="hint">把视频暂停在<strong>编队/阵容画面</strong>，点上方按钮抓帧；<br>或直接 <strong>Ctrl+V 粘贴截图</strong> / <a href="#" id="pickFile">选择图片文件</a>（可追加多张，如助战详情页）</div>
       <input type="file" id="fileInput" accept="image/*" style="display:none" />
       <img id="preview" alt="" />
+      <div id="imgCount" class="hint" style="display:none"></div>
+      <a href="#" id="clearBtn" class="hint" style="display:none">清除全部截图</a>
     </div>
 
     <button id="analyzeBtn" disabled>分析此关卡</button>

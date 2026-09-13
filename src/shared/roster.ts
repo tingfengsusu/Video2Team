@@ -55,10 +55,10 @@ interface ExtractedOperator {
   keyReason?: string;
 }
 
-/** 主路径：从用户提供的编队页画面提取阵容 */
+/** 主路径：从用户提供的画面（可多张：编队页 + 助战详情页）提取阵容 */
 export async function extractRosterFromImage(
   meta: StageMeta,
-  imageDataUrl: string,
+  imageDataUrls: string[],
   opDB: OperatorDB,
   textContext: string,
 ): Promise<Roster> {
@@ -70,7 +70,12 @@ export async function extractRosterFromImage(
         {
           type: "text",
           text: [
-            `任务：这是明日方舟关卡 ${meta.stage} 攻略视频的画面截图（编队页/阵容展示/摆位画面）。提取画面中的干员名单。`,
+            `任务：这些是明日方舟关卡 ${meta.stage} 攻略视频的画面截图。提取视频阵容中的干员名单。`,
+            ``,
+            `截图说明（可能有多种组合）：`,
+            `- 编队页（「快捷编队/开始行动」UI）：干员卡片下方是干员名；右上角橙色「助战干员 SUPPORT UNIT」标签会盖住该卡片的名字——助战位名字以助战详情页截图为准`,
+            `- 助战详情页（「招募助战」按钮）：干员名是大字（如「结城理」），该干员 support: true`,
+            `- 摆位画面：干员血条旁/底部头像条`,
             ``,
             `视频文字材料（辅助参考，画面为准）：`,
             textContext || "（无）",
@@ -79,15 +84,15 @@ export async function extractRosterFromImage(
             JSON.stringify(ALIASES.aliases),
             ``,
             `规则：`,
-            `- name：画面卡片/单位上的干员名（编队页在卡片下方；摆位画面在干员血条旁），逐字识别后对照表还原全名`,
-            `- 编队页的「助战干员」位（SUPPORT UNIT）的干员 support: true`,
+            `- name：画面上的干员名，逐字识别后按对照表还原全名；名字被遮挡且无其他截图佐证时跳过，不要猜测`,
+            `- 助战干员（好友干员）support: true`,
             `- 视频简介中强调为「核心/关键/必须有」的干员 isKey: true，keyReason 说明`,
-            `- 只输出画面中确认存在的干员，不要从简介推测补充；名字不确定的跳过`,
+            `- 只输出画面中确认存在的干员，不要从简介推测补充`,
             ``,
             `仅输出 JSON：{"operators":[{"name":"","support":false,"isKey":false,"keyReason":""}]}`,
           ].join("\n"),
         },
-        { type: "image_url", image_url: { url: imageDataUrl } },
+        ...imageDataUrls.map((url) => ({ type: "image_url" as const, image_url: { url } })),
       ],
     },
   ]);

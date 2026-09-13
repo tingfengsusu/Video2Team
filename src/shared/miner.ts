@@ -49,6 +49,13 @@ function fmtTime(sec: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
+/** 异格归一：弹幕说的干员名在阵容中无精确匹配时，尝试异格/升变版本（星熊→斩业星熊，纯烬艾雅法拉同理） */
+function normalizeToRoster(removed: string, rosterNames: string[]): string | null {
+  if (rosterNames.includes(removed)) return removed;
+  const match = rosterNames.find((n) => n.includes(removed));
+  return match ?? null;
+}
+
 export async function mineSubstitutions(
   roster: Roster,
   comments: CommentItem[],
@@ -109,7 +116,8 @@ export async function mineSubstitutions(
         candidates.map((c) => `${c.i} | ${c.source} | ${c.likes} | ${c.text}`).join("\n"),
         ``,
         `规则：`,
-        `- removed：必须是上述阵容中的干员全名；replacement：替代干员全名（昵称/简称先还原）`,
+        `- removed：用阵容中的干员全名；弹幕提到的干员若在阵容中只有异格/升变版本（如「星熊」→阵容里的「斩业星熊」），视为同一干员，用阵容中的名字`,
+        `- replacement：替代干员全名（昵称/简称先还原）`,
         `- kind：operator_swap(默认)/skill_swap(换技能或攻速)/position_swap(换部署位置)/manual(改手动)`,
         `- 弹幕口语极简（如「老玛可以替askl」），结合阵容与对照表谨慎判断；不确定就忽略`,
         `- 只提取替代建议；求助、吐槽、讨论练度等一律忽略；evidence 摘录原文`,
@@ -128,10 +136,11 @@ export async function mineSubstitutions(
 
   const out: Substitution[] = [];
   for (const it of items ?? []) {
-    const removed = opDB.resolve(it.removed ?? "");
+    const removedRaw = opDB.resolve(it.removed ?? "");
+    const removed = normalizeToRoster(removedRaw, rosterNames);
     const replacement = opDB.resolve(it.replacement ?? "");
-    // removed 必须在阵容中；replacement 必须是真实干员（字典校验，防幻觉/还原错误）
-    if (!rosterNames.includes(removed)) continue;
+    // removed 归一到阵容（含异格启发式）；replacement 必须是真实干员（字典校验，防幻觉/还原错误）
+    if (!removed) continue;
     if (!replacement || !opDB.exists(replacement)) continue;
     if (removed === replacement) continue;
     const cand = it.commentIndex != null ? candidates.find((c) => c.i === it.commentIndex) : undefined;
