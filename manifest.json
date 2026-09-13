@@ -10,18 +10,18 @@
     "https://comment.bilibili.com/*"
   ],
   "background": {
-    "service_worker": "src/background/index.ts",
+    "service_worker": "background.js",
     "type": "module"
   },
   "action": {
-    "default_popup": "src/popup/index.html",
+    "default_popup": "popup.html",
     "default_title": "Video2Team — 把大佬的作业，改成你抄得动的作业"
   },
-  "options_page": "src/options/index.html",
+  "options_page": "options.html",
   "content_scripts": [
     {
       "matches": ["https://www.bilibili.com/video/*"],
-      "js": ["src/content/index.ts"]
+      "js": ["content.js"]
     }
   ]
 }

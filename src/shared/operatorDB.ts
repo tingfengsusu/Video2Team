@@ -27,8 +27,8 @@ export class OperatorDB {
   private byName = new Map<string, OperatorInfo>();
 
   static async load(): Promise<OperatorDB> {
-    // publicDir=data（见 vite.config.ts）：JSON 拷贝到 dist 根部
-    const url = chrome.runtime.getURL("operators.json");
+    // scripts/build.mjs 将 data/operators.json 拷贝至 dist/data/
+    const url = chrome.runtime.getURL("data/operators.json");
     const resp = await fetch(url);
     if (!resp.ok) throw new Error(`干员字典加载失败 HTTP ${resp.status}`);
     const raw: Record<string, any> = await resp.json();

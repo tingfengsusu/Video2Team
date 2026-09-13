@@ -81,7 +81,7 @@ Video2Team/
 | 层 | 技术 |
 |----|------|
 | 插件运行时 | Chrome Manifest V3（Edge 兼容） |
-| 语言/构建 | TypeScript + Vite |
+| 语言/构建 | TypeScript + esbuild（四入口单文件 bundle，规避 crxjs beta 的 chunk 问题） |
 | Excel 解析 | SheetJS (xlsx)，纯前端本地解析 |
 | AI 分析 | DeepSeek API（多模态） |
 | 数据 | B站公开 API、干员数据 JSON（PRTS/一图流开源数据） |

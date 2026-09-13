@@ -100,9 +100,13 @@ async function analyze(bvid: string, page: number | null): Promise<void> {
   $("status").textContent = "分析中：提取阵容 → 挖掘评论区 → 匹配你的 box…（约 10-30 秒）";
   btn.disabled = true;
   try {
-    const resp = await chrome.runtime.sendMessage({ type: "ANALYZE_VIDEO", bvid, page: page ?? undefined });
-    if (!resp?.ok) throw new Error(resp?.error ?? "未知错误");
-    renderResult(resp.result as AnalysisOutput);
+    const resp = (await chrome.runtime.sendMessage({ type: "ANALYZE_VIDEO", bvid, page: page ?? undefined })) as
+      | { ok: true; result: AnalysisOutput }
+      | { ok: false; error: string }
+      | undefined;
+    if (!resp) throw new Error("扩展后台未响应：请到扩展管理页重新加载本扩展后重试");
+    if (!resp.ok) throw new Error(resp.error);
+    renderResult(resp.result);
     $("status").textContent = "";
   } catch (err) {
     $("status").innerHTML = `<span class="err">${esc((err as Error).message)}</span>`;
