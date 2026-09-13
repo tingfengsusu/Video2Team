@@ -58,12 +58,17 @@ export interface GenericSubstitution {
   origin: "chart" | "narration"; // 图表帧 / 解说词
 }
 
-/** box 中一个干员的练度 */
+/** box 中一个干员的练度（列结构见 docs/notes/recon.md，来自一图流 Excel 导出） */
 export interface OperatorEntry {
   name: string;
-  elite: number; // 精英化
+  owned: boolean;
+  rarity: number; // 星级 1-6
   level: number;
-  masteries: number[]; // 各技能专精
+  elite: number; // 精英化等级 0-2
+  potential?: number; // 潜能等级
+  skillLevel?: number; // 通用技能等级
+  masteries: number[]; // [1技能, 2技能, 3技能] 专精等级 0-3
+  modules?: number[]; // [χ, γ, Δ, α] 分支模组等级
 }
 
 /** 用户输入的干员 box */
