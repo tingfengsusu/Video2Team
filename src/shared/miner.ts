@@ -1,10 +1,14 @@
 /**
  * ②a 实战替代挖掘（L3）：从弹幕/评论区提取「XX 可以用 YY 代替」的映射对。
  *
- * 流程：抓取（bilibili.ts）→ 正则粗筛（+置顶/高赞兜底）→ DeepSeek 精筛出「X→Y」映射对
+ * 流程：抓取（bilibili.ts）→ 正则粗筛 → DeepSeek 精筛出「X→Y」映射对
  *      → 干员名字典校验（防幻觉）。
- * 评论区（尤其高赞）权重高于弹幕。评论天然只讨论该关卡，无需路由（多分P评论路由见 roster）。
+ * 弹幕与评论双源（2026-09-13 验收修订）：实测弹幕中替代建议密度高于评论
+ * （「老玛可以替askl」「大姨可以换杰哥」）；弹幕量大且无点赞信号 → 仅正则命中的
+ * 弹幕进入候选；评论沿用 置顶/正则命中/高赞兜底。
  * 黑话缩写三层防线：aliases 注入 prompt → LLM 还原全名 → 字典校验拦截。
+ * downkyi 等下载器的 .ass 弹幕文件同源（均为 comment.bilibili.com/{cid}.xml），
+ * 本插件直接拉取 XML，无需中转。
  */
 
 import { callDeepSeek, parseJsonLoose } from "./deepseek";
@@ -16,8 +20,18 @@ import ALIASES from "../../data/aliases.json";
 /** 正则粗筛：命中替代语义关键词的候选（宽松，宁可多送 LLM） */
 const SUB_HINTS = [
   /代替/, /替换/, /替代/, /平替/, /下位/, /换成/, /可换/, /能换/, /换上/,
-  /没有.{0,10}用.{1,16}/, /用.{1,16}替/, /缺.{0,6}用/,
+  /可以替/, /可以换/, /没有.{0,10}用.{1,16}/, /用.{1,16}替/, /缺.{0,6}用/,
 ];
+
+interface Candidate {
+  i: number; // 候选编号（喂给 LLM，输出回填用）
+  text: string;
+  likes: number;
+  isPinned: boolean;
+  source: "danmaku" | "comment" | "pinned";
+  rpid?: number; // 评论专属：溯源链接
+  time?: number; // 弹幕专属：视频时间点(秒)
+}
 
 interface MinedItem {
   removed?: string;
@@ -29,22 +43,52 @@ interface MinedItem {
 
 const KINDS = ["operator_swap", "skill_swap", "position_swap", "manual"];
 
+function fmtTime(sec: number): string {
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
 export async function mineSubstitutions(
   roster: Roster,
   comments: CommentItem[],
+  danmaku: Array<{ time: number; text: string }>,
   opDB: OperatorDB,
 ): Promise<Substitution[]> {
-  // 候选集 = 置顶 ∪ 正则命中 ∪ 高赞前20（句式千变万化，粗筛可能漏）
-  const flags = comments.map((c) => SUB_HINTS.some((re) => re.test(c.text)));
-  const picked = new Set<number>();
-  comments.forEach((c, i) => {
-    if (c.isPinned || flags[i]) picked.add(i);
+  const candidates: Candidate[] = [];
+  const push = (c: Omit<Candidate, "i">) => candidates.push({ i: candidates.length, ...c });
+
+  // 评论候选：置顶 ∪ 正则命中 ∪ 高赞前20
+  const commentFlags = comments.map((c) => SUB_HINTS.some((re) => re.test(c.text)));
+  comments.forEach((c) => {
+    const idx = comments.indexOf(c);
+    if (c.isPinned || commentFlags[idx]) {
+      push({
+        text: c.text, likes: c.likes, isPinned: c.isPinned,
+        source: c.isPinned ? "pinned" : "comment", rpid: c.rpid,
+      });
+    }
   });
+  const pickedTexts = new Set(candidates.map((c) => c.text));
   [...comments]
     .sort((a, b) => b.likes - a.likes)
     .slice(0, 20)
-    .forEach((c) => picked.add(comments.indexOf(c)));
-  const candidates = [...picked].map((i) => ({ i, ...comments[i]! }));
+    .forEach((c) => {
+      if (!pickedTexts.has(c.text)) {
+        push({ text: c.text, likes: c.likes, isPinned: false, source: "comment", rpid: c.rpid });
+      }
+    });
+
+  // 弹幕候选：仅正则命中（量大且无点赞信号，全部送 LLM 太贵）
+  danmaku.forEach((d) => {
+    if (d.text && SUB_HINTS.some((re) => re.test(d.text))) {
+      push({
+        text: `[弹幕 ${fmtTime(d.time)}] ${d.text}`,
+        likes: 0, isPinned: false, source: "danmaku", time: d.time,
+      });
+    }
+  });
+
   if (candidates.length === 0) return [];
 
   const rosterNames = roster.slots.map((s) => s.operator);
@@ -53,24 +97,24 @@ export async function mineSubstitutions(
     {
       role: "user",
       content: [
-        `任务：从B站评论中提取「干员替代建议」——评论认为阵容中的干员X可以用干员Y代替。`,
+        `任务：从B站弹幕/评论中提取「干员替代建议」——观众认为视频阵容中的干员X可以用干员Y代替。`,
         ``,
         `关卡 ${roster.stage} 的视频阵容（被替代者只能从中选）：`,
         rosterNames.map((n) => `- ${n}`).join("\n"),
         ``,
-        `昵称/黑话对照表（评论中的昵称请还原为干员全名）：`,
+        `昵称/黑话对照表（弹幕评论中的昵称/简称请还原为干员全名）：`,
         JSON.stringify(ALIASES.aliases),
         ``,
-        `评论列表（编号|点赞|内容）：`,
-        candidates.map((c) => `${c.i} | ${c.likes} | ${c.text}`).join("\n"),
+        `弹幕/评论列表（编号|来源|点赞|内容）：`,
+        candidates.map((c) => `${c.i} | ${c.source} | ${c.likes} | ${c.text}`).join("\n"),
         ``,
         `规则：`,
-        `- removed：必须是上述阵容中的干员全名；replacement：替代干员全名（昵称先还原）`,
+        `- removed：必须是上述阵容中的干员全名；replacement：替代干员全名（昵称/简称先还原）`,
         `- kind：operator_swap(默认)/skill_swap(换技能或攻速)/position_swap(换部署位置)/manual(改手动)`,
-        `- 只提取明确的替代建议；求助、吐槽、讨论练度等一律忽略`,
-        `- evidence 摘录评论关键原文`,
+        `- 弹幕口语极简（如「老玛可以替askl」），结合阵容与对照表谨慎判断；不确定就忽略`,
+        `- 只提取替代建议；求助、吐槽、讨论练度等一律忽略；evidence 摘录原文`,
         ``,
-        `仅输出 JSON 数组：[{"removed":"","replacement":"","kind":"","evidence":"","commentIndex":评论编号}]，无建议输出 []`,
+        `仅输出 JSON 数组：[{"removed":"","replacement":"","kind":"","evidence":"","commentIndex":编号}]，无建议输出 []`,
       ].join("\n"),
     },
   ]);
@@ -90,25 +134,27 @@ export async function mineSubstitutions(
     if (!rosterNames.includes(removed)) continue;
     if (!replacement || !opDB.exists(replacement)) continue;
     if (removed === replacement) continue;
-    const comment = it.commentIndex != null ? candidates.find((c) => c.i === it.commentIndex) : undefined;
+    const cand = it.commentIndex != null ? candidates.find((c) => c.i === it.commentIndex) : undefined;
     out.push({
       removed,
       replacement,
       stage: roster.stage,
-      evidence: (it.evidence ?? comment?.text ?? "").slice(0, 200),
-      source: comment?.isPinned ? "pinned" : "comment",
+      evidence: (it.evidence ?? cand?.text ?? "").slice(0, 200),
+      source: cand?.source ?? "comment",
       kind: KINDS.includes(it.kind ?? "") ? (it.kind as Substitution["kind"]) : "operator_swap",
-      likes: comment?.likes ?? 0,
+      likes: cand?.likes ?? 0,
       verified: true,
-      evidenceUrl: comment ? replyUrl(roster.videoId, comment.rpid) : undefined,
+      evidenceUrl: cand?.rpid ? replyUrl(roster.videoId, cand.rpid) : undefined,
     });
   }
 
-  // 同一对 (removed→replacement) 去重，保留热度最高
+  // 同一对 (removed→replacement) 去重：评论（有赞/可溯源）优先于弹幕，同源取热度最高
   const best = new Map<string, Substitution>();
+  const score = (s: Substitution) => (s.source !== "danmaku" ? 1e9 : 0) + s.likes;
   for (const s of out) {
     const k = `${s.removed}→${s.replacement}`;
-    if (!best.has(k) || best.get(k)!.likes < s.likes) best.set(k, s);
+    const prev = best.get(k);
+    if (!prev || score(s) > score(prev)) best.set(k, s);
   }
   return [...best.values()].sort((a, b) => b.likes - a.likes);
 }

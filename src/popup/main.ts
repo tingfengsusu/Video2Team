@@ -83,15 +83,14 @@ function renderSlot(slot: RecommendedSlot): string {
 }
 
 function renderResult(out: AnalysisOutput): void {
-  const srcLabel =
-    out.roster.source === "pinned_comment"
-      ? "来自置顶评论"
-      : "来自视频简介（可能不含本关全部干员，仅供参考）";
+  const degraded = out.roster.source === "description";
   const subCount = out.substitutions.length;
   $("result").innerHTML =
     `<div class="video-title">${esc(out.videoTitle)}</div>` +
     `<div class="stage">${esc(out.stage)} 适配结果</div>` +
-    `<div class="roster-src">阵容来源：${srcLabel}｜实战替代建议：${subCount} 条</div>` +
+    (degraded
+      ? `<div class="err">⚠ 阵容来自视频简介的常用干员列表，非本关实测部署——结果仅供参考，接入本地分析服务（帧提取）前请以视频画面/评论区为准</div>`
+      : `<div class="roster-src">阵容来源：置顶评论｜实战替代建议：${subCount} 条</div>`) +
     out.recommendations.map(renderSlot).join("");
 }
 

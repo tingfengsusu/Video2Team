@@ -4,7 +4,7 @@
  */
 
 import { locateStage, extractRoster } from "../shared/roster";
-import { fetchComments } from "../shared/bilibili";
+import { fetchComments, fetchDanmaku } from "../shared/bilibili";
 import { mineSubstitutions } from "../shared/miner";
 import { recommend } from "../shared/recommender";
 import { OperatorDB } from "../shared/operatorDB";
@@ -24,7 +24,8 @@ async function analyzeVideo(bvid: string, page?: number): Promise<AnalysisOutput
   const meta = await locateStage(bvid, page);
   const roster = await extractRoster(meta, opDB);
   const comments = await fetchComments(meta.video.aid, 200);
-  const substitutions = await mineSubstitutions(roster, comments, opDB);
+  const danmaku = meta.cid ? await fetchDanmaku(meta.cid).catch(() => []) : [];
+  const substitutions = await mineSubstitutions(roster, comments, danmaku, opDB);
   const recommendations = recommend(roster, substitutions, box);
   return { roster, substitutions, recommendations, videoTitle: meta.video.title, stage: meta.stage, bvid };
 }
