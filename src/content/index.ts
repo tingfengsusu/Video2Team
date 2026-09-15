@@ -152,9 +152,10 @@ const PANEL_HTML = `
     <button class="act" data-act="analyze" disabled>分析此关卡</button>
     <button class="act ghost" data-act="clear" style="display:none">清除全部截图</button>
     <div id="status"></div>
+    <button class="act" data-act="inject2" style="display:none">已收到第 1 段回复，注入第二段</button>
     <div class="pastebox" style="display:none">
-      <textarea class="pasteinput" placeholder="把 DeepSeek 网页版的整段回复粘贴到这里（贴完点下方按钮继续）"></textarea>
-      <button class="act" data-act="paste">提交回复，继续</button>
+      <textarea class="pasteinput" placeholder="把 DeepSeek 网页版第 2 步的最终回复整段粘贴到这里（含 roster 与 substitutions 的 JSON）"></textarea>
+      <button class="act" data-act="paste">提交回复，出结果</button>
     </div>
     <div id="result"></div>
   </div>
@@ -242,8 +243,9 @@ async function grabFrame(): Promise<void> {
   }
 }
 
-function setPasteVisible(on: boolean): void {
-  q<HTMLElement>(".pastebox").style.display = on ? "block" : "none";
+function setWebUi(status: string | undefined): void {
+  q<HTMLElement>(".pastebox").style.display = status === "web_step2" ? "block" : "none";
+  q<HTMLElement>('[data-act="inject2"]').style.display = status === "web_step1" ? "block" : "none";
 }
 
 function pollTask(): void {
@@ -254,21 +256,21 @@ function pollTask(): void {
       | null;
     const task = resp?.task;
     if (!task) return;
-    setPasteVisible(task.status === "awaiting_paste");
+    setWebUi(task.status);
     if (task.status === "running" && task.progress) {
       q("#status").textContent = `${task.progress}（约 20-60 秒）`;
-    } else if (task.status === "awaiting_paste") {
-      q("#status").textContent = task.progress ?? "等待你粘贴 DeepSeek 回复…";
+    } else if (task.status === "web_step1" || task.status === "web_step2") {
+      q("#status").textContent = task.progress ?? "等待你的操作…";
     } else if (task.status === "done" && task.result) {
       window.clearInterval(pollTimer!);
       pollTimer = undefined;
-      setPasteVisible(false);
+      setWebUi(undefined);
       q("#status").textContent = "";
       q("#result").innerHTML = renderResult(task.result, hasOp);
     } else if (task.status === "error") {
       window.clearInterval(pollTimer!);
       pollTimer = undefined;
-      setPasteVisible(false);
+      setWebUi(undefined);
       q("#status").innerHTML = `<span class="err">${esc(task.error ?? "分析失败")}</span>`;
     } else if (task.status === "running" && Date.now() - task.startedAt > 300_000) {
       window.clearInterval(pollTimer!);
@@ -276,6 +278,18 @@ function pollTask(): void {
       q("#status").innerHTML = `<span class="err">分析超时（5 分钟），请重试</span>`;
     }
   }, 1500);
+}
+
+async function submitInject2(): Promise<void> {
+  const resp = (await chrome.runtime.sendMessage({ type: "WEB_INJECT_STEP2" })) as
+    | { ok: boolean }
+    | undefined;
+  if (resp?.ok) {
+    setWebUi(undefined);
+    q("#status").textContent = "已注入第 2 段——请到 DeepSeek 页面发送，然后把最终回复粘贴回来";
+  } else {
+    q("#status").innerHTML = `<span class="err">当前没有等待中的步骤（可能已结束），请重新分析</span>`;
+  }
 }
 
 async function submitPaste(): Promise<void> {
@@ -287,8 +301,8 @@ async function submitPaste(): Promise<void> {
     | undefined;
   if (resp?.ok) {
     input.value = "";
-    setPasteVisible(false);
-    q("#status").textContent = "已提交，继续处理…";
+    setWebUi(undefined);
+    q("#status").textContent = "已提交，生成结果中…";
   } else {
     q("#status").innerHTML = `<span class="err">当前没有等待中的回复请求（可能已结束），请重新分析</span>`;
   }
@@ -321,12 +335,13 @@ async function openPanel(): Promise<void> {
     | { task: TaskState | null }
     | null;
   const task = resp?.task;
-  setPasteVisible(task?.status === "awaiting_paste");
-  if ((task?.status === "running" || task?.status === "awaiting_paste") && Date.now() - task.startedAt < 1_800_000) {
+  setWebUi(task?.status);
+  if (
+    (task?.status === "running" || task?.status === "web_step1" || task?.status === "web_step2") &&
+    Date.now() - task.startedAt < 1_800_000
+  ) {
     q("#status").textContent =
-      task.status === "awaiting_paste"
-        ? task.progress ?? "等待你粘贴 DeepSeek 回复…"
-        : "分析中…（约 20-60 秒）";
+      task.status === "running" ? "分析中…（约 20-60 秒）" : task.progress ?? "等待你的操作…";
     pollTask();
   } else if (task?.status === "done" && task.result) {
     q("#result").innerHTML = renderResult(task.result, hasOp);
@@ -362,6 +377,7 @@ function mount(): void {
     void chrome.runtime.sendMessage({ type: "OPEN_OPTIONS" });
   });
   q('[data-act="paste"]').addEventListener("click", () => void submitPaste());
+  q('[data-act="inject2"]').addEventListener("click", () => void submitInject2());
   q('[data-act="pick"]').addEventListener("click", () => q<HTMLInputElement>("input[type=file]").click());
   q<HTMLInputElement>("input[type=file]").addEventListener("change", (e) => {
     const file = (e.target as HTMLInputElement).files?.[0];

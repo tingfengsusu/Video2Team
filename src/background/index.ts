@@ -1,22 +1,28 @@
 /**
  * Service Worker：消息路由 + 管道编排（设计见 docs/design.md §4）。
- * 管道：① roster.extractRosterFromImage（画面提取）→ ②a miner.mineSubstitutions → ③ recommender.recommend
- * 阵容必须来自用户提供的画面（截图/抓帧）；简介文本仅作辅助上下文。
+ * 管道：① 阵容提取（画面）→ ② 替代建议挖掘（弹幕/评论）→ ③ 匹配推荐。
  *
- * 两种调用模式：
- * - API 模式：LLM 调用在后台完成，任务状态经 storage.session 供 popup/面板恢复；
- * - 网页版模式（半自动）：把提示词注入 chat.deepseek.com，任务进入 awaiting_paste，
- *   用户发送并回贴回复（PASTE_REPLY）后继续下一步。
+ * 两种 LLM 调用模式：
+ * - API 模式：后台全自动；
+ * - 网页版模式（半自动，免 Key）：
+ *     注入第 1 段提示词（含截图）→ 用户在 chat.deepseek.com 发送 →
+ *     用户点「注入第二段」→ 注入第 2 段（引用上下文中的阵容）→ 用户发送 →
+ *     用户把最终回复粘贴回插件（含 roster + substitutions）→ 出结果。
  */
 
-import { locateStage, buildTextContext, extractRosterFromImage } from "../shared/roster";
+import {
+  locateStage,
+  buildTextContext,
+  buildRosterMessages,
+  parseRosterReply,
+  extractRosterFromImage,
+} from "../shared/roster";
 import { fetchComments, fetchDanmaku } from "../shared/bilibili";
-import { mineSubstitutions } from "../shared/miner";
+import { mineSubstitutions, prepareMining, parseMiningReply } from "../shared/miner";
 import { recommend } from "../shared/recommender";
 import { OperatorDB } from "../shared/operatorDB";
-import { getLlmConfig, injectWebPrompt } from "../shared/llm";
-import type { AnalysisOutput, Box, TaskState } from "../shared/types";
-import type { AskFn } from "../shared/llm";
+import { getLlmConfig, injectWebPrompt, parseJsonLoose } from "../shared/llm";
+import type { AnalysisOutput, Box, Roster, Substitution, TaskState } from "../shared/types";
 
 const TASK_KEY = "task";
 
@@ -39,22 +45,22 @@ async function getBox(): Promise<Box> {
   return box;
 }
 
-// ---------- 网页版半自动：注入提示词 → 等待用户回贴回复 ----------
+// ---------- 网页版半自动：等待用户动作（注入第二段 / 粘贴回复） ----------
 
-let pasteResolver: ((text: string) => void) | null = null;
+let userResolver: ((text: string) => void) | null = null;
 let keepaliveTimer: ReturnType<typeof setInterval> | null = null;
 
-function waitForPaste(): Promise<string> {
+function waitForUser(): Promise<string> {
   keepaliveTimer = setInterval(() => void chrome.runtime.getPlatformInfo(), 20_000);
   return new Promise((resolve) => {
-    pasteResolver = resolve;
+    userResolver = resolve;
   });
 }
 
-function resolvePaste(text: string): boolean {
-  if (!pasteResolver) return false;
-  const r = pasteResolver;
-  pasteResolver = null;
+function resolveUser(text: string): boolean {
+  if (!userResolver) return false;
+  const r = userResolver;
+  userResolver = null;
   if (keepaliveTimer) {
     clearInterval(keepaliveTimer);
     keepaliveTimer = null;
@@ -75,42 +81,61 @@ async function analyzeVideo(
   const opDB = await OperatorDB.load();
   const meta = await locateStage(bvid, page);
 
-  // 网页版模式：构造 ask —— 注入提示词到 DeepSeek 网页版，等用户回贴回复
-  const cfg = await getLlmConfig().catch(() => null);
-  let ask: AskFn | undefined;
-  if (cfg?.mode === "web") {
-    const labels = ["识别画面阵容", "挖掘替代建议"];
-    let step = 0;
-    ask = async (messages) => {
-      step++;
-      const label = labels[step - 1] ?? `步骤 ${step}`;
-      await setTask({
-        status: "awaiting_paste",
-        startedAt,
-        stage: meta.stage,
-        progress: `第 ${step} 步「${label}」：提示词${step === 1 ? "与截图" : ""}已送入 DeepSeek 网页版——请在该页面按回车发送，然后把整段回复粘贴回插件`,
-      });
-      await injectWebPrompt(messages);
-      return waitForPaste();
-    };
-  }
-
   await setTask({ status: "running", startedAt, stage: meta.stage, progress: "抓取弹幕/评论…" });
   const commentsPromise = fetchComments(meta.video.aid, 200).catch(() => []);
   const danmakuPromise = meta.cid ? fetchDanmaku(meta.cid).catch(() => []) : Promise.resolve([]);
   const comments = await commentsPromise;
   const textContext = buildTextContext(meta.video, comments);
 
-  if (!ask) {
-    await setTask({ status: "running", startedAt, stage: meta.stage, progress: "AI 识别画面阵容…" });
-  }
-  const roster = await extractRosterFromImage(meta, imageDataUrls, opDB, textContext, ask);
+  const cfg = await getLlmConfig().catch(() => null);
+  let roster: Roster;
+  let substitutions: Substitution[];
 
-  if (!ask) {
+  if (cfg?.mode === "web") {
+    // 第 1 段：阵容识别（含截图）——聊天上下文会保留模型的回答，第 2 段据此引用
+    await setTask({ status: "running", startedAt, stage: meta.stage, progress: "正在打开 DeepSeek 网页版并注入第 1 段提示词…" });
+    await injectWebPrompt(buildRosterMessages(meta, imageDataUrls, textContext));
+    await setTask({
+      status: "web_step1",
+      startedAt,
+      stage: meta.stage,
+      progress: "第 1 段（阵容识别，含截图）已填入 DeepSeek 网页版——请在该页面按回车发送；收到回复后点下方按钮注入第 2 段",
+    });
+    await waitForUser();
+
+    // 第 2 段：替代建议挖掘（引用上一条回复中的阵容；最终一次回贴拿全量数据）
+    const danmaku = await danmakuPromise;
+    const { messages: mineMsgs, candidates } = prepareMining(meta.stage, null, comments, danmaku);
+    await injectWebPrompt(mineMsgs);
+    await setTask({
+      status: "web_step2",
+      startedAt,
+      stage: meta.stage,
+      progress: "第 2 段（替代建议、弹幕/评论）已填入——请在网页版发送，然后把最终回复整段粘贴回插件",
+    });
+    const finalText = await waitForUser();
+
+    const parsed = parseJsonLoose<{ roster?: unknown; substitutions?: unknown }>(finalText);
+    if (!parsed.roster || typeof parsed.roster !== "object") {
+      throw new Error("回复里缺少 roster 字段：请粘贴第 2 步的完整回复（应同时包含 roster 与 substitutions）");
+    }
+    roster = parseRosterReply(JSON.stringify(parsed.roster), meta, opDB);
+    const items = Array.isArray(parsed.substitutions) ? parsed.substitutions : [];
+    substitutions = parseMiningReply(
+      items,
+      roster.slots.map((s) => s.operator),
+      candidates,
+      roster.stage,
+      roster.videoId,
+      opDB,
+    );
+  } else {
+    await setTask({ status: "running", startedAt, stage: meta.stage, progress: "AI 识别画面阵容…" });
+    roster = await extractRosterFromImage(meta, imageDataUrls, opDB, textContext);
     await setTask({ status: "running", startedAt, stage: meta.stage, progress: "AI 分析替代建议…" });
+    const danmaku = await danmakuPromise;
+    substitutions = await mineSubstitutions(roster, comments, danmaku, opDB);
   }
-  const danmaku = await danmakuPromise;
-  const substitutions = await mineSubstitutions(roster, comments, danmaku, opDB, ask);
 
   const recommendations = recommend(roster, substitutions, box);
   return { roster, substitutions, recommendations, videoTitle: meta.video.title, stage: meta.stage, bvid };
@@ -131,7 +156,11 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true; // async sendResponse
   }
   if (msg?.type === "PASTE_REPLY") {
-    sendResponse({ ok: resolvePaste(String(msg.text ?? "")) });
+    sendResponse({ ok: resolveUser(String(msg.text ?? "")) });
+    return true;
+  }
+  if (msg?.type === "WEB_INJECT_STEP2") {
+    sendResponse({ ok: resolveUser("") });
     return true;
   }
   if (msg?.type === "GET_TASK") {

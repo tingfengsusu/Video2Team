@@ -9,7 +9,7 @@
  * 开局帧部署顺序字幕：暂缓（并非所有视频都有）。
  */
 
-import { callLLM, parseJsonLoose, type AskFn } from "./llm";
+import { callLLM, parseJsonLoose, type AskFn, type ChatMessage } from "./llm";
 import { getVideoInfo, type VideoInfo } from "./bilibili";
 import type { OperatorDB } from "./operatorDB";
 import type { Roster, RosterSlot } from "./types";
@@ -55,15 +55,13 @@ interface ExtractedOperator {
   keyReason?: string;
 }
 
-/** 主路径：从用户提供的画面（可多张：编队页 + 助战详情页）提取阵容 */
-export async function extractRosterFromImage(
+/** 构建阵容识别提示词（API 模式直接调用；网页版模式由后台注入 DeepSeek 网页端） */
+export function buildRosterMessages(
   meta: StageMeta,
   imageDataUrls: string[],
-  opDB: OperatorDB,
   textContext: string,
-  ask: AskFn = callLLM,
-): Promise<Roster> {
-  const raw = await ask([
+): ChatMessage[] {
+  return [
     { role: "system", content: "你是明日方舟攻略阵容提取引擎，只输出 JSON。" },
     {
       role: "user",
@@ -96,8 +94,11 @@ export async function extractRosterFromImage(
         ...imageDataUrls.map((url) => ({ type: "image_url" as const, image_url: { url } })),
       ],
     },
-  ]);
+  ];
+}
 
+/** 解析阵容识别回复（{"operators":[...]}）并过干员名字典校验 */
+export function parseRosterReply(raw: string, meta: StageMeta, opDB: OperatorDB): Roster {
   let parsed: { operators?: ExtractedOperator[] };
   try {
     parsed = parseJsonLoose<{ operators?: ExtractedOperator[] }>(raw);
@@ -138,4 +139,16 @@ export async function extractRosterFromImage(
     slots: dedup,
     source: "screenshot",
   };
+}
+
+/** API 模式主路径：构建提示词 → 调用 → 解析（网页版模式走 build/parse 分离路径） */
+export async function extractRosterFromImage(
+  meta: StageMeta,
+  imageDataUrls: string[],
+  opDB: OperatorDB,
+  textContext: string,
+  ask: AskFn = callLLM,
+): Promise<Roster> {
+  const raw = await ask(buildRosterMessages(meta, imageDataUrls, textContext));
+  return parseRosterReply(raw, meta, opDB);
 }

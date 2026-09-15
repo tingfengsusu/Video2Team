@@ -165,8 +165,9 @@ function wireImageInputs(): void {
   $("clearBtn").addEventListener("click", clearImages);
 }
 
-function setPasteVisible(on: boolean): void {
-  ($("pasteBox") as HTMLElement).style.display = on ? "block" : "none";
+function setWebUi(status: string | undefined): void {
+  ($("pasteBox") as HTMLElement).style.display = status === "web_step2" ? "block" : "none";
+  ($("injectBtn") as HTMLElement).style.display = status === "web_step1" ? "block" : "none";
 }
 
 /** 轮询后台任务状态（popup 关闭重开也能恢复） */
@@ -178,21 +179,21 @@ function pollTask(): void {
       | null;
     const task = resp?.task;
     if (!task) return;
-    setPasteVisible(task.status === "awaiting_paste");
+    setWebUi(task.status);
     if (task.status === "running" && task.progress) {
       $("status").textContent = `${task.progress}（约 20-60 秒）`;
-    } else if (task.status === "awaiting_paste") {
-      $("status").textContent = task.progress ?? "等待你粘贴 DeepSeek 回复…";
+    } else if (task.status === "web_step1" || task.status === "web_step2") {
+      $("status").textContent = task.progress ?? "等待你的操作…";
     } else if (task.status === "done" && task.result) {
       window.clearInterval(pollTimer!);
       pollTimer = undefined;
-      setPasteVisible(false);
+      setWebUi(undefined);
       $("status").textContent = "";
       $("result").innerHTML = renderResult(task.result, hasOp);
     } else if (task.status === "error") {
       window.clearInterval(pollTimer!);
       pollTimer = undefined;
-      setPasteVisible(false);
+      setWebUi(undefined);
       $("status").innerHTML = `<span class="err">${esc(task.error ?? "分析失败")}</span>`;
     } else if (task.status === "running" && Date.now() - task.startedAt > 300_000) {
       window.clearInterval(pollTimer!);
@@ -200,6 +201,18 @@ function pollTask(): void {
       $("status").innerHTML = `<span class="err">分析超时（5 分钟），请重试</span>`;
     }
   }, 1500);
+}
+
+async function submitInject2(): Promise<void> {
+  const resp = (await chrome.runtime.sendMessage({ type: "WEB_INJECT_STEP2" })) as
+    | { ok: boolean }
+    | undefined;
+  if (resp?.ok) {
+    setWebUi(undefined);
+    $("status").textContent = "已注入第 2 段——请到 DeepSeek 页面发送，然后把最终回复粘贴回来";
+  } else {
+    $("status").innerHTML = `<span class="err">当前没有等待中的步骤（可能已结束），请重新分析</span>`;
+  }
 }
 
 async function submitPaste(): Promise<void> {
@@ -211,8 +224,8 @@ async function submitPaste(): Promise<void> {
     | undefined;
   if (resp?.ok) {
     input.value = "";
-    setPasteVisible(false);
-    $("status").textContent = "已提交，继续处理…";
+    setWebUi(undefined);
+    $("status").textContent = "已提交，生成结果中…";
   } else {
     $("status").innerHTML = `<span class="err">当前没有等待中的回复请求（可能已结束），请重新分析</span>`;
   }
@@ -244,17 +257,19 @@ async function restoreState(): Promise<void> {
     | { task: TaskState | null }
     | null;
   const task = resp?.task;
-  if (!task) return;
-  setPasteVisible(task.status === "awaiting_paste");
-  if ((task.status === "running" || task.status === "awaiting_paste") && Date.now() - task.startedAt < 1_800_000) {
+  setWebUi(task?.status);
+  if (
+    (task?.status === "running" || task?.status === "web_step1" || task?.status === "web_step2") &&
+    Date.now() - task.startedAt < 1_800_000
+  ) {
     $("status").textContent =
-      task.status === "awaiting_paste"
-        ? task.progress ?? "等待你粘贴 DeepSeek 回复…"
-        : "分析中：识别画面阵容 → 挖掘弹幕/评论区 → 匹配你的 box…（约 20-60 秒）";
+      task.status === "running"
+        ? "分析中：识别画面阵容 → 挖掘弹幕/评论区 → 匹配你的 box…（约 20-60 秒）"
+        : task.progress ?? "等待你的操作…";
     pollTask();
-  } else if (task.status === "done" && task.result) {
+  } else if (task?.status === "done" && task.result) {
     $("result").innerHTML = renderResult(task.result, hasOp);
-  } else if (task.status === "error" && task.error) {
+  } else if (task?.status === "error" && task.error) {
     $("status").innerHTML = `<span class="err">${esc(task.error)}</span>`;
   }
 }
@@ -264,6 +279,7 @@ async function init(): Promise<void> {
   wireImageInputs();
   $("analyzeBtn").addEventListener("click", triggerAnalyze);
   $("pasteSubmit").addEventListener("click", () => void submitPaste());
+  $("injectBtn").addEventListener("click", () => void submitInject2());
   $("openOptions").addEventListener("click", (e) => {
     e.preventDefault();
     chrome.runtime.openOptionsPage();

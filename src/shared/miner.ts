@@ -11,7 +11,7 @@
  * 本插件直接拉取 XML，无需中转。
  */
 
-import { callLLM, parseJsonLoose, type AskFn } from "./llm";
+import { callLLM, parseJsonLoose, type AskFn, type ChatMessage } from "./llm";
 import { replyUrl, type CommentItem } from "./bilibili";
 import type { OperatorDB } from "./operatorDB";
 import type { Roster, Substitution } from "./types";
@@ -23,7 +23,7 @@ const SUB_HINTS = [
   /可以替/, /可以换/, /没有.{0,10}用.{1,16}/, /用.{1,16}替/, /缺.{0,6}用/,
 ];
 
-interface Candidate {
+export interface Candidate {
   i: number; // 候选编号（喂给 LLM，输出回填用）
   text: string;
   likes: number;
@@ -56,13 +56,23 @@ function normalizeToRoster(removed: string, rosterNames: string[]): string | nul
   return match ?? null;
 }
 
-export async function mineSubstitutions(
-  roster: Roster,
+export interface MiningPrepared {
+  messages: ChatMessage[];
+  candidates: Candidate[];
+}
+
+/**
+ * 构建挖掘提示词与候选集。
+ * - rosterNames 传数组（API 模式）：被替代者显式列出，输出纯数组；
+ * - 传 null（网页版模式第二步）：引用聊天上一条回复中的阵容，输出合并 JSON
+ *   （{"roster":..., "substitutions":[...]}，让最终一次回贴即可拿到全量数据）。
+ */
+export function prepareMining(
+  stage: string,
+  rosterNames: string[] | null,
   comments: CommentItem[],
   danmaku: Array<{ time: number; text: string }>,
-  opDB: OperatorDB,
-  ask: AskFn = callLLM,
-): Promise<Substitution[]> {
+): MiningPrepared {
   const candidates: Candidate[] = [];
   const push = (c: Omit<Candidate, "i">) => candidates.push({ i: candidates.length, ...c });
 
@@ -97,8 +107,6 @@ export async function mineSubstitutions(
     }
   });
 
-  if (candidates.length === 0) return [];
-
   // 压缩 LLM 输入：候选上限 80（置顶/高赞优先），单条截断 150 字
   if (candidates.length > 80) {
     candidates.sort((a, b) => Number(b.isPinned) - Number(a.isPinned) || b.likes - a.likes);
@@ -109,16 +117,17 @@ export async function mineSubstitutions(
     if (c.text.length > 150) c.text = c.text.slice(0, 150) + "…";
   });
 
-  const rosterNames = roster.slots.map((s) => s.operator);
-  const raw = await ask([
+  const webCombined = rosterNames === null;
+  const messages: ChatMessage[] = [
     { role: "system", content: "你是明日方舟攻略数据提取引擎，只输出 JSON。" },
     {
       role: "user",
       content: [
         `任务：从B站弹幕/评论中提取「干员替代建议」——观众认为视频阵容中的干员X可以用干员Y代替。`,
         ``,
-        `关卡 ${roster.stage} 的视频阵容（被替代者只能从中选）：`,
-        rosterNames.map((n) => `- ${n}`).join("\n"),
+        webCombined
+          ? `关卡 ${stage} 的视频阵容：你在上一条回复中识别出的干员（被替代者必须是那些干员）。`
+          : `关卡 ${stage} 的视频阵容（被替代者只能从中选）：\n${(rosterNames ?? []).map((n) => `- ${n}`).join("\n")}`,
         ``,
         `昵称/黑话对照表（弹幕评论中的昵称/简称请还原为干员全名）：`,
         JSON.stringify(ALIASES.aliases),
@@ -133,23 +142,30 @@ export async function mineSubstitutions(
         `- 弹幕口语极简（如「老玛可以替askl」），结合阵容与对照表谨慎判断；不确定就忽略`,
         `- 只提取替代建议；求助、吐槽、讨论练度等一律忽略；evidence 摘录原文`,
         ``,
-        `仅输出 JSON 数组：[{"removed":"","replacement":"","kind":"","evidence":"","commentIndex":编号}]，无建议输出 []`,
+        webCombined
+          ? `仅输出 JSON：{"roster":{"operators":[...与上一步相同格式的阵容全量重申...]},"substitutions":[{"removed":"","replacement":"","kind":"","evidence":"","commentIndex":编号}]}，无建议时 substitutions 为空数组`
+          : `仅输出 JSON 数组：[{"removed":"","replacement":"","kind":"","evidence":"","commentIndex":编号}]，无建议输出 []`,
       ].join("\n"),
     },
-  ]);
+  ];
+  return { messages, candidates };
+}
 
-  let items: MinedItem[];
-  try {
-    items = parseJsonLoose<MinedItem[]>(raw);
-  } catch {
-    return [];
-  }
-
+/** 解析挖掘回复（数组或 {"substitutions":[...]} 合并格式）并做字典校验/去重 */
+export function parseMiningReply(
+  items: unknown[],
+  rosterNames: string[],
+  candidates: Candidate[],
+  stage: string,
+  videoId: string,
+  opDB: OperatorDB,
+): Substitution[] {
   const out: Substitution[] = [];
-  for (const it of items ?? []) {
-    const removedRaw = opDB.resolve(it.removed ?? "");
+  for (const raw of items ?? []) {
+    const it = raw as MinedItem;
+    const removedRaw = opDB.resolve(it?.removed ?? "");
     const removed = normalizeToRoster(removedRaw, rosterNames);
-    const replacement = opDB.resolve(it.replacement ?? "");
+    const replacement = opDB.resolve(it?.replacement ?? "");
     // removed 归一到阵容（含异格启发式）；replacement 必须是真实干员（字典校验，防幻觉/还原错误）
     if (!removed) continue;
     if (!replacement || !opDB.exists(replacement)) continue;
@@ -158,13 +174,13 @@ export async function mineSubstitutions(
     out.push({
       removed,
       replacement,
-      stage: roster.stage,
+      stage,
       evidence: (it.evidence ?? cand?.text ?? "").slice(0, 200),
       source: cand?.source ?? "comment",
       kind: KINDS.includes(it.kind ?? "") ? (it.kind as Substitution["kind"]) : "operator_swap",
       likes: cand?.likes ?? 0,
       verified: true,
-      evidenceUrl: cand?.rpid ? replyUrl(roster.videoId, cand.rpid) : undefined,
+      evidenceUrl: cand?.rpid ? replyUrl(videoId, cand.rpid) : undefined,
     });
   }
 
@@ -177,4 +193,27 @@ export async function mineSubstitutions(
     if (!prev || score(s) > score(prev)) best.set(k, s);
   }
   return [...best.values()].sort((a, b) => b.likes - a.likes);
+}
+
+/** API 模式主路径：准备 → 调用 → 解析 */
+export async function mineSubstitutions(
+  roster: Roster,
+  comments: CommentItem[],
+  danmaku: Array<{ time: number; text: string }>,
+  opDB: OperatorDB,
+  ask: AskFn = callLLM,
+): Promise<Substitution[]> {
+  const rosterNames = roster.slots.map((s) => s.operator);
+  const { messages, candidates } = prepareMining(roster.stage, rosterNames, comments, danmaku);
+  if (candidates.length === 0) return [];
+
+  const raw = await ask(messages);
+  let items: unknown[];
+  try {
+    const v = parseJsonLoose<unknown>(raw);
+    items = Array.isArray(v) ? v : ((v as { substitutions?: unknown[] })?.substitutions ?? []);
+  } catch {
+    return [];
+  }
+  return parseMiningReply(items, rosterNames, candidates, roster.stage, roster.videoId, opDB);
 }

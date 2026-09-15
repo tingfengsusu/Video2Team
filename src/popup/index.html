@@ -56,9 +56,10 @@
 
     <button id="analyzeBtn" disabled>分析此关卡</button>
     <div id="status"></div>
+    <button id="injectBtn" style="display: none">已收到第 1 段回复，注入第二段</button>
     <div id="pasteBox" style="display: none">
-      <textarea id="pasteInput" placeholder="把 DeepSeek 网页版的整段回复粘贴到这里（贴完点下方按钮继续）"></textarea>
-      <button id="pasteSubmit">提交回复，继续</button>
+      <textarea id="pasteInput" placeholder="把 DeepSeek 网页版第 2 步的最终回复整段粘贴到这里（含 roster 与 substitutions 的 JSON）"></textarea>
+      <button id="pasteSubmit">提交回复，出结果</button>
     </div>
     <div id="result"></div>
     <a class="settings" href="#" id="openOptions">打开设置（API Key / 导入练度表）</a>

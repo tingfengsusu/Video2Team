@@ -212,7 +212,7 @@ export async function ensureWebTab(): Promise<number> {
   const tabs = await chrome.tabs.query({ url: "https://chat.deepseek.com/*" });
   let tabId = tabs.find((t) => t.id != null)?.id;
   if (tabId == null) {
-    const created = await chrome.tabs.create({ url: DEEPSEEK_WEB, active: false });
+    const created = await chrome.tabs.create({ url: DEEPSEEK_WEB, active: true });
     if (created.id == null) throw new Error("无法打开 DeepSeek 网页版标签页");
     tabId = created.id;
   }
