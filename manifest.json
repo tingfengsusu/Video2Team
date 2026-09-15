@@ -7,6 +7,7 @@
   "host_permissions": [
     "https://api.bilibili.com/*",
     "https://comment.bilibili.com/*",
+    "https://chat.deepseek.com/*",
     "https://api.deepseek.com/*",
     "https://api.siliconflow.cn/*",
     "https://open.bigmodel.cn/*",
@@ -32,6 +33,10 @@
     {
       "matches": ["https://www.bilibili.com/video/*"],
       "js": ["content.js"]
+    },
+    {
+      "matches": ["https://chat.deepseek.com/*"],
+      "js": ["content-deepseek.js"]
     }
   ]
 }

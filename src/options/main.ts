@@ -15,6 +15,17 @@ const modelIn = $("model") as HTMLInputElement;
 const keyIn = $("apiKey") as HTMLInputElement;
 const timeoutIn = $("timeout") as HTMLInputElement;
 
+function currentMode(): "api" | "web" {
+  const checked = document.querySelector<HTMLInputElement>('input[name="llmMode"]:checked');
+  return checked?.value === "web" ? "web" : "api";
+}
+
+function applyModeUi(): void {
+  const web = currentMode() === "web";
+  ($("apiFields") as HTMLElement).style.display = web ? "none" : "";
+  ($("webNote") as HTMLElement).style.display = web ? "" : "none";
+}
+
 function llmStatus(msg: string, ok: boolean): void {
   const el = $("llmStatus");
   el.textContent = msg;
@@ -35,6 +46,7 @@ function currentLlm(): LlmConfig | null {
     return null;
   }
   return {
+    mode: "api",
     provider: providerSel.value,
     baseUrl,
     model,
@@ -55,6 +67,19 @@ async function ensurePermission(baseUrl: string): Promise<boolean> {
 }
 
 async function saveLlm(): Promise<void> {
+  if (currentMode() === "web") {
+    const cfg: LlmConfig = {
+      mode: "web",
+      provider: "web",
+      baseUrl: "",
+      model: "",
+      apiKey: "",
+      timeoutMs: 240_000,
+    };
+    await chrome.storage.local.set({ llm: cfg });
+    llmStatus("已保存（网页版模式）✓", true);
+    return;
+  }
   const cfg = currentLlm();
   if (!cfg) return;
   const granted = await ensurePermission(cfg.baseUrl);
@@ -68,6 +93,37 @@ async function saveLlm(): Promise<void> {
 }
 
 async function testLlm(): Promise<void> {
+  if (currentMode() === "web") {
+    llmStatus("检查 DeepSeek 网页版…", true);
+    try {
+      const tabs = await chrome.tabs.query({ url: "https://chat.deepseek.com/*" });
+      let tabId = tabs.find((t) => t.id != null)?.id;
+      if (tabId == null) {
+        const created = await chrome.tabs.create({ url: "https://chat.deepseek.com/", active: true });
+        tabId = created.id ?? undefined;
+      }
+      if (tabId == null) {
+        llmStatus("无法打开 DeepSeek 网页版", false);
+        return;
+      }
+      for (let i = 0; i < 15; i++) {
+        try {
+          const r = await chrome.tabs.sendMessage(tabId, { type: "WEB_LLM_PING" });
+          if (r?.ready) {
+            llmStatus("✓ 网页版已就绪（已登录，可正常调用）", true);
+            return;
+          }
+        } catch {
+          /* 注入延迟，重试 */
+        }
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+      llmStatus("页面已打开：请确认已登录 chat.deepseek.com 后重试", false);
+    } catch (err) {
+      llmStatus(`检查失败：${(err as Error).message}`, false);
+    }
+    return;
+  }
   const cfg = currentLlm();
   if (!cfg) return;
   const granted = await ensurePermission(cfg.baseUrl);
@@ -119,19 +175,26 @@ async function initLlmSection(): Promise<void> {
     providerSel.appendChild(opt);
   }
   providerSel.addEventListener("change", () => applyPreset(providerSel.value));
+  document.querySelectorAll<HTMLInputElement>('input[name="llmMode"]').forEach((r) =>
+    r.addEventListener("change", applyModeUi),
+  );
 
   let cfg: LlmConfig | null = null;
   try {
     cfg = await getLlmConfig();
   } catch {
-    /* 未配置：留空表单 */
+    /* 未配置：留空表单（默认 API + DeepSeek 预设） */
   }
-  providerSel.value = cfg && cfg.provider in PRESETS ? cfg.provider : cfg ? "custom" : "deepseek";
-  baseUrlIn.value = cfg?.baseUrl ?? PRESETS.deepseek!.baseUrl;
-  modelIn.value = cfg?.model ?? PRESETS.deepseek!.model;
+  const mode = cfg?.mode ?? "api";
+  const modeRadio = document.querySelector<HTMLInputElement>(`input[name="llmMode"][value="${mode}"]`);
+  if (modeRadio) modeRadio.checked = true;
+  providerSel.value = cfg && cfg.provider in PRESETS ? cfg.provider : cfg && mode === "api" ? "custom" : "deepseek";
+  baseUrlIn.value = cfg?.baseUrl || PRESETS.deepseek!.baseUrl;
+  modelIn.value = cfg?.model || PRESETS.deepseek!.model;
   keyIn.value = cfg?.apiKey ?? "";
   timeoutIn.value = String(Math.round((cfg?.timeoutMs ?? 240_000) / 1000));
   $("presetNote").textContent = PRESETS[providerSel.value]?.note ?? "";
+  applyModeUi();
 
   $("saveLlm").addEventListener("click", () => void saveLlm());
   $("testLlm").addEventListener("click", () => void testLlm());

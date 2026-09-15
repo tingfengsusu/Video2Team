@@ -8,6 +8,7 @@
  */
 
 export interface LlmConfig {
+  mode: "api" | "web"; // api = OpenAI 兼容接口；web = chat.deepseek.com 网页版（免 Key，实验性）
   provider: string; // 预设 id（deepseek/zhipu/moonshot/.../custom）
   baseUrl: string; // 如 https://api.deepseek.com/v1（不含 /chat/completions）
   model: string;
@@ -84,12 +85,16 @@ export async function getLlmConfig(): Promise<LlmConfig> {
     llm?: Partial<LlmConfig>;
     apiKey?: string;
   };
+  if (stored.llm?.mode === "web") {
+    return { timeoutMs: DEFAULT_TIMEOUT, mode: "web", provider: "web", baseUrl: "", model: "", apiKey: "", ...stored.llm } as LlmConfig;
+  }
   if (stored.llm?.baseUrl && stored.llm.model) {
-    return { timeoutMs: DEFAULT_TIMEOUT, provider: "custom", apiKey: "", ...stored.llm } as LlmConfig;
+    return { timeoutMs: DEFAULT_TIMEOUT, mode: "api", provider: "custom", apiKey: "", ...stored.llm } as LlmConfig;
   }
   // 兼容旧版：只有 apiKey → 按 DeepSeek 默认配置
   if (typeof stored.apiKey === "string" && stored.apiKey) {
     return {
+      mode: "api",
       provider: "deepseek",
       baseUrl: PRESETS.deepseek!.baseUrl,
       model: PRESETS.deepseek!.model,
@@ -97,7 +102,7 @@ export async function getLlmConfig(): Promise<LlmConfig> {
       timeoutMs: DEFAULT_TIMEOUT,
     };
   }
-  throw new Error("未配置 AI 接口，请到插件设置页填写 API 地址、模型与 Key");
+  throw new Error("未配置 AI 接口，请到插件设置页选择调用方式并填写配置");
 }
 
 export type MessageContent =
@@ -114,6 +119,15 @@ export async function callLLM(
   options?: { timeoutMs?: number },
 ): Promise<string> {
   const cfg = await getLlmConfig();
+  if (cfg.mode === "web") return callLLMWeb(messages);
+  return callLLMApi(cfg, messages, options);
+}
+
+async function callLLMApi(
+  cfg: LlmConfig,
+  messages: ChatMessage[],
+  options?: { timeoutMs?: number },
+): Promise<string> {
   const timeoutMs = options?.timeoutMs ?? cfg.timeoutMs ?? DEFAULT_TIMEOUT;
   const url = cfg.baseUrl.replace(/\/+$/, "") + "/chat/completions";
 
@@ -157,4 +171,72 @@ export function parseJsonLoose<T>(raw: string): T {
   const end = Math.max(text.lastIndexOf("]"), text.lastIndexOf("}"));
   if (start === -1 || end === -1) throw new Error(`LLM 回复中未找到 JSON：${raw.slice(0, 120)}`);
   return JSON.parse(text.slice(start, end + 1)) as T;
+}
+
+// ---------- 网页版模式（chat.deepseek.com，实验性） ----------
+
+const DEEPSEEK_WEB = "https://chat.deepseek.com/";
+
+/** 把消息数组压成网页版单条输入：文本合并，图片单独提取 */
+function flattenForWeb(messages: ChatMessage[]): { text: string; images: string[] } {
+  const parts: string[] = [];
+  const images: string[] = [];
+  for (const m of messages) {
+    if (typeof m.content === "string") {
+      parts.push(m.content);
+    } else {
+      for (const c of m.content) {
+        if (c.type === "text") parts.push(c.text);
+        else if (c.type === "image_url") images.push(c.image_url.url);
+      }
+    }
+  }
+  return { text: parts.join("\n\n"), images };
+}
+
+async function pingWebTab(tabId: number): Promise<boolean> {
+  try {
+    const r = await chrome.tabs.sendMessage(tabId, { type: "WEB_LLM_PING" });
+    return !!r?.ok;
+  } catch {
+    return false; // content script 未就绪（新标签页注入延迟）
+  }
+}
+
+/** 找到或打开 chat.deepseek.com 标签页，并等待内容脚本就绪 */
+async function ensureWebTab(): Promise<number> {
+  const tabs = await chrome.tabs.query({ url: "https://chat.deepseek.com/*" });
+  let tabId = tabs.find((t) => t.id != null)?.id;
+  if (tabId == null) {
+    const created = await chrome.tabs.create({ url: DEEPSEEK_WEB, active: false });
+    if (created.id == null) throw new Error("无法打开 DeepSeek 网页版标签页");
+    tabId = created.id;
+  }
+  for (let i = 0; i < 20; i++) {
+    if (await pingWebTab(tabId)) return tabId;
+    await sleep(1000);
+  }
+  throw new Error("DeepSeek 网页版未就绪：请打开该标签页确认已登录后重试");
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+async function callLLMWeb(messages: ChatMessage[]): Promise<string> {
+  const { text, images } = flattenForWeb(messages);
+  const tabId = await ensureWebTab();
+  // 生成可能耗时数十秒，定时轻量调用防止 SW 空闲休眠
+  const keepalive = setInterval(() => void chrome.runtime.getPlatformInfo(), 20_000);
+  try {
+    const resp = (await chrome.tabs.sendMessage(tabId, { type: "WEB_LLM_ASK", text, images })) as
+      | { ok: boolean; text?: string; error?: string }
+      | undefined;
+    if (!resp?.ok || !resp.text) {
+      throw new Error(`网页版调用失败：${resp?.error ?? "未知错误"}`);
+    }
+    return resp.text;
+  } finally {
+    clearInterval(keepalive);
+  }
 }

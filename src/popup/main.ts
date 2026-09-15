@@ -50,10 +50,10 @@ async function renderChecklist(): Promise<void> {
   const { box } = (await chrome.storage.local.get("box")) as { box?: Box };
   const boxCount = box?.operators ? Object.keys(box.operators).length : 0;
   const { llm, apiKey } = (await chrome.storage.local.get(["llm", "apiKey"])) as {
-    llm?: { baseUrl?: string; model?: string };
+    llm?: { baseUrl?: string; model?: string; mode?: string };
     apiKey?: string;
   };
-  const llmReadyNow = !!(llm?.baseUrl && llm?.model) || !!apiKey;
+  const llmReadyNow = llm?.mode === "web" || !!(llm?.baseUrl && llm?.model) || !!apiKey;
   llmReady = llmReadyNow;
   hasOp = (n) => !!box?.operators[n];
 

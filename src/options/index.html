@@ -23,13 +23,27 @@
     <h1>🎮 Video2Team 设置</h1>
 
     <section>
-      <h2>AI 接口（OpenAI 兼容）</h2>
-      <label>服务商 <select id="provider"></select></label>
-      <div class="note" id="presetNote"></div>
-      <label>API 地址 <input type="text" id="baseUrl" placeholder="https://api.deepseek.com/v1" /></label>
-      <label>模型 <input type="text" id="model" placeholder="deepseek-v4-flash" /></label>
-      <label>API Key <input type="password" id="apiKey" placeholder="sk-...（本地服务可留空）" /></label>
-      <label>超时（秒） <input type="number" id="timeout" min="30" max="600" style="width: 100px" /></label>
+      <h2>AI 接口</h2>
+      <div style="margin: 2px 0 10px">
+        <label style="display: inline-block; margin-right: 18px">
+          <input type="radio" name="llmMode" value="api" /> API 直连（推荐，需 Key）
+        </label>
+        <label style="display: inline-block">
+          <input type="radio" name="llmMode" value="web" /> DeepSeek 网页版（免 Key，实验性）
+        </label>
+      </div>
+      <div id="webNote" class="note" style="display: none; margin-bottom: 10px">
+        网页版模式：分析时自动把提示词与截图送入 chat.deepseek.com 并等待回复
+        （请保持该标签页已登录；依赖页面结构，若失效请切回 API 模式）。<strong>此模式忽略下方全部配置。</strong>
+      </div>
+      <div id="apiFields">
+        <label>服务商 <select id="provider"></select></label>
+        <div class="note" id="presetNote"></div>
+        <label>API 地址 <input type="text" id="baseUrl" placeholder="https://api.deepseek.com/v1" /></label>
+        <label>模型 <input type="text" id="model" placeholder="deepseek-v4-flash" /></label>
+        <label>API Key <input type="password" id="apiKey" placeholder="sk-...（本地服务可留空）" /></label>
+        <label>超时（秒） <input type="number" id="timeout" min="30" max="600" style="width: 100px" /></label>
+      </div>
       <div style="margin-top: 10px">
         <button id="saveLlm">保存</button>
         <button id="testLlm" class="ghost">测试连接</button>

@@ -37,6 +37,13 @@ await esbuild.build({
 
 await esbuild.build({
   ...common,
+  entryPoints: [join(root, "src/content/deepseek.ts")],
+  format: "iife", // chat.deepseek.com 网页版模式内容脚本
+  outfile: join(dist, "content-deepseek.js"),
+});
+
+await esbuild.build({
+  ...common,
   entryPoints: [join(root, "src/popup/main.ts")],
   format: "esm",
   outfile: join(dist, "popup.js"),

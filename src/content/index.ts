@@ -184,10 +184,10 @@ async function loadBox(): Promise<void> {
 async function renderReadiness(): Promise<void> {
   const { box } = (await chrome.storage.local.get("box")) as { box?: Box };
   const { llm, apiKey } = (await chrome.storage.local.get(["llm", "apiKey"])) as {
-    llm?: { baseUrl?: string; model?: string };
+    llm?: { baseUrl?: string; model?: string; mode?: string };
     apiKey?: string;
   };
-  const llmReady = !!(llm?.baseUrl && llm?.model) || !!apiKey;
+  const llmReady = llm?.mode === "web" || !!(llm?.baseUrl && llm?.model) || !!apiKey;
   const boxCount = box?.operators ? Object.keys(box.operators).length : 0;
   const el = q(".readiness");
   el.innerHTML =
