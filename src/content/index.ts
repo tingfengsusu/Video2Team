@@ -44,6 +44,14 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === "GRAB_FRAME") {
     sendResponse(grabFrameRaw());
   }
+  // B站 API 代理：在页面上下文发请求（Origin=bilibili.com、Cookie/buvid 与正常浏览一致），
+  // 绕开 CDN 对扩展后台环境（Origin: chrome-extension://）的风控
+  if (msg?.type === "BILI_FETCH" && typeof msg.url === "string") {
+    fetch(msg.url, { credentials: "include" })
+      .then(async (r) => sendResponse({ ok: true, status: r.status, text: await r.text() }))
+      .catch((err: Error) => sendResponse({ ok: false, status: 0, text: err.message }));
+    return true;
+  }
 });
 
 // ---------- 浮动入口 + 页内面板 ----------

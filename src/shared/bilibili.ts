@@ -32,14 +32,58 @@ export interface VideoInfo {
  * 412 = B站风控：先重试一次，仍失败自动升级 wbi 签名后重签重试
  * （2024+ 部分节点对无签名请求间歇/持续 412，见 docs/notes/recon.md）。
  */
+/**
+ * 页面代理优先：把 API 请求转发到任一打开的B站页面内执行（content script BILI_FETCH），
+ * 请求特征与用户正常浏览完全一致（Origin/Cookie/buvid），根治 CDN 对扩展后台的 412 风控。
+ * 无B站页面打开时回退 SW 直连（Cookie+Referer，412 时自动升级 wbi 签名）。
+ */
+async function pageProxyFetch(url: string): Promise<{ status: number; text: string } | null> {
+  try {
+    const tabs = await chrome.tabs.query({ url: "https://www.bilibili.com/*" });
+    for (const tab of tabs) {
+      if (!tab.id) continue;
+      try {
+        const resp = (await chrome.tabs.sendMessage(tab.id, { type: "BILI_FETCH", url })) as
+          | { ok: boolean; status: number; text: string }
+          | undefined;
+        if (resp) return { status: resp.status, text: resp.text };
+      } catch {
+        /* 该 tab 无 content script（未刷新），试下一个 */
+      }
+    }
+  } catch {
+    /* tabs.query 失败（权限/无窗口），走回退 */
+  }
+  return null;
+}
+
+function biliError(status: number): Error {
+  return new Error(
+    status === 412
+      ? "B站风控拦截（HTTP 412）：请打开任意B站页面后重试（页面代理不可用），或稍等 1-2 分钟"
+      : `B站请求失败 HTTP ${status}`,
+  );
+}
+
 async function getJson(url: string, params?: Record<string, string | number>): Promise<any> {
+  const usp = new URLSearchParams();
+  for (const [k, v] of Object.entries(params ?? {})) usp.append(k, String(v));
+  const full = params ? `${url}?${usp.toString()}` : url;
+
+  // 1) 页面代理（首选）
+  const proxied = await pageProxyFetch(full);
+  if (proxied) {
+    if (proxied.status !== 200) throw biliError(proxied.status);
+    const j = JSON.parse(proxied.text);
+    if (j.code !== 0) throw new Error(`B站 API 错误 ${j.code}: ${j.message}`);
+    return j;
+  }
+
+  // 2) 回退：SW 直连（412 时升级 wbi 签名）
   const opts = { credentials: "include" as const, headers: { Referer: "https://www.bilibili.com/" } };
   const build = async (withWbi: boolean): Promise<Response> => {
     if (withWbi && params) return fetch(`${url}?${await wbiSign(params)}`, opts);
-    // 普通路径：参数平铺（回归修复——url 参数现在是裸地址）
-    const usp = new URLSearchParams();
-    for (const [k, v] of Object.entries(params ?? {})) usp.append(k, String(v));
-    return fetch(params ? `${url}?${usp.toString()}` : url, opts);
+    return fetch(full, opts);
   };
 
   let resp = await build(false);
@@ -50,13 +94,7 @@ async function getJson(url: string, params?: Record<string, string | number>): P
   if (resp.status === 412 && params) {
     resp = await build(true); // 升级 wbi 签名
   }
-  if (!resp.ok) {
-    throw new Error(
-      resp.status === 412
-        ? "B站风控拦截（HTTP 412，含 wbi 签名仍被拒）：可能触发高频限制，等待 1-2 分钟再试"
-        : `B站请求失败 HTTP ${resp.status}`,
-    );
-  }
+  if (!resp.ok) throw biliError(resp.status);
   const j = await resp.json();
   if (j.code !== 0) throw new Error(`B站 API 错误 ${j.code}: ${j.message}`);
   return j;
@@ -115,26 +153,22 @@ export async function fetchComments(aid: number, maxCount = 200): Promise<Commen
   return out.slice(0, maxCount);
 }
 
-/** 拉取弹幕（MV3 service worker 无 DOMParser，用正则解析 XML；v1 挖掘用，此处先备好） */
+/** 拉取弹幕（MV3 service worker 无 DOMParser，用正则解析 XML） */
 export async function fetchDanmaku(cid: number): Promise<Array<{ time: number; text: string }>> {
-  const doFetch = () =>
-    fetch(`https://comment.bilibili.com/${cid}.xml`, {
+  const url = `https://comment.bilibili.com/${cid}.xml`;
+  let xml: string;
+  const proxied = await pageProxyFetch(url);
+  if (proxied) {
+    if (proxied.status !== 200) throw biliError(proxied.status);
+    xml = proxied.text;
+  } else {
+    const resp = await fetch(url, {
       credentials: "include",
       headers: { Referer: "https://www.bilibili.com/" },
     });
-  let resp = await doFetch();
-  if (resp.status === 412) {
-    await new Promise((r) => setTimeout(r, 900));
-    resp = await doFetch();
+    if (!resp.ok) throw biliError(resp.status);
+    xml = await resp.text();
   }
-  if (!resp.ok) {
-    throw new Error(
-      resp.status === 412
-        ? "B站风控拦截（HTTP 412）：稍等几秒再点分析重试"
-        : `弹幕请求失败 HTTP ${resp.status}`,
-    );
-  }
-  const xml = await resp.text();
   const out: Array<{ time: number; text: string }> = [];
   const re = /<d p="([^"]+)">([\s\S]*?)<\/d>/g;
   for (const m of xml.matchAll(re)) {
