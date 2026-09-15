@@ -152,9 +152,8 @@ const PANEL_HTML = `
     <button class="act" data-act="analyze" disabled>分析此关卡</button>
     <button class="act ghost" data-act="clear" style="display:none">清除全部截图</button>
     <div id="status"></div>
-    <button class="act" data-act="inject2" style="display:none">已收到第 1 段回复，注入第二段</button>
     <div class="pastebox" style="display:none">
-      <textarea class="pasteinput" placeholder="把 DeepSeek 网页版第 2 步的最终回复整段粘贴到这里（含 roster 与 substitutions 的 JSON）"></textarea>
+      <textarea class="pasteinput" placeholder="把 DeepSeek 的完整回复整段粘贴到这里（含 roster 与 substitutions 的 JSON）"></textarea>
       <button class="act" data-act="paste">提交回复，出结果</button>
     </div>
     <div id="result"></div>
@@ -244,8 +243,7 @@ async function grabFrame(): Promise<void> {
 }
 
 function setWebUi(status: string | undefined): void {
-  q<HTMLElement>(".pastebox").style.display = status === "web_step2" ? "block" : "none";
-  q<HTMLElement>('[data-act="inject2"]').style.display = status === "web_step1" ? "block" : "none";
+  q<HTMLElement>(".pastebox").style.display = status === "web_paste" ? "block" : "none";
 }
 
 function pollTask(): void {
@@ -259,8 +257,8 @@ function pollTask(): void {
     setWebUi(task.status);
     if (task.status === "running" && task.progress) {
       q("#status").textContent = `${task.progress}（约 20-60 秒）`;
-    } else if (task.status === "web_step1" || task.status === "web_step2") {
-      q("#status").textContent = task.progress ?? "等待你的操作…";
+    } else if (task.status === "web_paste") {
+      q("#status").textContent = task.progress ?? "等待你粘贴 DeepSeek 回复…";
     } else if (task.status === "done" && task.result) {
       window.clearInterval(pollTimer!);
       pollTimer = undefined;
@@ -278,18 +276,6 @@ function pollTask(): void {
       q("#status").innerHTML = `<span class="err">分析超时（5 分钟），请重试</span>`;
     }
   }, 1500);
-}
-
-async function submitInject2(): Promise<void> {
-  const resp = (await chrome.runtime.sendMessage({ type: "WEB_INJECT_STEP2" })) as
-    | { ok: boolean }
-    | undefined;
-  if (resp?.ok) {
-    setWebUi(undefined);
-    q("#status").textContent = "已注入第 2 段——请到 DeepSeek 页面发送，然后把最终回复粘贴回来";
-  } else {
-    q("#status").innerHTML = `<span class="err">当前没有等待中的步骤（可能已结束），请重新分析</span>`;
-  }
 }
 
 async function submitPaste(): Promise<void> {
@@ -337,7 +323,7 @@ async function openPanel(): Promise<void> {
   const task = resp?.task;
   setWebUi(task?.status);
   if (
-    (task?.status === "running" || task?.status === "web_step1" || task?.status === "web_step2") &&
+    (task?.status === "running" || task?.status === "web_paste") &&
     Date.now() - task.startedAt < 1_800_000
   ) {
     q("#status").textContent =
@@ -377,7 +363,6 @@ function mount(): void {
     void chrome.runtime.sendMessage({ type: "OPEN_OPTIONS" });
   });
   q('[data-act="paste"]').addEventListener("click", () => void submitPaste());
-  q('[data-act="inject2"]').addEventListener("click", () => void submitInject2());
   q('[data-act="pick"]').addEventListener("click", () => q<HTMLInputElement>("input[type=file]").click());
   q<HTMLInputElement>("input[type=file]").addEventListener("change", (e) => {
     const file = (e.target as HTMLInputElement).files?.[0];

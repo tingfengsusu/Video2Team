@@ -108,11 +108,11 @@ export interface AnalysisOutput extends StageResult {
 
 /** 后台分析任务状态（持久化到 storage.session，popup 重开可恢复） */
 export interface TaskState {
-  // web_step1 = 等待用户发送第 1 段并点「注入第二段」；web_step2 = 等待用户粘贴最终回复
-  status: "running" | "web_step1" | "web_step2" | "done" | "error";
+  // web_paste = 网页版模式：提示词已注入 DeepSeek 网页端，等待用户发送并回贴最终回复
+  status: "running" | "web_paste" | "done" | "error";
   startedAt: number;
   stage?: string;
-  progress?: string; // 当前阶段文案（识别画面阵容…/整理弹幕评论…/分析替代建议…）
+  progress?: string; // 当前阶段文案
   result?: AnalysisOutput;
   error?: string;
 }

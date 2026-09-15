@@ -166,8 +166,7 @@ function wireImageInputs(): void {
 }
 
 function setWebUi(status: string | undefined): void {
-  ($("pasteBox") as HTMLElement).style.display = status === "web_step2" ? "block" : "none";
-  ($("injectBtn") as HTMLElement).style.display = status === "web_step1" ? "block" : "none";
+  ($("pasteBox") as HTMLElement).style.display = status === "web_paste" ? "block" : "none";
 }
 
 /** 轮询后台任务状态（popup 关闭重开也能恢复） */
@@ -182,8 +181,8 @@ function pollTask(): void {
     setWebUi(task.status);
     if (task.status === "running" && task.progress) {
       $("status").textContent = `${task.progress}（约 20-60 秒）`;
-    } else if (task.status === "web_step1" || task.status === "web_step2") {
-      $("status").textContent = task.progress ?? "等待你的操作…";
+    } else if (task.status === "web_paste") {
+      $("status").textContent = task.progress ?? "等待你粘贴 DeepSeek 回复…";
     } else if (task.status === "done" && task.result) {
       window.clearInterval(pollTimer!);
       pollTimer = undefined;
@@ -201,18 +200,6 @@ function pollTask(): void {
       $("status").innerHTML = `<span class="err">分析超时（5 分钟），请重试</span>`;
     }
   }, 1500);
-}
-
-async function submitInject2(): Promise<void> {
-  const resp = (await chrome.runtime.sendMessage({ type: "WEB_INJECT_STEP2" })) as
-    | { ok: boolean }
-    | undefined;
-  if (resp?.ok) {
-    setWebUi(undefined);
-    $("status").textContent = "已注入第 2 段——请到 DeepSeek 页面发送，然后把最终回复粘贴回来";
-  } else {
-    $("status").innerHTML = `<span class="err">当前没有等待中的步骤（可能已结束），请重新分析</span>`;
-  }
 }
 
 async function submitPaste(): Promise<void> {
@@ -259,7 +246,7 @@ async function restoreState(): Promise<void> {
   const task = resp?.task;
   setWebUi(task?.status);
   if (
-    (task?.status === "running" || task?.status === "web_step1" || task?.status === "web_step2") &&
+    (task?.status === "running" || task?.status === "web_paste") &&
     Date.now() - task.startedAt < 1_800_000
   ) {
     $("status").textContent =
@@ -279,7 +266,6 @@ async function init(): Promise<void> {
   wireImageInputs();
   $("analyzeBtn").addEventListener("click", triggerAnalyze);
   $("pasteSubmit").addEventListener("click", () => void submitPaste());
-  $("injectBtn").addEventListener("click", () => void submitInject2());
   $("openOptions").addEventListener("click", (e) => {
     e.preventDefault();
     chrome.runtime.openOptionsPage();

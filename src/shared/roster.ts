@@ -56,6 +56,30 @@ interface ExtractedOperator {
 }
 
 /** 构建阵容识别提示词（API 模式直接调用；网页版模式由后台注入 DeepSeek 网页端） */
+/** 阵容识别的提示词正文（不含输出格式尾句；网页版合并提示词复用本段） */
+export function buildRosterPromptText(meta: StageMeta, textContext: string): string {
+  return [
+    `任务：这些是明日方舟关卡 ${meta.stage} 攻略视频的画面截图。提取视频阵容中的干员名单。`,
+    ``,
+    `截图说明（可能有多种组合）：`,
+    `- 编队页（「快捷编队/开始行动」UI）：干员卡片下方是干员名；右上角橙色「助战干员 SUPPORT UNIT」标签会盖住该卡片的名字——助战位名字以助战详情页截图为准`,
+    `- 助战详情页（「招募助战」按钮）：干员名是大字（如「结城理」），该干员 support: true`,
+    `- 摆位画面：干员血条旁/底部头像条`,
+    ``,
+    `视频文字材料（辅助参考，画面为准）：`,
+    textContext || "（无）",
+    ``,
+    `昵称/黑话对照表：`,
+    JSON.stringify(ALIASES.aliases),
+    ``,
+    `规则：`,
+    `- name：画面上的干员名，逐字识别后按对照表还原全名；名字被遮挡且无其他截图佐证时跳过，不要猜测`,
+    `- 助战干员（好友干员）support: true`,
+    `- 视频简介中强调为「核心/关键/必须有」的干员 isKey: true，keyReason 说明`,
+    `- 只输出画面中确认存在的干员，不要从简介推测补充`,
+  ].join("\n");
+}
+
 export function buildRosterMessages(
   meta: StageMeta,
   imageDataUrls: string[],
@@ -68,28 +92,9 @@ export function buildRosterMessages(
       content: [
         {
           type: "text",
-          text: [
-            `任务：这些是明日方舟关卡 ${meta.stage} 攻略视频的画面截图。提取视频阵容中的干员名单。`,
-            ``,
-            `截图说明（可能有多种组合）：`,
-            `- 编队页（「快捷编队/开始行动」UI）：干员卡片下方是干员名；右上角橙色「助战干员 SUPPORT UNIT」标签会盖住该卡片的名字——助战位名字以助战详情页截图为准`,
-            `- 助战详情页（「招募助战」按钮）：干员名是大字（如「结城理」），该干员 support: true`,
-            `- 摆位画面：干员血条旁/底部头像条`,
-            ``,
-            `视频文字材料（辅助参考，画面为准）：`,
-            textContext || "（无）",
-            ``,
-            `昵称/黑话对照表：`,
-            JSON.stringify(ALIASES.aliases),
-            ``,
-            `规则：`,
-            `- name：画面上的干员名，逐字识别后按对照表还原全名；名字被遮挡且无其他截图佐证时跳过，不要猜测`,
-            `- 助战干员（好友干员）support: true`,
-            `- 视频简介中强调为「核心/关键/必须有」的干员 isKey: true，keyReason 说明`,
-            `- 只输出画面中确认存在的干员，不要从简介推测补充`,
-            ``,
-            `仅输出 JSON：{"operators":[{"name":"","support":false,"isKey":false,"keyReason":""}]}`,
-          ].join("\n"),
+          text:
+            buildRosterPromptText(meta, textContext) +
+            `\n\n仅输出 JSON：{"operators":[{"name":"","support":false,"isKey":false,"keyReason":""}]}`,
         },
         ...imageDataUrls.map((url) => ({ type: "image_url" as const, image_url: { url } })),
       ],

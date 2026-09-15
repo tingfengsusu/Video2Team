@@ -13,12 +13,12 @@
 import {
   locateStage,
   buildTextContext,
-  buildRosterMessages,
+  buildRosterPromptText,
   parseRosterReply,
   extractRosterFromImage,
 } from "../shared/roster";
 import { fetchComments, fetchDanmaku } from "../shared/bilibili";
-import { mineSubstitutions, prepareMining, parseMiningReply } from "../shared/miner";
+import { mineSubstitutions, buildWebCombinedMessages, parseMiningReply } from "../shared/miner";
 import { recommend } from "../shared/recommender";
 import { OperatorDB } from "../shared/operatorDB";
 import { getLlmConfig, injectWebPrompt, parseJsonLoose } from "../shared/llm";
@@ -92,32 +92,28 @@ async function analyzeVideo(
   let substitutions: Substitution[];
 
   if (cfg?.mode === "web") {
-    // 第 1 段：阵容识别（含截图）——聊天上下文会保留模型的回答，第 2 段据此引用
-    await setTask({ status: "running", startedAt, stage: meta.stage, progress: "正在打开 DeepSeek 网页版并注入第 1 段提示词…" });
-    await injectWebPrompt(buildRosterMessages(meta, imageDataUrls, textContext));
-    await setTask({
-      status: "web_step1",
-      startedAt,
-      stage: meta.stage,
-      progress: "第 1 段（阵容识别，含截图）已填入 DeepSeek 网页版——请在该页面按回车发送；收到回复后点下方按钮注入第 2 段",
-    });
-    await waitForUser();
-
-    // 第 2 段：替代建议挖掘（引用上一条回复中的阵容；最终一次回贴拿全量数据）
+    // 单段合并：识别阵容 + 挖掘建议一次完成，只输出一个 JSON（一次发送、一次回贴）
     const danmaku = await danmakuPromise;
-    const { messages: mineMsgs, candidates } = prepareMining(meta.stage, null, comments, danmaku);
-    await injectWebPrompt(mineMsgs);
+    const { messages: combined, candidates } = buildWebCombinedMessages(
+      meta.stage,
+      buildRosterPromptText(meta, textContext),
+      comments,
+      danmaku,
+      imageDataUrls,
+    );
+    await setTask({ status: "running", startedAt, stage: meta.stage, progress: "正在打开 DeepSeek 网页版并注入提示词…" });
+    await injectWebPrompt(combined);
     await setTask({
-      status: "web_step2",
+      status: "web_paste",
       startedAt,
       stage: meta.stage,
-      progress: "第 2 段（替代建议、弹幕/评论）已填入——请在网页版发送，然后把最终回复整段粘贴回插件",
+      progress: "提示词（含截图与弹幕/评论）已注入 DeepSeek 网页版——请在该页面按回车发送，然后把最终回复整段粘贴回插件",
     });
     const finalText = await waitForUser();
 
     const parsed = parseJsonLoose<{ roster?: unknown; substitutions?: unknown }>(finalText);
     if (!parsed.roster || typeof parsed.roster !== "object") {
-      throw new Error("回复里缺少 roster 字段：请粘贴第 2 步的完整回复（应同时包含 roster 与 substitutions）");
+      throw new Error("回复里缺少 roster 字段：请粘贴模型的完整回复（应同时包含 roster 与 substitutions）");
     }
     roster = parseRosterReply(JSON.stringify(parsed.roster), meta, opDB);
     const items = Array.isArray(parsed.substitutions) ? parsed.substitutions : [];
@@ -157,10 +153,6 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   }
   if (msg?.type === "PASTE_REPLY") {
     sendResponse({ ok: resolveUser(String(msg.text ?? "")) });
-    return true;
-  }
-  if (msg?.type === "WEB_INJECT_STEP2") {
-    sendResponse({ ok: resolveUser("") });
     return true;
   }
   if (msg?.type === "GET_TASK") {
