@@ -33,8 +33,9 @@
         </label>
       </div>
       <div id="webNote" class="note" style="display: none; margin-bottom: 10px">
-        网页版模式：分析时自动把提示词与截图送入 chat.deepseek.com 并等待回复
-        （请保持该标签页已登录；依赖页面结构，若失效请切回 API 模式）。<strong>此模式忽略下方全部配置。</strong>
+        网页版模式（半自动）：分析时自动打开/复用 chat.deepseek.com 标签页，把提示词与截图<strong>填入输入框</strong>；
+        你在该页面按回车发送，再把整段回复<strong>粘贴回插件</strong>继续下一步。<br />
+        无需 Key，但依赖页面结构；若注入失败请切回 API 模式。<strong>此模式忽略下方全部配置。</strong>
       </div>
       <div id="apiFields">
         <label>服务商 <select id="provider"></select></label>
