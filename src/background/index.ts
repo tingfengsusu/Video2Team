@@ -65,4 +65,10 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       .then((v) => sendResponse({ task: (v as Record<string, TaskState>)[TASK_KEY] ?? null }));
     return true;
   }
+  if (msg?.type === "OPEN_OPTIONS") {
+    // content script 无法直接调 openOptionsPage，经后台转发
+    chrome.runtime.openOptionsPage();
+    sendResponse({ ok: true });
+    return true;
+  }
 });

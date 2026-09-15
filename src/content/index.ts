@@ -86,6 +86,10 @@ const STYLE = `
   .tagline { font-size: 11px; color: #888; margin-bottom: 8px; }
   .close { position: absolute; right: 10px; top: 8px; border: none; background: none;
            font-size: 16px; cursor: pointer; color: #999; }
+  .settings { border: none; background: #f0f3f5; border: 1px solid #d0d7de; border-radius: 6px;
+              font-size: 12px; padding: 4px 10px; cursor: pointer; color: #333; margin-bottom: 6px; }
+  .readiness .ok { color: #1a7f37; }
+  .readiness .bad { color: #c0392b; }
   button.act { margin: 4px 0; padding: 7px 12px; font-size: 13px; cursor: pointer;
            border: none; border-radius: 6px; background: #23ade5; color: #fff; }
   button.act:disabled { background: #aaa; cursor: not-allowed; }
@@ -122,6 +126,8 @@ const PANEL_HTML = `
     <button class="close" title="收起">✕</button>
     <h1>🎮 Video2Team</h1>
     <div class="tagline">把大佬的作业，改成你抄得动的作业</div>
+    <div class="readiness hint" style="margin-bottom:6px"></div>
+    <button class="settings" data-act="settings" title="设置 API Key / 导入练度表">⚙ 设置</button>
 
     <div class="zone">
       <button class="act" data-act="grab">📷 抓取当前画面</button>
@@ -149,6 +155,21 @@ async function persistImages(): Promise<void> {
 async function loadBox(): Promise<void> {
   const { box } = (await chrome.storage.local.get("box")) as { box?: Box };
   hasOp = (n) => !!box?.operators[n];
+}
+
+/** 面板头部就绪状态：box / API Key（缺项红字提示去设置） */
+async function renderReadiness(): Promise<void> {
+  const { box } = (await chrome.storage.local.get("box")) as { box?: Box };
+  const { apiKey } = await chrome.storage.local.get("apiKey");
+  const boxCount = box?.operators ? Object.keys(box.operators).length : 0;
+  const el = q(".readiness");
+  el.innerHTML =
+    (boxCount > 0
+      ? `<span class="ok">✓ 练度表 ${boxCount} 人</span>`
+      : `<span class="bad">✗ 未导入练度表</span>`) +
+    " ｜ " +
+    (apiKey ? `<span class="ok">✓ API Key</span>` : `<span class="bad">✗ 未配置 API Key</span>`) +
+    " ｜ <span style='color:#888'>点「⚙ 设置」配置</span>";
 }
 
 function renderThumbs(): void {
@@ -233,6 +254,7 @@ async function openPanel(): Promise<void> {
   const stored = (await chrome.storage.session.get(IMG_KEY)) as Record<string, string[]>;
   images = stored[IMG_KEY] ?? images;
   await loadBox();
+  await renderReadiness();
   renderThumbs();
   // 恢复后台任务状态
   const resp = (await chrome.runtime.sendMessage({ type: "GET_TASK" }).catch(() => null)) as
@@ -271,6 +293,9 @@ function mount(): void {
     images = [];
     void persistImages();
     renderThumbs();
+  });
+  q('[data-act="settings"]').addEventListener("click", () => {
+    void chrome.runtime.sendMessage({ type: "OPEN_OPTIONS" });
   });
   q('[data-act="pick"]').addEventListener("click", () => q<HTMLInputElement>("input[type=file]").click());
   q<HTMLInputElement>("input[type=file]").addEventListener("change", (e) => {
