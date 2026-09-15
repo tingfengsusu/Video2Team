@@ -9,7 +9,7 @@
  * 开局帧部署顺序字幕：暂缓（并非所有视频都有）。
  */
 
-import { callDeepSeek, parseJsonLoose } from "./deepseek";
+import { callLLM, parseJsonLoose } from "./llm";
 import { getVideoInfo, type VideoInfo } from "./bilibili";
 import type { OperatorDB } from "./operatorDB";
 import type { Roster, RosterSlot } from "./types";
@@ -62,7 +62,7 @@ export async function extractRosterFromImage(
   opDB: OperatorDB,
   textContext: string,
 ): Promise<Roster> {
-  const raw = await callDeepSeek([
+  const raw = await callLLM([
     { role: "system", content: "你是明日方舟攻略阵容提取引擎，只输出 JSON。" },
     {
       role: "user",

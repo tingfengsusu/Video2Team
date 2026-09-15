@@ -21,7 +21,8 @@ const IMG_KEY = "capturedImages";
 let capturedImages: string[] = []; // dataURL 列表（编队页 + 助战详情页等）
 let currentCtx: PageContext = { bvid: null, page: null, videoPage: false };
 let pollTimer: number | undefined;
-let hasOp: HasOp = () => true;
+let hasOp: HasOp = () => false;
+let llmReady = false;
 
 async function getPageContext(): Promise<PageContext> {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -48,7 +49,12 @@ async function renderChecklist(): Promise<void> {
   currentCtx = await getPageContext();
   const { box } = (await chrome.storage.local.get("box")) as { box?: Box };
   const boxCount = box?.operators ? Object.keys(box.operators).length : 0;
-  const { apiKey } = await chrome.storage.local.get("apiKey");
+  const { llm, apiKey } = (await chrome.storage.local.get(["llm", "apiKey"])) as {
+    llm?: { baseUrl?: string; model?: string };
+    apiKey?: string;
+  };
+  const llmReadyNow = !!(llm?.baseUrl && llm?.model) || !!apiKey;
+  llmReady = llmReadyNow;
   hasOp = (n) => !!box?.operators[n];
 
   const items = [
@@ -58,16 +64,17 @@ async function renderChecklist(): Promise<void> {
     boxCount > 0
       ? `<span class="ok">✓</span> 干员 box 已导入（${boxCount} 名）`
       : `<span class="bad">✗</span> 未导入干员 box`,
-    apiKey
-      ? `<span class="ok">✓</span> DeepSeek API Key 已配置`
-      : `<span class="bad">✗</span> 未配置 DeepSeek API Key`,
+    llmReadyNow
+      ? `<span class="ok">✓</span> AI 接口已配置`
+      : `<span class="bad">✗</span> 未配置 AI 接口（点下方「设置」）`,
   ];
   $("checklist").innerHTML = items.join("<br>");
   updateAnalyzeButton();
 }
 
 function updateAnalyzeButton(): void {
-  ($("analyzeBtn") as HTMLButtonElement).disabled = capturedImages.length === 0 || !currentCtx.videoPage;
+  ($("analyzeBtn") as HTMLButtonElement).disabled =
+    capturedImages.length === 0 || !currentCtx.videoPage || !llmReady;
 }
 
 async function persistImages(): Promise<void> {

@@ -6,9 +6,19 @@
   "permissions": ["storage", "activeTab"],
   "host_permissions": [
     "https://api.bilibili.com/*",
+    "https://comment.bilibili.com/*",
     "https://api.deepseek.com/*",
-    "https://comment.bilibili.com/*"
+    "https://api.siliconflow.cn/*",
+    "https://open.bigmodel.cn/*",
+    "https://api.moonshot.cn/*",
+    "https://dashscope.aliyuncs.com/*",
+    "https://ark.cn-beijing.volces.com/*",
+    "https://api.openai.com/*",
+    "https://openrouter.ai/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
   ],
+  "optional_host_permissions": ["https://*/*", "http://*/*"],
   "background": {
     "service_worker": "background.js",
     "type": "module"

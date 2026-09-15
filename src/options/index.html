@@ -4,20 +4,42 @@
     <meta charset="UTF-8" />
     <title>Video2Team 设置</title>
     <style>
-      body { font-family: system-ui, sans-serif; max-width: 560px; margin: 24px auto; padding: 0 16px; }
+      body { font-family: system-ui, sans-serif; max-width: 600px; margin: 24px auto; padding: 0 16px; }
       section { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
       h2 { font-size: 15px; margin-top: 0; }
-      input[type="password"], input[type="text"] { width: 100%; padding: 6px; box-sizing: border-box; }
+      label { display: block; margin: 8px 0; font-size: 13px; }
+      input[type="password"], input[type="text"], select {
+        width: 100%; padding: 6px; box-sizing: border-box; margin-top: 3px; font-size: 13px;
+      }
+      button { padding: 6px 14px; font-size: 13px; cursor: pointer; border: none; border-radius: 6px;
+               background: #23ade5; color: #fff; }
+      button.ghost { background: #f0f3f5; color: #333; border: 1px solid #d0d7de; }
+      .note { font-size: 12px; color: #888; line-height: 1.7; }
+      #llmStatus.ok { color: #1a7f37; }
+      #llmStatus.bad { color: #c0392b; }
     </style>
   </head>
   <body>
     <h1>🎮 Video2Team 设置</h1>
 
     <section>
-      <h2>DeepSeek API</h2>
-      <label>API Key <input type="password" id="apiKey" placeholder="sk-..." /></label>
-      <button id="saveKey" style="margin-top: 8px">保存</button>
-      <span id="keyStatus" style="font-size: 13px; margin-left: 8px; color: #1a7f37"></span>
+      <h2>AI 接口（OpenAI 兼容）</h2>
+      <label>服务商 <select id="provider"></select></label>
+      <div class="note" id="presetNote"></div>
+      <label>API 地址 <input type="text" id="baseUrl" placeholder="https://api.deepseek.com/v1" /></label>
+      <label>模型 <input type="text" id="model" placeholder="deepseek-v4-flash" /></label>
+      <label>API Key <input type="password" id="apiKey" placeholder="sk-...（本地服务可留空）" /></label>
+      <label>超时（秒） <input type="number" id="timeout" min="30" max="600" style="width: 100px" /></label>
+      <div style="margin-top: 10px">
+        <button id="saveLlm">保存</button>
+        <button id="testLlm" class="ghost">测试连接</button>
+        <span id="llmStatus" class="note" style="margin-left: 8px"></span>
+      </div>
+      <p class="note" style="margin-top: 10px">
+        任意 OpenAI 兼容服务都能接入：预设含 DeepSeek／硅基流动／智谱／Kimi／通义／豆包／OpenAI／OpenRouter／本地 Ollama，
+        或选「自定义」填自己的地址与模型（One-API 等网关同理，API 地址填到 /v1 为止）。<br />
+        阵容识别需要<strong>多模态（看图）模型</strong>，请优先选择带视觉能力的模型名。
+      </p>
     </section>
 
     <section>

@@ -180,10 +180,14 @@ async function loadBox(): Promise<void> {
   hasOp = (n) => !!box?.operators[n];
 }
 
-/** 面板头部就绪状态：box / API Key（缺项红字提示去设置） */
+/** 面板头部就绪状态：box / AI 接口（缺项红字提示去设置） */
 async function renderReadiness(): Promise<void> {
   const { box } = (await chrome.storage.local.get("box")) as { box?: Box };
-  const { apiKey } = await chrome.storage.local.get("apiKey");
+  const { llm, apiKey } = (await chrome.storage.local.get(["llm", "apiKey"])) as {
+    llm?: { baseUrl?: string; model?: string };
+    apiKey?: string;
+  };
+  const llmReady = !!(llm?.baseUrl && llm?.model) || !!apiKey;
   const boxCount = box?.operators ? Object.keys(box.operators).length : 0;
   const el = q(".readiness");
   el.innerHTML =
@@ -191,7 +195,7 @@ async function renderReadiness(): Promise<void> {
       ? `<span class="ok">✓ 练度表 ${boxCount} 人</span>`
       : `<span class="bad">✗ 未导入练度表</span>`) +
     " ｜ " +
-    (apiKey ? `<span class="ok">✓ API Key</span>` : `<span class="bad">✗ 未配置 API Key</span>`) +
+    (llmReady ? `<span class="ok">✓ AI 接口</span>` : `<span class="bad">✗ 未配置 AI 接口</span>`) +
     " ｜ <span style='color:#888'>点「⚙ 设置」配置</span>";
 }
 

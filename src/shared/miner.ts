@@ -11,7 +11,7 @@
  * 本插件直接拉取 XML，无需中转。
  */
 
-import { callDeepSeek, parseJsonLoose } from "./deepseek";
+import { callLLM, parseJsonLoose } from "./llm";
 import { replyUrl, type CommentItem } from "./bilibili";
 import type { OperatorDB } from "./operatorDB";
 import type { Roster, Substitution } from "./types";
@@ -109,7 +109,7 @@ export async function mineSubstitutions(
   });
 
   const rosterNames = roster.slots.map((s) => s.operator);
-  const raw = await callDeepSeek([
+  const raw = await callLLM([
     { role: "system", content: "你是明日方舟攻略数据提取引擎，只输出 JSON。" },
     {
       role: "user",
