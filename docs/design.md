@@ -103,7 +103,7 @@ B站攻略合集实测存在三种形态（验证样本与细节见 [notes/recon
 |----|------|
 | 运行时 | Chrome MV3（Edge 兼容） |
 | 语言/构建 | TypeScript + Vite（+ @crxjs/vite-plugin 或手写 manifest） |
-| 入口 | content script 在视频页注入分析入口 + popup 面板展示结果 |
+| 入口 | **视频页浮动入口**（右缘 hover 唤起按钮 + 页内面板：抓帧/粘贴/分析/结果，content script shadow DOM）+ popup 面板（工具栏图标，状态恢复用）。截图与任务状态经 storage.session 两入口互通 |
 | 配置 | `chrome.storage` + options 设置页（API key、box 管理），**不再使用 YAML 配置文件** |
 | Excel 解析 | SheetJS（xlsx）纯前端解析，用户本地选择文件，不上传 |
 | 分发 | Edge 商店（国内可直接访问）+ crx 手动安装双通道 |
@@ -234,7 +234,7 @@ RecommendedSlot（推荐结果）       —— ③ 的输出
 | `operatorDB.ts` | ✨ 新写 | 干员数据 JSON：名字典 + 属性上下文 |
 | `recommender.ts` | ✨ 新写 | ③ 匹配推荐引擎（L3 命中 → L2 条件匹配 → LLM 推断 → 风险标注） |
 | `background/index.ts` | ✨ 新写 | Service Worker：消息路由 + 管道编排 |
-| `content/index.ts` | ✨ 新写 | 视频页识别 + 分析入口注入 |
+| `content/index.ts` | ✨ 新写 | 视频页识别 + 抓帧 + **浮动入口与页内面板**（hover 唤起，shadow DOM 隔离） |
 | `popup/`、`options/` | ✨ 新写 | 结果面板 / 设置页（API key、Excel 导入、box 管理） |
 
 ## 7. 数据源清单
@@ -261,8 +261,10 @@ RecommendedSlot（推荐结果）       —— ③ 的输出
 
 ### v0.5 —— 阵容提取重构（画面提取主路径，2026-09-13 修订）
 - 三通道画面输入：content script 抓视频当前帧（canvas + MSE）／Ctrl+V 粘贴截图／文件导入
-- DeepSeek 多模态提取编队页干员名单（含助战位标记）→ 字典校验
-- 简介文本降级为提取的辅助上下文，不再产出结果集
+- **视频页浮动入口 + 页内面板**（hover 唤起）：抓帧/粘贴/分析/结果全程不离开视频页，规避 popup 点击页面即关闭的固有问题
+- 截图列表与任务状态持久化到 storage.session：popup/页内面板互通、关闭重开不丢
+- DeepSeek 多模态提取编队页干员名单（含助战位标记）→ 字典校验；社区昵称数据集接入（347 别名）
+- 建议展示：逐条换行，替代干员按 box 红绿着色
 - （暂缓：开局帧部署顺序字幕、本地分析服务推迟至 v1+ 可选增强）
 
 ### v1 —— 完整体验

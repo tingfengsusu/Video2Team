@@ -1,15 +1,14 @@
 /**
- * Popup 面板：就绪检查 → 获取阵容画面（抓帧/粘贴/文件，可多张）→ 分析 → 渲染 StageResult。
- * 分析任务跑在 background 并持久化到 storage.session：popup 关闭重开后自动恢复状态。
+ * Popup 面板：就绪检查 → 获取阵容画面（抓帧/粘贴/文件，可多张）→ 分析 → 渲染结果。
+ * - 分析任务跑在 background 并持久化到 storage.session：popup 关闭重开后自动恢复状态；
+ * - 截图列表同样持久化（storage.session.capturedImages），与视频页内浮动面板互通。
  */
 
-import type { AnalysisOutput, RecommendedSlot, Substitution, TaskState } from "../shared/types";
+import type { AnalysisOutput, Box, TaskState } from "../shared/types";
+import { esc, renderResult, type HasOp } from "../shared/render";
+import { shrinkImage } from "../shared/img";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
-
-function esc(s: string): string {
-  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
-}
 
 interface PageContext {
   bvid: string | null;
@@ -17,9 +16,12 @@ interface PageContext {
   videoPage: boolean;
 }
 
+const IMG_KEY = "capturedImages";
+
 let capturedImages: string[] = []; // dataURL 列表（编队页 + 助战详情页等）
 let currentCtx: PageContext = { bvid: null, page: null, videoPage: false };
 let pollTimer: number | undefined;
+let hasOp: HasOp = () => true;
 
 async function getPageContext(): Promise<PageContext> {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -44,9 +46,10 @@ async function getPageContext(): Promise<PageContext> {
 
 async function renderChecklist(): Promise<void> {
   currentCtx = await getPageContext();
-  const { box } = (await chrome.storage.local.get("box")) as { box?: { operators: Record<string, unknown> } };
+  const { box } = (await chrome.storage.local.get("box")) as { box?: Box };
   const boxCount = box?.operators ? Object.keys(box.operators).length : 0;
   const { apiKey } = await chrome.storage.local.get("apiKey");
+  hasOp = (n) => !!box?.operators[n];
 
   const items = [
     currentCtx.videoPage
@@ -67,17 +70,25 @@ function updateAnalyzeButton(): void {
   ($("analyzeBtn") as HTMLButtonElement).disabled = capturedImages.length === 0 || !currentCtx.videoPage;
 }
 
+async function persistImages(): Promise<void> {
+  await chrome.storage.session.set({ [IMG_KEY]: capturedImages });
+}
+
 function renderPreview(): void {
   const img = $("preview") as HTMLImageElement;
+  const count = $("imgCount");
+  const clear = $("clearBtn");
   if (capturedImages.length === 0) {
     img.style.display = "none";
-    $("imgCount").textContent = "";
+    count.style.display = "none";
+    clear.style.display = "none";
   } else {
     img.src = capturedImages[capturedImages.length - 1]!;
     img.style.display = "block";
-    $("imgCount").textContent =
+    count.textContent =
       capturedImages.length === 1 ? "已添加 1 张（可继续追加助战详情页截图）" : `已添加 ${capturedImages.length} 张`;
-    $("imgCount").style.display = "block";
+    count.style.display = "block";
+    clear.style.display = "block";
   }
   updateAnalyzeButton();
 }
@@ -88,12 +99,14 @@ function addImage(dataUrl: string): void {
     return;
   }
   capturedImages.push(dataUrl);
+  void persistImages();
   renderPreview();
   $("status").textContent = "";
 }
 
 function clearImages(): void {
   capturedImages = [];
+  void persistImages();
   renderPreview();
 }
 
@@ -112,25 +125,6 @@ async function grabFrame(): Promise<void> {
   } catch {
     $("status").innerHTML = `<span class="err">无法连接页面（请刷新视频页后重试），或直接截图后 Ctrl+V 粘贴</span>`;
   }
-}
-
-/** 压缩图片（截图可能很大，压缩到最大宽 1280 控制 API 流量） */
-function shrinkImage(dataUrl: string): Promise<string> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      const maxW = 1280;
-      if (img.width <= maxW) return resolve(dataUrl);
-      const scale = maxW / img.width;
-      const canvas = document.createElement("canvas");
-      canvas.width = maxW;
-      canvas.height = Math.round(img.height * scale);
-      canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
-      resolve(canvas.toDataURL("image/jpeg", 0.9));
-    };
-    img.onerror = () => resolve(dataUrl);
-    img.src = dataUrl;
-  });
 }
 
 function wireImageInputs(): void {
@@ -164,48 +158,6 @@ function wireImageInputs(): void {
   $("clearBtn").addEventListener("click", clearImages);
 }
 
-function renderSubLine(s: Substitution): string {
-  const src = s.source === "pinned" ? "置顶评论" : s.source === "danmaku" ? "弹幕" : "评论区";
-  const like = s.likes ? `·${s.likes} 赞` : "";
-  const link = s.evidenceUrl ? ` <a href="${esc(s.evidenceUrl)}" target="_blank">溯源</a>` : "";
-  return `${esc(s.replacement)}（${src}${like}）${link} <span class="quote">"${esc(s.evidence.slice(0, 50))}"</span>`;
-}
-
-function renderSlot(slot: RecommendedSlot): string {
-  const op = esc(slot.original.operator);
-  const keyTag = slot.original.isKey ? " <b>关键</b>" : "";
-  const supTag = slot.original.support ? " <i>助战</i>" : "";
-  const alts = slot.alternatives.length
-    ? `<div class="alts">${slot.alternatives.map(renderSubLine).join("；")}</div>`
-    : "";
-  if (slot.status === "keep") {
-    return `<div class="slot keep">✓ ${op}${keyTag}${supTag} — 你有，保留</div>`;
-  }
-  if (slot.status === "substituted" && slot.via && "source" in slot.via) {
-    return (
-      `<div class="slot sub">⚠ ${op}${keyTag}${supTag} → <b>${esc(slot.finalOperator!)}</b> <span class="dim">${renderSubLine(slot.via)}</span>` +
-      (slot.note ? `<div class="note">${esc(slot.note)}</div>` : "") +
-      (alts ? `<div class="alts"><span class="dim">其他实战建议：</span>${alts}</div>` : "") +
-      `</div>`
-    );
-  }
-  return (
-    `<div class="slot unresolved">✗ ${op}${keyTag}${supTag} — 无解` +
-    (slot.note ? `<div class="note">${esc(slot.note)}</div>` : "") +
-    (alts ? `<div class="alts"><span class="dim">实战建议：</span>${alts}</div>` : "") +
-    `</div>`
-  );
-}
-
-function renderResult(out: AnalysisOutput): void {
-  const subCount = out.substitutions.length;
-  $("result").innerHTML =
-    `<div class="video-title">${esc(out.videoTitle)}</div>` +
-    `<div class="stage">${esc(out.stage)} 适配结果（阵容来自画面识别）</div>` +
-    `<div class="hint">实战替代建议：${subCount} 条</div>` +
-    out.recommendations.map(renderSlot).join("");
-}
-
 /** 轮询后台任务状态（popup 关闭重开也能恢复） */
 function pollTask(): void {
   if (pollTimer) window.clearInterval(pollTimer);
@@ -219,7 +171,7 @@ function pollTask(): void {
       window.clearInterval(pollTimer!);
       pollTimer = undefined;
       $("status").textContent = "";
-      renderResult(task.result);
+      $("result").innerHTML = renderResult(task.result, hasOp);
     } else if (task.status === "error") {
       window.clearInterval(pollTimer!);
       pollTimer = undefined;
@@ -248,8 +200,12 @@ function triggerAnalyze(): void {
   })();
 }
 
-/** popup 重开时恢复后台任务状态 */
-async function restoreTask(): Promise<void> {
+/** popup 重开时恢复：截图列表 + 后台任务状态 */
+async function restoreState(): Promise<void> {
+  const stored = (await chrome.storage.session.get(IMG_KEY)) as Record<string, string[]>;
+  capturedImages = stored[IMG_KEY] ?? [];
+  renderPreview();
+
   const resp = (await chrome.runtime.sendMessage({ type: "GET_TASK" }).catch(() => null)) as
     | { task: TaskState | null }
     | null;
@@ -259,7 +215,7 @@ async function restoreTask(): Promise<void> {
     $("status").textContent = "分析中：识别画面阵容 → 挖掘弹幕/评论区 → 匹配你的 box…（约 20-60 秒）";
     pollTask();
   } else if (task.status === "done" && task.result) {
-    renderResult(task.result);
+    $("result").innerHTML = renderResult(task.result, hasOp);
   } else if (task.status === "error" && task.error) {
     $("status").innerHTML = `<span class="err">${esc(task.error)}</span>`;
   }
@@ -273,7 +229,7 @@ async function init(): Promise<void> {
     e.preventDefault();
     chrome.runtime.openOptionsPage();
   });
-  await restoreTask();
+  await restoreState();
 }
 
 init();
