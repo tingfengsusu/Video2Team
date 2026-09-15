@@ -9,7 +9,7 @@
  * 开局帧部署顺序字幕：暂缓（并非所有视频都有）。
  */
 
-import { callLLM, parseJsonLoose } from "./llm";
+import { callLLM, parseJsonLoose, type AskFn } from "./llm";
 import { getVideoInfo, type VideoInfo } from "./bilibili";
 import type { OperatorDB } from "./operatorDB";
 import type { Roster, RosterSlot } from "./types";
@@ -61,8 +61,9 @@ export async function extractRosterFromImage(
   imageDataUrls: string[],
   opDB: OperatorDB,
   textContext: string,
+  ask: AskFn = callLLM,
 ): Promise<Roster> {
-  const raw = await callLLM([
+  const raw = await ask([
     { role: "system", content: "你是明日方舟攻略阵容提取引擎，只输出 JSON。" },
     {
       role: "user",

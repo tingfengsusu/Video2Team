@@ -112,6 +112,8 @@ const STYLE = `
                text-align: center; background: #c0392b; color: #fff; border-radius: 50%;
                font-size: 11px; cursor: pointer; }
   #status { font-size: 12px; color: #666; margin: 6px 0; }
+  .pasteinput { width: 100%; height: 84px; font-size: 12px; box-sizing: border-box;
+                margin-top: 4px; font-family: inherit; }
   .video-title { font-size: 12px; color: #555; margin: 6px 0; }
   .stage { font-size: 14px; font-weight: bold; margin: 8px 0 4px; }
   .slot { font-size: 13px; line-height: 1.5; padding: 4px 8px; border-radius: 4px; margin-bottom: 3px;
@@ -150,6 +152,10 @@ const PANEL_HTML = `
     <button class="act" data-act="analyze" disabled>分析此关卡</button>
     <button class="act ghost" data-act="clear" style="display:none">清除全部截图</button>
     <div id="status"></div>
+    <div class="pastebox" style="display:none">
+      <textarea class="pasteinput" placeholder="把 DeepSeek 网页版的整段回复粘贴到这里（贴完点下方按钮继续）"></textarea>
+      <button class="act" data-act="paste">提交回复，继续</button>
+    </div>
     <div id="result"></div>
   </div>
 `;
@@ -236,6 +242,10 @@ async function grabFrame(): Promise<void> {
   }
 }
 
+function setPasteVisible(on: boolean): void {
+  q<HTMLElement>(".pastebox").style.display = on ? "block" : "none";
+}
+
 function pollTask(): void {
   if (pollTimer) window.clearInterval(pollTimer);
   pollTimer = window.setInterval(async () => {
@@ -244,24 +254,44 @@ function pollTask(): void {
       | null;
     const task = resp?.task;
     if (!task) return;
+    setPasteVisible(task.status === "awaiting_paste");
     if (task.status === "running" && task.progress) {
       q("#status").textContent = `${task.progress}（约 20-60 秒）`;
-    }
-    if (task.status === "done" && task.result) {
+    } else if (task.status === "awaiting_paste") {
+      q("#status").textContent = task.progress ?? "等待你粘贴 DeepSeek 回复…";
+    } else if (task.status === "done" && task.result) {
       window.clearInterval(pollTimer!);
       pollTimer = undefined;
+      setPasteVisible(false);
       q("#status").textContent = "";
       q("#result").innerHTML = renderResult(task.result, hasOp);
     } else if (task.status === "error") {
       window.clearInterval(pollTimer!);
       pollTimer = undefined;
+      setPasteVisible(false);
       q("#status").innerHTML = `<span class="err">${esc(task.error ?? "分析失败")}</span>`;
-    } else if (Date.now() - task.startedAt > 300_000) {
+    } else if (task.status === "running" && Date.now() - task.startedAt > 300_000) {
       window.clearInterval(pollTimer!);
       pollTimer = undefined;
       q("#status").innerHTML = `<span class="err">分析超时（5 分钟），请重试</span>`;
     }
   }, 1500);
+}
+
+async function submitPaste(): Promise<void> {
+  const input = q<HTMLTextAreaElement>(".pasteinput");
+  const text = input.value.trim();
+  if (!text) return;
+  const resp = (await chrome.runtime.sendMessage({ type: "PASTE_REPLY", text })) as
+    | { ok: boolean }
+    | undefined;
+  if (resp?.ok) {
+    input.value = "";
+    setPasteVisible(false);
+    q("#status").textContent = "已提交，继续处理…";
+  } else {
+    q("#status").innerHTML = `<span class="err">当前没有等待中的回复请求（可能已结束），请重新分析</span>`;
+  }
 }
 
 async function triggerAnalyze(): Promise<void> {
@@ -291,8 +321,12 @@ async function openPanel(): Promise<void> {
     | { task: TaskState | null }
     | null;
   const task = resp?.task;
-  if (task?.status === "running" && Date.now() - task.startedAt < 300_000) {
-    q("#status").textContent = "分析中…（约 20-60 秒）";
+  setPasteVisible(task?.status === "awaiting_paste");
+  if ((task?.status === "running" || task?.status === "awaiting_paste") && Date.now() - task.startedAt < 1_800_000) {
+    q("#status").textContent =
+      task.status === "awaiting_paste"
+        ? task.progress ?? "等待你粘贴 DeepSeek 回复…"
+        : "分析中…（约 20-60 秒）";
     pollTask();
   } else if (task?.status === "done" && task.result) {
     q("#result").innerHTML = renderResult(task.result, hasOp);
@@ -327,6 +361,7 @@ function mount(): void {
   q('[data-act="settings"]').addEventListener("click", () => {
     void chrome.runtime.sendMessage({ type: "OPEN_OPTIONS" });
   });
+  q('[data-act="paste"]').addEventListener("click", () => void submitPaste());
   q('[data-act="pick"]').addEventListener("click", () => q<HTMLInputElement>("input[type=file]").click());
   q<HTMLInputElement>("input[type=file]").addEventListener("change", (e) => {
     const file = (e.target as HTMLInputElement).files?.[0];

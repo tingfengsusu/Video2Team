@@ -1,10 +1,9 @@
 /**
- * chat.deepseek.com 内容脚本（网页版模式，实验性）。
+ * chat.deepseek.com 内容脚本（网页版模式）。
  *
- * 接收后台 WEB_LLM_ASK {text, images[]}：
- *  填写输入框（React 受控组件用原生 setter）→ 附加截图（DataTransfer 注入 file input）
- *  → 发送（Enter 优先，回退点击发送按钮）→ 轮询等待回复文本稳定 → 返回。
- * 选择器带多级回退；页面结构变更时返回明确错误，引导切回 API 模式。
+ * 只做一件事：把提示词与截图**填入**输入框（WEB_LLM_FILL）。
+ * 发送与等待回复由用户手动完成（更简单、不依赖页面状态探测），
+ * 用户再把回复粘贴回插件继续流程。
  */
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -28,52 +27,9 @@ function setNativeValue(el: HTMLTextAreaElement, value: string): void {
   el.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
-function lastAssistantText(): string {
-  const nodes = document.querySelectorAll(".ds-markdown");
-  return nodes.length ? (nodes[nodes.length - 1] as HTMLElement).innerText : "";
-}
-
-function clickSend(): boolean {
+async function fill(text: string, images: string[]): Promise<{ ok: boolean; error?: string }> {
   const ta = findInput();
-  if (!ta) return false;
-  let scope: HTMLElement | null = ta.parentElement;
-  for (let depth = 0; depth < 6 && scope; depth++) {
-    const btns = [...scope.querySelectorAll<HTMLElement>('div[role="button"], button')].filter(
-      (b) => !(b as HTMLButtonElement).disabled && b.getAttribute("aria-disabled") !== "true",
-    );
-    if (btns.length) {
-      btns[btns.length - 1]!.click(); // 发送按钮通常在最右侧
-      return true;
-    }
-    scope = scope.parentElement;
-  }
-  return false;
-}
-
-async function waitForReply(before: string, timeoutMs: number): Promise<string | null> {
-  const t0 = Date.now();
-  let last = "";
-  let stableSince = 0;
-  while (Date.now() - t0 < timeoutMs) {
-    await sleep(1000);
-    const cur = lastAssistantText();
-    if (!cur || cur === before) continue;
-    if (cur === last) {
-      if (!stableSince) stableSince = Date.now();
-      if (Date.now() - stableSince > 2000) return cur; // 文本稳定 2 秒视为生成结束
-    } else {
-      last = cur;
-      stableSince = 0;
-    }
-  }
-  return last && last !== before ? last : null;
-}
-
-async function ask(text: string, images: string[]): Promise<{ ok: boolean; text?: string; error?: string }> {
-  const ta = findInput();
-  if (!ta) {
-    return { ok: false, error: "未找到对话框：请确认打开的 chat.deepseek.com 页面已登录" };
-  }
+  if (!ta) return { ok: false, error: "未找到对话框：请确认已登录 chat.deepseek.com" };
 
   if (images.length) {
     const fi = findFileInput();
@@ -86,27 +42,15 @@ async function ask(text: string, images: string[]): Promise<{ ok: boolean; text?
       }
       fi.files = dt.files;
       fi.dispatchEvent(new Event("change", { bubbles: true }));
-      await sleep(2000); // 等图片进入输入区
+      await sleep(1500); // 等图片进入输入区
     } catch (e) {
       return { ok: false, error: "截图附加失败：" + (e as Error).message };
     }
   }
 
-  const before = lastAssistantText();
   ta.focus();
   setNativeValue(ta, text);
-  await sleep(400);
-
-  // Enter 优先（DeepSeek 网页端默认回车发送），未生效则点发送按钮
-  ta.dispatchEvent(
-    new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, bubbles: true }),
-  );
-  await sleep(1500);
-  if (lastAssistantText() === before) clickSend();
-
-  const reply = await waitForReply(before, 240_000);
-  if (!reply) return { ok: false, error: "等待回复超时（可能触发验证/限流，请到页面查看）" };
-  return { ok: true, text: reply };
+  return { ok: true };
 }
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
@@ -114,8 +58,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     sendResponse({ ok: true, ready: !!findInput() });
     return;
   }
-  if (msg?.type === "WEB_LLM_ASK") {
-    void ask(msg.text ?? "", msg.images ?? []).then(sendResponse);
-    return true; // 异步响应（生成可能耗时数十秒）
+  if (msg?.type === "WEB_LLM_FILL") {
+    void fill(msg.text ?? "", msg.images ?? []).then(sendResponse);
+    return true;
   }
 });

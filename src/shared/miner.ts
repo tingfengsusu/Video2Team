@@ -11,7 +11,7 @@
  * 本插件直接拉取 XML，无需中转。
  */
 
-import { callLLM, parseJsonLoose } from "./llm";
+import { callLLM, parseJsonLoose, type AskFn } from "./llm";
 import { replyUrl, type CommentItem } from "./bilibili";
 import type { OperatorDB } from "./operatorDB";
 import type { Roster, Substitution } from "./types";
@@ -61,6 +61,7 @@ export async function mineSubstitutions(
   comments: CommentItem[],
   danmaku: Array<{ time: number; text: string }>,
   opDB: OperatorDB,
+  ask: AskFn = callLLM,
 ): Promise<Substitution[]> {
   const candidates: Candidate[] = [];
   const push = (c: Omit<Candidate, "i">) => candidates.push({ i: candidates.length, ...c });
@@ -109,7 +110,7 @@ export async function mineSubstitutions(
   });
 
   const rosterNames = roster.slots.map((s) => s.operator);
-  const raw = await callLLM([
+  const raw = await ask([
     { role: "system", content: "你是明日方舟攻略数据提取引擎，只输出 JSON。" },
     {
       role: "user",

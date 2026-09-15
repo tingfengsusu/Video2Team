@@ -165,6 +165,10 @@ function wireImageInputs(): void {
   $("clearBtn").addEventListener("click", clearImages);
 }
 
+function setPasteVisible(on: boolean): void {
+  ($("pasteBox") as HTMLElement).style.display = on ? "block" : "none";
+}
+
 /** 轮询后台任务状态（popup 关闭重开也能恢复） */
 function pollTask(): void {
   if (pollTimer) window.clearInterval(pollTimer);
@@ -174,24 +178,44 @@ function pollTask(): void {
       | null;
     const task = resp?.task;
     if (!task) return;
+    setPasteVisible(task.status === "awaiting_paste");
     if (task.status === "running" && task.progress) {
       $("status").textContent = `${task.progress}（约 20-60 秒）`;
-    }
-    if (task.status === "done" && task.result) {
+    } else if (task.status === "awaiting_paste") {
+      $("status").textContent = task.progress ?? "等待你粘贴 DeepSeek 回复…";
+    } else if (task.status === "done" && task.result) {
       window.clearInterval(pollTimer!);
       pollTimer = undefined;
+      setPasteVisible(false);
       $("status").textContent = "";
       $("result").innerHTML = renderResult(task.result, hasOp);
     } else if (task.status === "error") {
       window.clearInterval(pollTimer!);
       pollTimer = undefined;
+      setPasteVisible(false);
       $("status").innerHTML = `<span class="err">${esc(task.error ?? "分析失败")}</span>`;
-    } else if (Date.now() - task.startedAt > 300_000) {
+    } else if (task.status === "running" && Date.now() - task.startedAt > 300_000) {
       window.clearInterval(pollTimer!);
       pollTimer = undefined;
       $("status").innerHTML = `<span class="err">分析超时（5 分钟），请重试</span>`;
     }
   }, 1500);
+}
+
+async function submitPaste(): Promise<void> {
+  const input = $("pasteInput") as HTMLTextAreaElement;
+  const text = input.value.trim();
+  if (!text) return;
+  const resp = (await chrome.runtime.sendMessage({ type: "PASTE_REPLY", text })) as
+    | { ok: boolean }
+    | undefined;
+  if (resp?.ok) {
+    input.value = "";
+    setPasteVisible(false);
+    $("status").textContent = "已提交，继续处理…";
+  } else {
+    $("status").innerHTML = `<span class="err">当前没有等待中的回复请求（可能已结束），请重新分析</span>`;
+  }
 }
 
 function triggerAnalyze(): void {
@@ -221,8 +245,12 @@ async function restoreState(): Promise<void> {
     | null;
   const task = resp?.task;
   if (!task) return;
-  if (task.status === "running" && Date.now() - task.startedAt < 300_000) {
-    $("status").textContent = "分析中：识别画面阵容 → 挖掘弹幕/评论区 → 匹配你的 box…（约 20-60 秒）";
+  setPasteVisible(task.status === "awaiting_paste");
+  if ((task.status === "running" || task.status === "awaiting_paste") && Date.now() - task.startedAt < 1_800_000) {
+    $("status").textContent =
+      task.status === "awaiting_paste"
+        ? task.progress ?? "等待你粘贴 DeepSeek 回复…"
+        : "分析中：识别画面阵容 → 挖掘弹幕/评论区 → 匹配你的 box…（约 20-60 秒）";
     pollTask();
   } else if (task.status === "done" && task.result) {
     $("result").innerHTML = renderResult(task.result, hasOp);
@@ -235,6 +263,7 @@ async function init(): Promise<void> {
   await renderChecklist();
   wireImageInputs();
   $("analyzeBtn").addEventListener("click", triggerAnalyze);
+  $("pasteSubmit").addEventListener("click", () => void submitPaste());
   $("openOptions").addEventListener("click", (e) => {
     e.preventDefault();
     chrome.runtime.openOptionsPage();

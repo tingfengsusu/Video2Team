@@ -114,12 +114,16 @@ export interface ChatMessage {
   content: MessageContent;
 }
 
+export type AskFn = (messages: ChatMessage[]) => Promise<string>;
+
 export async function callLLM(
   messages: ChatMessage[],
   options?: { timeoutMs?: number },
 ): Promise<string> {
   const cfg = await getLlmConfig();
-  if (cfg.mode === "web") return callLLMWeb(messages);
+  if (cfg.mode === "web") {
+    throw new Error("当前为网页版模式：请从插件面板触发分析（半自动流程）");
+  }
   return callLLMApi(cfg, messages, options);
 }
 
@@ -173,12 +177,12 @@ export function parseJsonLoose<T>(raw: string): T {
   return JSON.parse(text.slice(start, end + 1)) as T;
 }
 
-// ---------- 网页版模式（chat.deepseek.com，实验性） ----------
+// ---------- 网页版模式（chat.deepseek.com 半自动：注入提示词，用户发送并回贴回复） ----------
 
 const DEEPSEEK_WEB = "https://chat.deepseek.com/";
 
 /** 把消息数组压成网页版单条输入：文本合并，图片单独提取 */
-function flattenForWeb(messages: ChatMessage[]): { text: string; images: string[] } {
+export function flattenForWeb(messages: ChatMessage[]): { text: string; images: string[] } {
   const parts: string[] = [];
   const images: string[] = [];
   for (const m of messages) {
@@ -204,7 +208,7 @@ async function pingWebTab(tabId: number): Promise<boolean> {
 }
 
 /** 找到或打开 chat.deepseek.com 标签页，并等待内容脚本就绪 */
-async function ensureWebTab(): Promise<number> {
+export async function ensureWebTab(): Promise<number> {
   const tabs = await chrome.tabs.query({ url: "https://chat.deepseek.com/*" });
   let tabId = tabs.find((t) => t.id != null)?.id;
   if (tabId == null) {
@@ -214,29 +218,18 @@ async function ensureWebTab(): Promise<number> {
   }
   for (let i = 0; i < 20; i++) {
     if (await pingWebTab(tabId)) return tabId;
-    await sleep(1000);
+    await new Promise((r) => setTimeout(r, 1000));
   }
   throw new Error("DeepSeek 网页版未就绪：请打开该标签页确认已登录后重试");
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
-async function callLLMWeb(messages: ChatMessage[]): Promise<string> {
+/** 把提示词与截图注入 DeepSeek 网页版输入框（不发送，由用户按回车） */
+export async function injectWebPrompt(messages: ChatMessage[]): Promise<boolean> {
   const { text, images } = flattenForWeb(messages);
   const tabId = await ensureWebTab();
-  // 生成可能耗时数十秒，定时轻量调用防止 SW 空闲休眠
-  const keepalive = setInterval(() => void chrome.runtime.getPlatformInfo(), 20_000);
-  try {
-    const resp = (await chrome.tabs.sendMessage(tabId, { type: "WEB_LLM_ASK", text, images })) as
-      | { ok: boolean; text?: string; error?: string }
-      | undefined;
-    if (!resp?.ok || !resp.text) {
-      throw new Error(`网页版调用失败：${resp?.error ?? "未知错误"}`);
-    }
-    return resp.text;
-  } finally {
-    clearInterval(keepalive);
-  }
+  const resp = (await chrome.tabs.sendMessage(tabId, { type: "WEB_LLM_FILL", text, images })) as
+    | { ok: boolean; error?: string }
+    | undefined;
+  if (!resp?.ok) throw new Error(`提示词注入失败：${resp?.error ?? "未知错误"}`);
+  return images.length > 0;
 }
