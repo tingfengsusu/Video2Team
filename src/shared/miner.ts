@@ -61,48 +61,52 @@ export interface MiningPrepared {
   candidates: Candidate[];
 }
 
-/** 候选集构建：评论（置顶∪正则命中∪高赞前20）+ 弹幕（仅正则命中），上限 80、单条截断 150 字 */
+/** 候选集构建：评论（置顶∪正则命中∪高赞前20，上限 60）与弹幕（仅正则命中，上限 60）分开配额，互不挤占 */
 export function buildCandidates(
   comments: CommentItem[],
   danmaku: Array<{ time: number; text: string }>,
 ): Candidate[] {
-  const candidates: Candidate[] = [];
-  const push = (c: Omit<Candidate, "i">) => candidates.push({ i: candidates.length, ...c });
-
+  // —— 评论候选 ——
+  const commentCands: Candidate[] = [];
   const commentFlags = comments.map((c) => SUB_HINTS.some((re) => re.test(c.text)));
   comments.forEach((c) => {
     const idx = comments.indexOf(c);
     if (c.isPinned || commentFlags[idx]) {
-      push({
-        text: c.text, likes: c.likes, isPinned: c.isPinned,
+      commentCands.push({
+        i: 0, text: c.text, likes: c.likes, isPinned: c.isPinned,
         source: c.isPinned ? "pinned" : "comment", rpid: c.rpid,
       });
     }
   });
-  const pickedTexts = new Set(candidates.map((c) => c.text));
+  const pickedTexts = new Set(commentCands.map((c) => c.text));
   [...comments]
     .sort((a, b) => b.likes - a.likes)
     .slice(0, 20)
     .forEach((c) => {
       if (!pickedTexts.has(c.text)) {
-        push({ text: c.text, likes: c.likes, isPinned: false, source: "comment", rpid: c.rpid });
+        commentCands.push({ i: 0, text: c.text, likes: c.likes, isPinned: false, source: "comment", rpid: c.rpid });
       }
     });
+  if (commentCands.length > 60) {
+    commentCands.sort((a, b) => Number(b.isPinned) - Number(a.isPinned) || b.likes - a.likes);
+    commentCands.length = 60;
+  }
+
+  // —— 弹幕候选（仅正则命中；独立配额 60，不因评论多而被截掉） ——
+  const danmakuCands: Candidate[] = [];
   danmaku.forEach((d) => {
     if (d.text && SUB_HINTS.some((re) => re.test(d.text))) {
-      push({
-        text: `[弹幕 ${fmtTime(d.time)}] ${d.text}`,
+      danmakuCands.push({
+        i: 0, text: `[弹幕 ${fmtTime(d.time)}] ${d.text}`,
         likes: 0, isPinned: false, source: "danmaku", time: d.time,
       });
     }
   });
+  if (danmakuCands.length > 60) danmakuCands.length = 60;
 
-  if (candidates.length > 80) {
-    candidates.sort((a, b) => Number(b.isPinned) - Number(a.isPinned) || b.likes - a.likes);
-    candidates.length = 80;
-    candidates.forEach((c, i) => (c.i = i));
-  }
-  candidates.forEach((c) => {
+  const candidates = [...commentCands, ...danmakuCands];
+  candidates.forEach((c, idx) => {
+    c.i = idx;
     if (c.text.length > 150) c.text = c.text.slice(0, 150) + "…";
   });
   return candidates;

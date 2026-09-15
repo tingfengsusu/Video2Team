@@ -74,10 +74,14 @@ export function renderSlot(slot: RecommendedSlot, hasOp: HasOp): string {
 }
 
 export function renderResult(out: AnalysisOutput, hasOp: HasOp): string {
+  const s = out.stats;
+  const statsLine = s
+    ? `抓取弹幕 ${s.danmakuTotal} 条 → 候选池：评论 ${s.commentCandidates} + 弹幕 ${s.danmakuCandidates}｜`
+    : "";
   return (
     `<div class="video-title">${esc(out.videoTitle)}</div>` +
     `<div class="stage">${esc(out.stage)} 适配结果（阵容来自画面识别）</div>` +
-    `<div class="hint">实战替代建议：${out.substitutions.length} 条｜名字颜色：<span class="own">绿=你有</span>／<span class="miss">红=你没有</span></div>` +
-    out.recommendations.map((s) => renderSlot(s, hasOp)).join("")
+    `<div class="hint">实战替代建议：${out.substitutions.length} 条｜${statsLine}名字颜色：<span class="own">绿=你有</span>／<span class="miss">红=你没有</span></div>` +
+    out.recommendations.map((s2) => renderSlot(s2, hasOp)).join("")
   );
 }

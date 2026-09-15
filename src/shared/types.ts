@@ -104,6 +104,11 @@ export interface AnalysisOutput extends StageResult {
   videoTitle: string;
   stage: string;
   bvid: string;
+  stats?: {
+    danmakuTotal: number; // 抓取到的弹幕总数（XML 接口返回）
+    commentCandidates: number; // 进入候选池的评论数
+    danmakuCandidates: number; // 进入候选池的弹幕数（正则命中）
+  };
 }
 
 /** 后台分析任务状态（持久化到 storage.session，popup 重开可恢复） */

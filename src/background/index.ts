@@ -18,7 +18,8 @@ import {
   extractRosterFromImage,
 } from "../shared/roster";
 import { fetchComments, fetchDanmaku } from "../shared/bilibili";
-import { mineSubstitutions, buildWebCombinedMessages, parseMiningReply } from "../shared/miner";
+import { prepareMining, buildWebCombinedMessages, parseMiningReply, type Candidate } from "../shared/miner";
+import { callLLM } from "../shared/llm";
 import { recommend } from "../shared/recommender";
 import { OperatorDB } from "../shared/operatorDB";
 import { getLlmConfig, injectWebPrompt, parseJsonLoose } from "../shared/llm";
@@ -90,17 +91,21 @@ async function analyzeVideo(
   const cfg = await getLlmConfig().catch(() => null);
   let roster: Roster;
   let substitutions: Substitution[];
+  let danmakuAll: Array<{ time: number; text: string }> = [];
+  let candidates: Candidate[] = [];
 
   if (cfg?.mode === "web") {
     // 单段合并：识别阵容 + 挖掘建议一次完成，只输出一个 JSON（一次发送、一次回贴）
     const danmaku = await danmakuPromise;
-    const { messages: combined, candidates } = buildWebCombinedMessages(
+    danmakuAll = danmaku;
+    const { messages: combined, candidates: mineCands } = buildWebCombinedMessages(
       meta.stage,
       buildRosterPromptText(meta, textContext),
       comments,
       danmaku,
       imageDataUrls,
     );
+    candidates = mineCands;
     await setTask({ status: "running", startedAt, stage: meta.stage, progress: "正在打开 DeepSeek 网页版并注入提示词…" });
     await injectWebPrompt(combined);
     await setTask({
@@ -130,11 +135,43 @@ async function analyzeVideo(
     roster = await extractRosterFromImage(meta, imageDataUrls, opDB, textContext);
     await setTask({ status: "running", startedAt, stage: meta.stage, progress: "AI 分析替代建议…" });
     const danmaku = await danmakuPromise;
-    substitutions = await mineSubstitutions(roster, comments, danmaku, opDB);
+    danmakuAll = danmaku;
+    const { messages: mineMsgs, candidates: mineCands } = prepareMining(
+      roster.stage,
+      roster.slots.map((sl) => sl.operator),
+      comments,
+      danmaku,
+    );
+    candidates = mineCands;
+    if (mineCands.length === 0) {
+      substitutions = [];
+    } else {
+      const raw = await callLLM(mineMsgs);
+      let items: unknown[] = [];
+      try {
+        const v = parseJsonLoose<unknown>(raw);
+        items = Array.isArray(v) ? v : ((v as { substitutions?: unknown[] })?.substitutions ?? []);
+      } catch {
+        items = [];
+      }
+      substitutions = parseMiningReply(
+        items,
+        roster.slots.map((sl) => sl.operator),
+        mineCands,
+        roster.stage,
+        roster.videoId,
+        opDB,
+      );
+    }
   }
 
   const recommendations = recommend(roster, substitutions, box);
-  return { roster, substitutions, recommendations, videoTitle: meta.video.title, stage: meta.stage, bvid };
+  const stats = {
+    danmakuTotal: danmakuAll.length,
+    commentCandidates: candidates.filter((c) => c.source !== "danmaku").length,
+    danmakuCandidates: candidates.filter((c) => c.source === "danmaku").length,
+  };
+  return { roster, substitutions, recommendations, videoTitle: meta.video.title, stage: meta.stage, bvid, stats };
 }
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
