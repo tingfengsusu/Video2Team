@@ -231,9 +231,37 @@ function renderBoxStatus(box: { operators?: Record<string, unknown>; source?: st
       : "尚未导入";
 }
 
+/** 高级：候选上限 + 网页版自动读取开关 */
+async function initAdvancedSection(): Promise<void> {
+  const { advanced } = (await chrome.storage.local.get("advanced")) as {
+    advanced?: { commentCap?: number; danmakuCap?: number; webAutoRead?: boolean };
+  };
+  ($("capComments") as HTMLInputElement).value = String(advanced?.commentCap ?? 60);
+  ($("capDanmaku") as HTMLInputElement).value = String(advanced?.danmakuCap ?? 60);
+  ($("webAutoRead") as HTMLInputElement).checked = advanced?.webAutoRead !== false; // 默认开
+
+  $("saveAdvanced").addEventListener("click", async () => {
+    const clamp = (id: string, def: number) => {
+      const v = parseInt(($(id) as HTMLInputElement).value || String(def), 10);
+      return Number.isFinite(v) ? Math.min(300, Math.max(10, v)) : def;
+    };
+    await chrome.storage.local.set({
+      advanced: {
+        commentCap: clamp("capComments", 60),
+        danmakuCap: clamp("capDanmaku", 60),
+        webAutoRead: ($("webAutoRead") as HTMLInputElement).checked,
+      },
+    });
+    const el = $("advStatus");
+    el.textContent = "已保存 ✓";
+    setTimeout(() => (el.textContent = ""), 2000);
+  });
+}
+
 async function init(): Promise<void> {
   await initLlmSection();
   await initBoxSection();
+  await initAdvancedSection();
 }
 
 init();

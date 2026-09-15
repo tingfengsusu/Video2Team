@@ -69,6 +69,22 @@
       <!-- v2：森空岛扫码登录（cred 仅内存使用） -->
     </section>
 
+    <section>
+      <h2>高级</h2>
+      <label>评论候选上限 <input type="number" id="capComments" min="10" max="300" style="width: 100px" /></label>
+      <label>弹幕候选上限 <input type="number" id="capDanmaku" min="10" max="300" style="width: 100px" /></label>
+      <p class="note">
+        候选 = 送入 AI 的弹幕/评论条数（默认各 60）。调大召回更多，但提取精度与 API 成本会下降。
+      </p>
+      <label style="display: block; margin-top: 6px">
+        <input type="checkbox" id="webAutoRead" /> 网页版模式自动读取回复（失败时可手动粘贴兜底）
+      </label>
+      <div style="margin-top: 8px">
+        <button id="saveAdvanced">保存</button>
+        <span id="advStatus" class="note"></span>
+      </div>
+    </section>
+
     <script type="module" src="./options.js"></script>
   </body>
 </html>

@@ -22,7 +22,7 @@ import { prepareMining, buildWebCombinedMessages, parseMiningReply, type Candida
 import { callLLM } from "../shared/llm";
 import { recommend } from "../shared/recommender";
 import { OperatorDB } from "../shared/operatorDB";
-import { getLlmConfig, injectWebPrompt, parseJsonLoose } from "../shared/llm";
+import { getLlmConfig, injectWebPrompt, startWebWatch, stopWebWatch, parseJsonLoose } from "../shared/llm";
 import type { AnalysisOutput, Box, Roster, Substitution, TaskState } from "../shared/types";
 
 const TASK_KEY = "task";
@@ -46,13 +46,27 @@ async function getBox(): Promise<Box> {
   return box;
 }
 
-// ---------- 网页版半自动：等待用户动作（注入第二段 / 粘贴回复） ----------
+// ---------- 网页版半自动：等待自动读取结果 / 用户粘贴（两者竞速） ----------
 
 let userResolver: ((text: string) => void) | null = null;
+let webResultResolver: ((text: string) => void) | null = null;
 let keepaliveTimer: ReturnType<typeof setInterval> | null = null;
 
+function ensureKeepalive(): void {
+  if (!keepaliveTimer) {
+    keepaliveTimer = setInterval(() => void chrome.runtime.getPlatformInfo(), 20_000);
+  }
+}
+
+function stopKeepaliveIfIdle(): void {
+  if (!userResolver && !webResultResolver && keepaliveTimer) {
+    clearInterval(keepaliveTimer);
+    keepaliveTimer = null;
+  }
+}
+
 function waitForUser(): Promise<string> {
-  keepaliveTimer = setInterval(() => void chrome.runtime.getPlatformInfo(), 20_000);
+  ensureKeepalive();
   return new Promise((resolve) => {
     userResolver = resolve;
   });
@@ -62,12 +76,46 @@ function resolveUser(text: string): boolean {
   if (!userResolver) return false;
   const r = userResolver;
   userResolver = null;
-  if (keepaliveTimer) {
-    clearInterval(keepaliveTimer);
-    keepaliveTimer = null;
-  }
+  stopKeepaliveIfIdle();
   r(text);
   return true;
+}
+
+function waitForWebResult(): Promise<string> {
+  ensureKeepalive();
+  return new Promise((resolve) => {
+    webResultResolver = resolve;
+  });
+}
+
+function resolveWebResult(text: string): boolean {
+  if (!webResultResolver) return false;
+  const r = webResultResolver;
+  webResultResolver = null;
+  stopKeepaliveIfIdle();
+  r(text);
+  return true;
+}
+
+/** 竞速结束后清掉未兑现的等待方 */
+function clearPendingWaits(): void {
+  userResolver = null;
+  webResultResolver = null;
+  stopKeepaliveIfIdle();
+}
+
+/** 读取用户高级设置（候选上限 / 自动读取开关） */
+async function getAdvanced(): Promise<{
+  caps: { comments?: number; danmaku?: number };
+  autoRead: boolean;
+}> {
+  const { advanced } = (await chrome.storage.local.get("advanced")) as {
+    advanced?: { commentCap?: number; danmakuCap?: number; webAutoRead?: boolean };
+  };
+  return {
+    caps: { comments: advanced?.commentCap, danmaku: advanced?.danmakuCap },
+    autoRead: advanced?.webAutoRead !== false, // 默认开启自动读取
+  };
 }
 
 // ---------- 管道 ----------
@@ -89,13 +137,14 @@ async function analyzeVideo(
   const textContext = buildTextContext(meta.video, comments);
 
   const cfg = await getLlmConfig().catch(() => null);
+  const { caps, autoRead } = await getAdvanced();
   let roster: Roster;
   let substitutions: Substitution[];
   let danmakuAll: Array<{ time: number; text: string }> = [];
   let candidates: Candidate[] = [];
 
   if (cfg?.mode === "web") {
-    // 单段合并：识别阵容 + 挖掘建议一次完成，只输出一个 JSON（一次发送、一次回贴）
+    // 单段合并：识别阵容 + 挖掘建议一次完成，只输出一个 JSON（一次发送）
     const danmaku = await danmakuPromise;
     danmakuAll = danmaku;
     const { messages: combined, candidates: mineCands } = buildWebCombinedMessages(
@@ -104,17 +153,31 @@ async function analyzeVideo(
       comments,
       danmaku,
       imageDataUrls,
+      caps,
     );
     candidates = mineCands;
     await setTask({ status: "running", startedAt, stage: meta.stage, progress: "正在打开 DeepSeek 网页版并注入提示词…" });
-    await injectWebPrompt(combined);
+    const tabId = await injectWebPrompt(combined);
     await setTask({
       status: "web_paste",
       startedAt,
       stage: meta.stage,
-      progress: "提示词（含截图与弹幕/评论）已注入 DeepSeek 网页版——请在该页面按回车发送，然后把最终回复整段粘贴回插件",
+      progress: autoRead
+        ? "提示词（含截图与弹幕/评论）已注入——请在网页版按回车发送，回复将自动读取（失败时可手动粘贴）"
+        : "提示词（含截图与弹幕/评论）已注入 DeepSeek 网页版——请在该页面发送，然后把最终回复整段粘贴回插件",
     });
-    const finalText = await waitForUser();
+    let finalText: string;
+    if (autoRead) {
+      await startWebWatch(tabId);
+      // 自动读取与手动粘贴竞速，先到者生效
+      finalText = await Promise.race([waitForWebResult(), waitForUser()]);
+      void stopWebWatch(tabId);
+      clearPendingWaits();
+    } else {
+      finalText = await waitForUser();
+      clearPendingWaits();
+    }
+    await setTask({ status: "running", startedAt, stage: meta.stage, progress: "已收到回复，匹配你的 box…" });
 
     const parsed = parseJsonLoose<{ roster?: unknown; substitutions?: unknown }>(finalText);
     if (!parsed.roster || typeof parsed.roster !== "object") {
@@ -141,6 +204,7 @@ async function analyzeVideo(
       roster.slots.map((sl) => sl.operator),
       comments,
       danmaku,
+      caps,
     );
     candidates = mineCands;
     if (mineCands.length === 0) {
@@ -190,6 +254,11 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   }
   if (msg?.type === "PASTE_REPLY") {
     sendResponse({ ok: resolveUser(String(msg.text ?? "")) });
+    return true;
+  }
+  if (msg?.type === "WEB_LLM_RESULT") {
+    // 网页端内容脚本自动读取到的回复
+    sendResponse({ ok: resolveWebResult(String(msg.text ?? "")) });
     return true;
   }
   if (msg?.type === "GET_TASK") {

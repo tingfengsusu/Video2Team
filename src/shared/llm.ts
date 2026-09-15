@@ -223,13 +223,23 @@ export async function ensureWebTab(): Promise<number> {
   throw new Error("DeepSeek 网页版未就绪：请打开该标签页确认已登录后重试");
 }
 
-/** 把提示词与截图注入 DeepSeek 网页版输入框（不发送，由用户按回车） */
-export async function injectWebPrompt(messages: ChatMessage[]): Promise<boolean> {
+/** 把提示词与截图注入 DeepSeek 网页版输入框（不发送，由用户按回车）；返回标签页 id */
+export async function injectWebPrompt(messages: ChatMessage[]): Promise<number> {
   const { text, images } = flattenForWeb(messages);
   const tabId = await ensureWebTab();
   const resp = (await chrome.tabs.sendMessage(tabId, { type: "WEB_LLM_FILL", text, images })) as
     | { ok: boolean; error?: string }
     | undefined;
   if (!resp?.ok) throw new Error(`提示词注入失败：${resp?.error ?? "未知错误"}`);
-  return images.length > 0;
+  return tabId;
+}
+
+/** 让网页端内容脚本开始观察新回复（自动读取模式） */
+export async function startWebWatch(tabId: number, timeoutMs = 300_000): Promise<void> {
+  await chrome.tabs.sendMessage(tabId, { type: "WEB_LLM_WATCH", timeoutMs }).catch(() => {});
+}
+
+/** 取消观察（手动粘贴先到时调用） */
+export async function stopWebWatch(tabId: number): Promise<void> {
+  await chrome.tabs.sendMessage(tabId, { type: "WEB_LLM_WATCH_STOP" }).catch(() => {});
 }

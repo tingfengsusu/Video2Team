@@ -1,9 +1,9 @@
 /**
  * chat.deepseek.com 内容脚本（网页版模式）。
  *
- * 只做一件事：把提示词与截图**填入**输入框（WEB_LLM_FILL）。
- * 发送与等待回复由用户手动完成（更简单、不依赖页面状态探测），
- * 用户再把回复粘贴回插件继续流程。
+ * - WEB_LLM_FILL：把提示词与截图填入输入框（发送由用户按回车完成）；
+ * - WEB_LLM_WATCH：嗅探基线后观察新出现的 AI 回复，文本稳定 1.5 秒视为生成完毕，
+ *   经 WEB_LLM_RESULT 回传后台（自动读取）；失败时用户仍可手动粘贴兜底。
  */
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -53,6 +53,45 @@ async function fill(text: string, images: string[]): Promise<{ ok: boolean; erro
   return { ok: true };
 }
 
+// ---------- 自动读取回复 ----------
+
+let watchToken = 0;
+
+function replyCount(): number {
+  return document.querySelectorAll(".ds-markdown").length;
+}
+
+function lastReplyText(): string {
+  const nodes = document.querySelectorAll(".ds-markdown");
+  return nodes.length ? (nodes[nodes.length - 1] as HTMLElement).innerText.trim() : "";
+}
+
+/** 嗅探基线 → 等待新回复出现并稳定 → 回传后台 */
+async function watchReply(timeoutMs: number): Promise<void> {
+  const token = ++watchToken;
+  const baseline = replyCount(); // 注入时的消息数，防止误读历史回复
+  const t0 = Date.now();
+  let last = "";
+  let stableSince = 0;
+  while (Date.now() - t0 < timeoutMs && token === watchToken) {
+    await sleep(1000);
+    if (replyCount() <= baseline) continue; // 新回复还没出现
+    const cur = lastReplyText();
+    if (!cur) continue;
+    if (cur === last) {
+      if (!stableSince) stableSince = Date.now();
+      if (Date.now() - stableSince > 1500) {
+        // 文本连续 1.5 秒未变化 → 生成结束
+        void chrome.runtime.sendMessage({ type: "WEB_LLM_RESULT", text: cur });
+        return;
+      }
+    } else {
+      last = cur;
+      stableSince = 0;
+    }
+  }
+}
+
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === "WEB_LLM_PING") {
     sendResponse({ ok: true, ready: !!findInput() });
@@ -61,5 +100,15 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === "WEB_LLM_FILL") {
     void fill(msg.text ?? "", msg.images ?? []).then(sendResponse);
     return true;
+  }
+  if (msg?.type === "WEB_LLM_WATCH") {
+    void watchReply(typeof msg.timeoutMs === "number" ? msg.timeoutMs : 300_000);
+    sendResponse({ ok: true });
+    return;
+  }
+  if (msg?.type === "WEB_LLM_WATCH_STOP") {
+    watchToken++; // 使当前 watcher 失效
+    sendResponse({ ok: true });
+    return;
   }
 });

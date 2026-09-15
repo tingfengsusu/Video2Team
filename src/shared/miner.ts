@@ -61,11 +61,19 @@ export interface MiningPrepared {
   candidates: Candidate[];
 }
 
-/** 候选集构建：评论（置顶∪正则命中∪高赞前20，上限 60）与弹幕（仅正则命中，上限 60）分开配额，互不挤占 */
+export interface CandidateCaps {
+  comments?: number; // 评论候选上限（默认 60，设置页可配）
+  danmaku?: number; // 弹幕候选上限（默认 60，设置页可配）
+}
+
+/** 候选集构建：评论（置顶∪正则命中∪高赞前20）与弹幕（仅正则命中）分开配额，互不挤占 */
 export function buildCandidates(
   comments: CommentItem[],
   danmaku: Array<{ time: number; text: string }>,
+  caps: CandidateCaps = {},
 ): Candidate[] {
+  const commentCap = caps.comments ?? 60;
+  const danmakuCap = caps.danmaku ?? 60;
   // —— 评论候选 ——
   const commentCands: Candidate[] = [];
   const commentFlags = comments.map((c) => SUB_HINTS.some((re) => re.test(c.text)));
@@ -87,9 +95,9 @@ export function buildCandidates(
         commentCands.push({ i: 0, text: c.text, likes: c.likes, isPinned: false, source: "comment", rpid: c.rpid });
       }
     });
-  if (commentCands.length > 60) {
+  if (commentCands.length > commentCap) {
     commentCands.sort((a, b) => Number(b.isPinned) - Number(a.isPinned) || b.likes - a.likes);
-    commentCands.length = 60;
+    commentCands.length = commentCap;
   }
 
   // —— 弹幕候选（仅正则命中；独立配额 60，不因评论多而被截掉） ——
@@ -102,7 +110,7 @@ export function buildCandidates(
       });
     }
   });
-  if (danmakuCands.length > 60) danmakuCands.length = 60;
+  if (danmakuCands.length > danmakuCap) danmakuCands.length = danmakuCap;
 
   const candidates = [...commentCands, ...danmakuCands];
   candidates.forEach((c, idx) => {
@@ -155,8 +163,9 @@ export function prepareMining(
   rosterNames: string[] | null,
   comments: CommentItem[],
   danmaku: Array<{ time: number; text: string }>,
+  caps: CandidateCaps = {},
 ): MiningPrepared {
-  const candidates = buildCandidates(comments, danmaku);
+  const candidates = buildCandidates(comments, danmaku, caps);
   const messages: ChatMessage[] = [
     { role: "system", content: "你是明日方舟攻略数据提取引擎，只输出 JSON。" },
     { role: "user", content: buildMiningPromptText(stage, rosterNames, candidates, false) },
@@ -174,8 +183,9 @@ export function buildWebCombinedMessages(
   comments: CommentItem[],
   danmaku: Array<{ time: number; text: string }>,
   imageDataUrls: string[],
+  caps: CandidateCaps = {},
 ): MiningPrepared {
-  const candidates = buildCandidates(comments, danmaku);
+  const candidates = buildCandidates(comments, danmaku, caps);
   const outputSchema =
     `【最终输出】仅输出一个 JSON：\n` +
     `{"roster":{"operators":[{"name":"","support":false,"isKey":false,"keyReason":""}]},"substitutions":[{"removed":"","replacement":"","kind":"","evidence":"","commentIndex":编号}]}\n` +
