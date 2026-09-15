@@ -10,7 +10,7 @@
  */
 
 import { callDeepSeek, parseJsonLoose } from "./deepseek";
-import { getVideoInfo, fetchComments, type VideoInfo } from "./bilibili";
+import { getVideoInfo, type VideoInfo } from "./bilibili";
 import type { OperatorDB } from "./operatorDB";
 import type { Roster, RosterSlot } from "./types";
 import ALIASES from "../../data/aliases.json";
@@ -33,9 +33,9 @@ export async function locateStage(bvid: string, page?: number): Promise<StageMet
   return { video, page: null, stage: video.title, cid: video.cid };
 }
 
-/** 辅助上下文：简介 + 置顶评论（供画面提取时参考技能/练度说明） */
-export async function fetchTextContext(video: VideoInfo): Promise<string> {
-  const comments = await fetchComments(video.aid, 20).catch(() => []);
+/** 辅助上下文：简介 + 置顶评论（供画面提取时参考技能/练度说明）。
+ *  评论列表由调用方传入（复用已抓取的 200 条，避免重复请求）。 */
+export function buildTextContext(video: VideoInfo, comments: Array<{ text: string; isPinned: boolean }>): string {
   const pinned = comments
     .filter((c) => c.isPinned)
     .map((c) => c.text)

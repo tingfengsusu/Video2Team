@@ -98,6 +98,16 @@ export async function mineSubstitutions(
 
   if (candidates.length === 0) return [];
 
+  // 压缩 LLM 输入：候选上限 80（置顶/高赞优先），单条截断 150 字
+  if (candidates.length > 80) {
+    candidates.sort((a, b) => Number(b.isPinned) - Number(a.isPinned) || b.likes - a.likes);
+    candidates.length = 80;
+    candidates.forEach((c, i) => (c.i = i));
+  }
+  candidates.forEach((c) => {
+    if (c.text.length > 150) c.text = c.text.slice(0, 150) + "…";
+  });
+
   const rosterNames = roster.slots.map((s) => s.operator);
   const raw = await callDeepSeek([
     { role: "system", content: "你是明日方舟攻略数据提取引擎，只输出 JSON。" },

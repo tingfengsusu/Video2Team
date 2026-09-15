@@ -111,6 +111,7 @@ export interface TaskState {
   status: "running" | "done" | "error";
   startedAt: number;
   stage?: string;
+  progress?: string; // 当前阶段文案（识别画面阵容…/整理弹幕评论…/分析替代建议…）
   result?: AnalysisOutput;
   error?: string;
 }

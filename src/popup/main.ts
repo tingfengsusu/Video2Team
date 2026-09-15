@@ -167,6 +167,9 @@ function pollTask(): void {
       | null;
     const task = resp?.task;
     if (!task) return;
+    if (task.status === "running" && task.progress) {
+      $("status").textContent = `${task.progress}（约 20-60 秒）`;
+    }
     if (task.status === "done" && task.result) {
       window.clearInterval(pollTimer!);
       pollTimer = undefined;

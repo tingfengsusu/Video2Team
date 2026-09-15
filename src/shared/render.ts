@@ -14,10 +14,14 @@ export function esc(s: string): string {
 
 export type HasOp = (name: string) => boolean;
 
-/** 干员名（按是否持有着色） */
+/** 内联样式（优先级最高，不依赖 CSS 类是否加载/更新） */
+const OWN_STYLE = "color:#1a7f37;font-weight:700";
+const MISS_STYLE = "color:#c0392b;font-weight:700";
+
+/** 干员名（按是否持有着色——内联样式，绿=你有 红=你没有） */
 function nameSpan(name: string, hasOp: HasOp): string {
-  const cls = hasOp(name) ? "own" : "miss";
-  return `<span class="${cls}">${esc(name)}</span>`;
+  const owned = hasOp(name);
+  return `<span class="${owned ? "own" : "miss"}" style="${owned ? OWN_STYLE : MISS_STYLE}">${esc(name)}</span>`;
 }
 
 function srcLabel(s: Substitution): string {

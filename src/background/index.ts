@@ -5,7 +5,7 @@
  * 任务状态持久化到 storage.session：popup 关闭/重开后可恢复「分析中/结果/错误」。
  */
 
-import { locateStage, fetchTextContext, extractRosterFromImage } from "../shared/roster";
+import { locateStage, buildTextContext, extractRosterFromImage } from "../shared/roster";
 import { fetchComments, fetchDanmaku } from "../shared/bilibili";
 import { mineSubstitutions } from "../shared/miner";
 import { recommend } from "../shared/recommender";
@@ -31,15 +31,26 @@ async function analyzeVideo(
   page: number | undefined,
   imageDataUrls: string[],
 ): Promise<AnalysisOutput> {
+  const startedAt = Date.now();
   const box = await getBox();
   const opDB = await OperatorDB.load();
   const meta = await locateStage(bvid, page);
-  await setTask({ status: "running", startedAt: Date.now(), stage: meta.stage });
-  const textContext = await fetchTextContext(meta.video);
+  await setTask({ status: "running", startedAt, stage: meta.stage, progress: "抓取弹幕/评论…" });
+
+  // 弹幕与评论并行抓取（弹幕在识图 LLM 运行期间继续拉）
+  const commentsPromise = fetchComments(meta.video.aid, 200).catch(() => []);
+  const danmakuPromise = meta.cid ? fetchDanmaku(meta.cid).catch(() => []) : Promise.resolve([]);
+
+  const comments = await commentsPromise;
+  const textContext = buildTextContext(meta.video, comments);
+
+  await setTask({ status: "running", startedAt, stage: meta.stage, progress: "AI 识别画面阵容…" });
   const roster = await extractRosterFromImage(meta, imageDataUrls, opDB, textContext);
-  const comments = await fetchComments(meta.video.aid, 200);
-  const danmaku = meta.cid ? await fetchDanmaku(meta.cid).catch(() => []) : [];
+
+  await setTask({ status: "running", startedAt, stage: meta.stage, progress: "AI 分析替代建议…" });
+  const danmaku = await danmakuPromise;
   const substitutions = await mineSubstitutions(roster, comments, danmaku, opDB);
+
   const recommendations = recommend(roster, substitutions, box);
   return { roster, substitutions, recommendations, videoTitle: meta.video.title, stage: meta.stage, bvid };
 }
