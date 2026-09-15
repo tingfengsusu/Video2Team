@@ -9,6 +9,8 @@
  * 携带用户 B站登录态，低频访问风控友好。
  */
 
+import { wbiSign } from "./wbi";
+
 export interface VideoPage {
   page: number; // 分P序号（URL 的 ?p=）
   part: string; // 分P标题（攻略合集即关卡名，如「SR-EX-8突袭」）
@@ -27,23 +29,28 @@ export interface VideoInfo {
 
 /**
  * 带 B站登录态与 Referer 的请求（扩展有 host 权限可携带 Cookie）。
- * 412 = B站风控（常见于无 Cookie/高频），自动重试一次。
+ * 412 = B站风控：先重试一次，仍失败自动升级 wbi 签名后重签重试
+ * （2024+ 部分节点对无签名请求间歇/持续 412，见 docs/notes/recon.md）。
  */
-async function getJson(url: string, retry = true): Promise<any> {
-  const doFetch = () =>
-    fetch(url, {
+async function getJson(url: string, params?: Record<string, string | number>): Promise<any> {
+  const build = async (withWbi: boolean): Promise<Response> =>
+    fetch(withWbi && params ? `${url.split("?")[0]}?${await wbiSign(params)}` : url, {
       credentials: "include",
       headers: { Referer: "https://www.bilibili.com/" },
     });
-  let resp = await doFetch();
-  if (resp.status === 412 && retry) {
+
+  let resp = await build(false);
+  if (resp.status === 412) {
     await new Promise((r) => setTimeout(r, 900));
-    resp = await doFetch();
+    resp = await build(false);
+  }
+  if (resp.status === 412 && params) {
+    resp = await build(true); // 升级 wbi 签名
   }
   if (!resp.ok) {
     throw new Error(
       resp.status === 412
-        ? "B站风控拦截（HTTP 412）：稍等几秒再点分析重试"
+        ? "B站风控拦截（HTTP 412，含 wbi 签名仍被拒）：可能触发高频限制，等待 1-2 分钟再试"
         : `B站请求失败 HTTP ${resp.status}`,
     );
   }
@@ -52,8 +59,17 @@ async function getJson(url: string, retry = true): Promise<any> {
   return j;
 }
 
+/** 拆出裸接口地址与参数（供 getJson 做签名升级） */
+function target(url: string): { base: string; params?: Record<string, string | number> } {
+  const u = new URL(url);
+  const params: Record<string, string | number> = {};
+  u.searchParams.forEach((v, k) => (params[k] = v));
+  return { base: `${u.origin}${u.pathname}`, params };
+}
+
 export async function getVideoInfo(bvid: string): Promise<VideoInfo> {
-  const j = await getJson(`https://api.bilibili.com/x/web-interface/view?bvid=${bvid}`);
+  const { base, params } = target(`https://api.bilibili.com/x/web-interface/view?bvid=${bvid}`);
+  const j = await getJson(base, params);
   const d = j.data;
   return {
     bvid: d.bvid,
@@ -77,9 +93,10 @@ export async function fetchComments(aid: number, maxCount = 200): Promise<Commen
   const out: CommentItem[] = [];
   // ps 实测上限 20（传 49 报 "ps out of bounds"，见端到端验收 2026-09-13）
   for (let pn = 1; out.length < maxCount && pn <= 10; pn++) {
-    const j = await getJson(
+    const { base, params } = target(
       `https://api.bilibili.com/x/v2/reply?type=1&oid=${aid}&sort=1&pn=${pn}&ps=20`,
     );
+    const j = await getJson(base, params);
     if (pn === 1) {
       // 置顶评论（UP主常在此写阵容/补充说明，优先级最高）
       const tops: any[] = j.data?.top?.replies ?? [];
