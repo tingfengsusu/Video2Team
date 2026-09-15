@@ -14,6 +14,13 @@ import type { AnalysisOutput, Box, TaskState } from "../shared/types";
 
 const TASK_KEY = "task";
 
+// session storage 默认只对可信上下文（扩展页面/后台）开放，
+// content script（视频页面板）读截图/任务状态会报
+// "Access to storage is not allowed from this context" —— 显式放开。
+void chrome.storage.session
+  .setAccessLevel({ accessLevel: "TRUSTED_AND_UNTRUSTED_CONTEXTS" })
+  .catch(() => {});
+
 async function setTask(task: TaskState): Promise<void> {
   await chrome.storage.session.set({ [TASK_KEY]: task });
 }

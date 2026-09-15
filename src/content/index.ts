@@ -62,7 +62,8 @@ host.id = "video2team-host";
 let shadow: ShadowRoot | null = null;
 let panelOpen = false;
 let images: string[] = [];
-let hasOp: HasOp = () => true;
+/** 默认按「没有」处理（更保守，不会误报拥有）；openPanel 时从 localStorage box 加载真实判断 */
+let hasOp: HasOp = () => false;
 let pollTimer: number | undefined;
 
 const STYLE = `
@@ -158,7 +159,20 @@ function q<T extends Element = Element>(sel: string): T {
 }
 
 async function persistImages(): Promise<void> {
-  await chrome.storage.session.set({ [IMG_KEY]: images });
+  try {
+    await chrome.storage.session.set({ [IMG_KEY]: images });
+  } catch {
+    /* session 不可用（权限/上下文）时静默：截图仅本次面板有效 */
+  }
+}
+
+async function readImages(): Promise<string[]> {
+  try {
+    const stored = (await chrome.storage.session.get(IMG_KEY)) as Record<string, string[]>;
+    return stored[IMG_KEY] ?? [];
+  } catch {
+    return images;
+  }
 }
 
 async function loadBox(): Promise<void> {
@@ -263,10 +277,10 @@ async function triggerAnalyze(): Promise<void> {
 async function openPanel(): Promise<void> {
   panelOpen = true;
   q(".panel").classList.add("open");
-  const stored = (await chrome.storage.session.get(IMG_KEY)) as Record<string, string[]>;
-  images = stored[IMG_KEY] ?? images;
+  // 先加载 box（local storage，内容脚本恒可访问）——决定红绿着色的 hasOp
   await loadBox();
   await renderReadiness();
+  images = await readImages();
   renderThumbs();
   // 恢复后台任务状态
   const resp = (await chrome.runtime.sendMessage({ type: "GET_TASK" }).catch(() => null)) as
