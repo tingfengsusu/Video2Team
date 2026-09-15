@@ -107,7 +107,7 @@ B站攻略合集实测存在三种形态（验证样本与细节见 [notes/recon
 | 配置 | `chrome.storage` + options 设置页（API key、box 管理），**不再使用 YAML 配置文件** |
 | Excel 解析 | SheetJS（xlsx）纯前端解析，用户本地选择文件，不上传 |
 | 分发 | Edge 商店（国内可直接访问）+ crx 手动安装双通道 |
-| 依赖的服务 | B站公开 API（用户身份）+ DeepSeek API（用户自己的 key 存 chrome.storage） |
+| 依赖的服务 | B站公开 API（用户身份）+ **任意 OpenAI 兼容 LLM 接口**（用户自配：预设 DeepSeek/硅基流动/智谱/Kimi/通义/豆包/OpenAI/OpenRouter/本地 Ollama + 自定义端点，Key 存 chrome.storage） |
 
 **可选本地分析服务（v1+，形态缺口补丁）**：插件检测 `localhost` 是否运行 Python 分析服务，有则解锁「视频下载+抽帧 OCR」兜底路径和 L2 图表帧提取，没有则主流程照跑。重活永远是可选项，不绑架形态。
 
