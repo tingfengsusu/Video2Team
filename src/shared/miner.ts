@@ -112,12 +112,14 @@ export function buildCandidates(
   return candidates;
 }
 
-/** 挖掘任务的提示词正文（rosterNames 为 null 时引用前文阵容；combined 控制输出格式说明归属） */
+/** 挖掘任务的提示词正文（rosterNames 为 null 时引用前文阵容；combined 控制输出格式说明归属；
+ *  includeAliases=false 用于合并提示词——第一步正文已带对照表，避免重复占用 token） */
 function buildMiningPromptText(
   stage: string,
   rosterNames: string[] | null,
   candidates: Candidate[],
   combined: boolean,
+  includeAliases = true,
 ): string {
   const refPrev = rosterNames === null;
   const rosterSection = refPrev
@@ -131,9 +133,9 @@ function buildMiningPromptText(
     ``,
     rosterSection,
     ``,
-    `昵称/黑话对照表（弹幕评论中的昵称/简称请还原为干员全名）：`,
-    JSON.stringify(ALIASES.aliases),
-    ``,
+    ...(includeAliases
+      ? [`昵称/黑话对照表（弹幕评论中的昵称/简称请还原为干员全名）：`, JSON.stringify(ALIASES.aliases), ``]
+      : []),
     `弹幕/评论列表（编号|来源|点赞|内容）：`,
     candidates.map((c) => `${c.i} | ${c.source} | ${c.likes} | ${c.text}`).join("\n"),
     ``,
@@ -186,7 +188,7 @@ export function buildWebCombinedMessages(
     rosterPromptText,
     ``,
     `【第二步：挖掘替代建议】`,
-    buildMiningPromptText(stage, null, candidates, true),
+    buildMiningPromptText(stage, null, candidates, true, false), // 对照表已在第一步正文中，勿重复
     ``,
     outputSchema,
   ].join("\n");
