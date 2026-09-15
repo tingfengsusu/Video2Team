@@ -33,11 +33,14 @@ export interface VideoInfo {
  * （2024+ 部分节点对无签名请求间歇/持续 412，见 docs/notes/recon.md）。
  */
 async function getJson(url: string, params?: Record<string, string | number>): Promise<any> {
-  const build = async (withWbi: boolean): Promise<Response> =>
-    fetch(withWbi && params ? `${url.split("?")[0]}?${await wbiSign(params)}` : url, {
-      credentials: "include",
-      headers: { Referer: "https://www.bilibili.com/" },
-    });
+  const opts = { credentials: "include" as const, headers: { Referer: "https://www.bilibili.com/" } };
+  const build = async (withWbi: boolean): Promise<Response> => {
+    if (withWbi && params) return fetch(`${url}?${await wbiSign(params)}`, opts);
+    // 普通路径：参数平铺（回归修复——url 参数现在是裸地址）
+    const usp = new URLSearchParams();
+    for (const [k, v] of Object.entries(params ?? {})) usp.append(k, String(v));
+    return fetch(params ? `${url}?${usp.toString()}` : url, opts);
+  };
 
   let resp = await build(false);
   if (resp.status === 412) {
