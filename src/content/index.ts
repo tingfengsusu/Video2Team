@@ -91,10 +91,16 @@ const STYLE = `
     box-shadow: 0 6px 24px rgba(0,0,0,.18); z-index: 2147483647; display: none;
   }
   .panel.open { display: block; }
-  h1 { font-size: 15px; margin: 0 0 2px; }
+  /* 吸顶头部：结果很长滚到底部时，关闭按钮始终可见 */
+  .phead { position: sticky; top: -14px; z-index: 2; background: #fff;
+           margin: -14px -14px 4px; padding: 12px 14px 8px; display: flex;
+           align-items: center; justify-content: space-between;
+           border-radius: 12px 12px 0 0; box-shadow: 0 2px 6px rgba(0,0,0,.06); }
+  .phead h1 { font-size: 15px; margin: 0; }
   .tagline { font-size: 11px; color: #888; margin-bottom: 8px; }
-  .close { position: absolute; right: 10px; top: 8px; border: none; background: none;
-           font-size: 16px; cursor: pointer; color: #999; }
+  .close { border: none; background: #f0f3f5; border-radius: 6px; padding: 2px 10px;
+           font-size: 14px; cursor: pointer; color: #666; }
+  .close:hover { background: #e2e8ed; }
   .settings { border: none; background: #f0f3f5; border: 1px solid #d0d7de; border-radius: 6px;
               font-size: 12px; padding: 4px 10px; cursor: pointer; color: #333; margin-bottom: 6px; }
   .readiness .ok { color: #1a7f37; }
@@ -135,8 +141,10 @@ const STYLE = `
 const PANEL_HTML = `
   <div class="hoverzone"><button class="fab">🎮 阵容适配</button></div>
   <div class="panel">
-    <button class="close" title="收起">✕</button>
-    <h1>🎮 Video2Team</h1>
+    <div class="phead">
+      <h1>🎮 Video2Team</h1>
+      <button class="close" title="收起">✕</button>
+    </div>
     <div class="tagline">把大佬的作业，改成你抄得动的作业</div>
     <div class="readiness hint" style="margin-bottom:6px"></div>
     <button class="settings" data-act="settings" title="设置 API Key / 导入练度表">⚙ 设置</button>

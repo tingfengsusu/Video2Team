@@ -208,30 +208,34 @@ async function pingWebTab(tabId: number): Promise<boolean> {
 }
 
 /** 找到或打开 chat.deepseek.com 标签页，并等待内容脚本就绪 */
-export async function ensureWebTab(): Promise<number> {
+export async function ensureWebTab(): Promise<{ tabId: number; created: boolean }> {
   const tabs = await chrome.tabs.query({ url: "https://chat.deepseek.com/*" });
   let tabId = tabs.find((t) => t.id != null)?.id;
+  let created = false;
   if (tabId == null) {
-    const created = await chrome.tabs.create({ url: DEEPSEEK_WEB, active: true });
-    if (created.id == null) throw new Error("无法打开 DeepSeek 网页版标签页");
-    tabId = created.id;
+    const tab = await chrome.tabs.create({ url: DEEPSEEK_WEB, active: true });
+    if (tab.id == null) throw new Error("无法打开 DeepSeek 网页版标签页");
+    tabId = tab.id;
+    created = true;
   }
   for (let i = 0; i < 20; i++) {
-    if (await pingWebTab(tabId)) return tabId;
+    if (await pingWebTab(tabId)) return { tabId, created };
     await new Promise((r) => setTimeout(r, 1000));
   }
   throw new Error("DeepSeek 网页版未就绪：请打开该标签页确认已登录后重试");
 }
 
-/** 把提示词与截图注入 DeepSeek 网页版输入框（不发送，由用户按回车）；返回标签页 id */
-export async function injectWebPrompt(messages: ChatMessage[]): Promise<number> {
+/** 把提示词与截图注入 DeepSeek 网页版输入框（不发送，由用户按回车）；返回标签页 id 与是否由本插件创建 */
+export async function injectWebPrompt(
+  messages: ChatMessage[],
+): Promise<{ tabId: number; created: boolean }> {
   const { text, images } = flattenForWeb(messages);
-  const tabId = await ensureWebTab();
+  const { tabId, created } = await ensureWebTab();
   const resp = (await chrome.tabs.sendMessage(tabId, { type: "WEB_LLM_FILL", text, images })) as
     | { ok: boolean; error?: string }
     | undefined;
   if (!resp?.ok) throw new Error(`提示词注入失败：${resp?.error ?? "未知错误"}`);
-  return tabId;
+  return { tabId, created };
 }
 
 /** 让网页端内容脚本开始观察新回复（自动读取模式） */

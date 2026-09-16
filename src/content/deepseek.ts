@@ -66,18 +66,21 @@ function lastReplyText(): string {
   return nodes.length ? (nodes[nodes.length - 1] as HTMLElement).innerText.trim() : "";
 }
 
-/** 嗅探基线 → 等待新回复出现并稳定 → 回传后台 */
+/** 嗅探基线 → 等待新回复出现并稳定 → 回传后台。
+ *  双条件检测（节点数增加 或 末尾回复文本变化），兼容「同一会话追加回复」等 DOM 复用场景。 */
 async function watchReply(timeoutMs: number): Promise<void> {
   const token = ++watchToken;
-  const baseline = replyCount(); // 注入时的消息数，防止误读历史回复
+  const baselineCount = replyCount();
+  const baselineText = lastReplyText(); // 文本快照：节点复用但内容变化也能识别
   const t0 = Date.now();
   let last = "";
   let stableSince = 0;
   while (Date.now() - t0 < timeoutMs && token === watchToken) {
     await sleep(1000);
-    if (replyCount() <= baseline) continue; // 新回复还没出现
     const cur = lastReplyText();
     if (!cur) continue;
+    const isNew = replyCount() > baselineCount || cur !== baselineText;
+    if (!isNew) continue;
     if (cur === last) {
       if (!stableSince) stableSince = Date.now();
       if (Date.now() - stableSince > 1500) {
