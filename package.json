@@ -6,7 +6,8 @@
   "description": "把大佬的作业，改成你抄得动的作业 — B站明日方舟挂机攻略阵容适配（浏览器插件）",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "pack": "node scripts/pack.mjs"
   },
   "devDependencies": {
     "@types/chrome": "^0.2.9",

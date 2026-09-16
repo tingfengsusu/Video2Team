@@ -4,7 +4,33 @@
 
 > 浏览器插件：在看B站明日方舟挂机攻略视频时一键分析 —— AI 提取阵容 → 结合弹幕/评论区实战替代建议 + 我的干员 box → 输出一份我当前 box 能用的阵容。
 
-🚧 **当前状态：设计完成，骨架搭建中**（设计文档：[docs/design.md](docs/design.md)）
+🚧 **当前状态：v0.5 可用**（画面识别阵容 + 弹幕/评论挖掘 + box 适配 + 红绿标注；支持 DeepSeek 网页版免 Key 与 API 直连两种模式）。设计文档：[docs/design.md](docs/design.md)
+
+---
+
+## 📥 安装（浏览器扩展）
+
+**方式 A：分发包（发给别人用）**
+1. 打包：`npm run pack` → 生成 `Video2Team_v{版本}.zip`
+2. 把 zip 发给用户，解压到任意目录；
+3. Chrome 打开 `chrome://extensions`（Edge 为 `edge://extensions`）→ 打开右上角「**开发者模式**」；
+4. 点「**加载已解压的扩展程序**」→ 选择解压出的目录（含 `manifest.json` 的那层）。
+
+**方式 B：源码**
+```bash
+git clone <repo> && cd Video2Team
+npm install && npm run build     # 产物在 dist/
+```
+然后同上第 3-4 步加载 `dist/` 目录。
+
+**首次使用（1 分钟）**
+1. 点插件图标 → 「⚙ 设置」；
+2. 干员 box：从 [一图流](https://ark.yituliu.cn/survey/operators) 导出 Excel 并导入；
+3. AI 接口：选「**DeepSeek 网页版（推荐，免 Key）**」保存即可（分析时只需在弹出页面按一次回车）；
+   或选「API 直连」填写自己的 Key（任意 OpenAI 兼容服务）。
+
+> 上架 Edge 插件商店（国内可直接访问）是后续计划；`load unpacked` 是当前的分发方式。
+
 
 ---
 

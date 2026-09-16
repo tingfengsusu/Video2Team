@@ -185,7 +185,7 @@ async function initLlmSection(): Promise<void> {
   } catch {
     /* 未配置：留空表单（默认 API + DeepSeek 预设） */
   }
-  const mode = cfg?.mode ?? "api";
+  const mode = cfg?.mode ?? "web"; // 推荐：网页版（免 Key）
   const modeRadio = document.querySelector<HTMLInputElement>(`input[name="llmMode"][value="${mode}"]`);
   if (modeRadio) modeRadio.checked = true;
   providerSel.value = cfg && cfg.provider in PRESETS ? cfg.provider : cfg && mode === "api" ? "custom" : "deepseek";

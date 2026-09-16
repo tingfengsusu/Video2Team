@@ -26,16 +26,16 @@
       <h2>AI 接口</h2>
       <div style="margin: 2px 0 10px">
         <label style="display: inline-block; margin-right: 18px">
-          <input type="radio" name="llmMode" value="api" /> API 直连（推荐，需 Key）
+          <input type="radio" name="llmMode" value="web" /> DeepSeek 网页版（推荐，免 Key）
         </label>
         <label style="display: inline-block">
-          <input type="radio" name="llmMode" value="web" /> DeepSeek 网页版（免 Key，实验性）
+          <input type="radio" name="llmMode" value="api" /> API 直连（需 Key）
         </label>
       </div>
       <div id="webNote" class="note" style="display: none; margin-bottom: 10px">
-        网页版模式（半自动）：分析时自动打开/复用 chat.deepseek.com 标签页，把提示词与截图<strong>填入输入框</strong>；
-        你在该页面按回车发送，再把整段回复<strong>粘贴回插件</strong>继续下一步。<br />
-        无需 Key，但依赖页面结构；若注入失败请切回 API 模式。<strong>此模式忽略下方全部配置。</strong>
+        网页版模式（推荐）：分析时自动打开/复用 chat.deepseek.com 标签页，把提示词与截图<strong>填入输入框</strong>；
+        你按一次回车，回复<strong>自动读取</strong>（失败时可手动粘贴兜底），读取成功后自动关闭该标签页。<br />
+        免费且响应快；依赖于 DeepSeek 页面结构，若注入失败请切回 API 模式。<strong>此模式忽略下方全部配置。</strong>
       </div>
       <div id="apiFields">
         <label>服务商 <select id="provider"></select></label>

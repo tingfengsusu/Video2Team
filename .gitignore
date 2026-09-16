@@ -29,3 +29,6 @@ data/cache/
 # OS
 Thumbs.db
 .DS_Store
+
+# 分发产物
+*.zip
