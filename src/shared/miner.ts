@@ -15,7 +15,7 @@ import { callLLM, parseJsonLoose, type AskFn, type ChatMessage } from "./llm";
 import { replyUrl, type CommentItem } from "./bilibili";
 import type { OperatorDB } from "./operatorDB";
 import type { Roster, Substitution } from "./types";
-import ALIASES from "../../data/aliases.json";
+import { aliasesForPrompt, recordUnknownName } from "./aliases";
 
 /** 正则粗筛：命中替代语义关键词的候选（宽松，宁可多送 AI） */
 const SUB_HINTS = [
@@ -142,7 +142,7 @@ function buildMiningPromptText(
     rosterSection,
     ``,
     ...(includeAliases
-      ? [`昵称/黑话对照表（弹幕评论中的昵称/简称请还原为干员全名）：`, JSON.stringify(ALIASES.aliases), ``]
+      ? [`昵称/黑话对照表（弹幕评论中的昵称/简称请还原为干员全名）：`, JSON.stringify(aliasesForPrompt()), ``]
       : []),
     `弹幕/评论列表（编号|来源|点赞|内容）：`,
     candidates.map((c) => `${c.i} | ${c.source} | ${c.likes} | ${c.text}`).join("\n"),
@@ -232,7 +232,10 @@ export function parseMiningReply(
     const replacement = opDB.resolve(it?.replacement ?? "");
     // removed 归一到阵容（含异格启发式）；replacement 必须是真实干员（字典校验，防幻觉/还原错误）
     if (!removed) continue;
-    if (!replacement || !opDB.exists(replacement)) continue;
+    if (!replacement || !opDB.exists(replacement)) {
+      if (replacement) void recordUnknownName(replacement, it?.evidence ?? ""); // 记入昵称纠错待确认
+      continue;
+    }
     if (removed === replacement) continue;
     const cand = it.commentIndex != null ? candidates.find((c) => c.i === it.commentIndex) : undefined;
     out.push({

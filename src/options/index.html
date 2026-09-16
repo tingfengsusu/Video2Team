@@ -15,6 +15,10 @@
                background: #23ade5; color: #fff; }
       button.ghost { background: #f0f3f5; color: #333; border: 1px solid #d0d7de; }
       .note { font-size: 12px; color: #888; line-height: 1.7; }
+      .pendingRow { border: 1px solid #eee; border-radius: 6px; padding: 8px 10px; margin: 6px 0; }
+      .pendingRow .pendingName { font-weight: 700; color: #c0392b; }
+      .pendingRow input { width: 180px; margin-right: 6px; }
+      .pendingRow button { padding: 4px 10px; font-size: 12px; }
       #llmStatus.ok { color: #1a7f37; }
       #llmStatus.bad { color: #c0392b; }
     </style>
@@ -83,6 +87,21 @@
         <button id="saveAdvanced">保存</button>
         <span id="advStatus" class="note"></span>
       </div>
+    </section>
+
+    <section>
+      <h2>昵称纠错（本地积累）</h2>
+      <p class="note">
+        分析时遇到干员字典无法识别的称呼（新黑话、新干员昵称）会自动记在这里。
+        填入正确的干员全名并采纳后，之后所有分析都会使用你的本地对照表。
+      </p>
+      <div id="pendingList"></div>
+      <div id="pendingFoot" style="margin-top: 8px; display: none">
+        <button id="dismissAll" class="ghost">全部忽略</button>
+        <span id="pendingStatus" class="note" style="margin-left: 8px"></span>
+      </div>
+      <div id="userAliasInfo" class="note" style="margin-top: 6px"></div>
+      <datalist id="operatorNames"></datalist>
     </section>
 
     <script type="module" src="./options.js"></script>

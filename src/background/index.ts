@@ -15,6 +15,7 @@ import { fetchComments, fetchDanmaku } from "../shared/bilibili";
 import { buildWebCombinedMessages, parseMiningReply, type Candidate } from "../shared/miner";
 import { recommend } from "../shared/recommender";
 import { OperatorDB } from "../shared/operatorDB";
+import { loadAliases } from "../shared/aliases";
 import {
   callLLM,
   getLlmConfig,
@@ -127,6 +128,7 @@ async function analyzeVideo(
   const startedAt = Date.now();
   const box = await getBox();
   const opDB = await OperatorDB.load();
+  await loadAliases(); // 别名三层：内置 + 在线 + 本地积累
   const meta = await locateStage(bvid, page);
   const { caps, autoRead } = await getAdvanced();
 

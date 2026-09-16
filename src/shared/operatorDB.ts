@@ -9,7 +9,7 @@
  * + data/aliases.json 纠错集（昵称/黑话 → 全名，运行时积累）。
  */
 
-import ALIASES from "../../data/aliases.json";
+import { resolveAlias } from "./aliases";
 import type { OperatorEntry } from "./types";
 
 export interface OperatorInfo {
@@ -20,8 +20,6 @@ export interface OperatorInfo {
   rarity?: number; // 0-indexed（一图流原值：5 = 五星）
   skills?: string[]; // 技能名（可用于校验阵容中的技能）
 }
-
-const ALIAS_MAP = new Map<string, string>(Object.entries(ALIASES.aliases));
 
 // ---------- 干员字典数据源（在线优先 + 缓存 + 打包兜底） ----------
 
@@ -95,10 +93,9 @@ export class OperatorDB {
     return db;
   }
 
-  /** 别名 → 干员全名（未命中返回原名） */
+  /** 别名 → 干员全名（未命中返回原名；别名表见 aliases.ts：内置 + 在线 + 本地积累） */
   resolve(name: string): string {
-    const trimmed = name.trim();
-    return ALIAS_MAP.get(trimmed) ?? trimmed;
+    return resolveAlias(name);
   }
 
   exists(name: string): boolean {

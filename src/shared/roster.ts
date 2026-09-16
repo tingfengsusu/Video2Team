@@ -13,7 +13,7 @@ import { callLLM, parseJsonLoose, type AskFn, type ChatMessage } from "./llm";
 import { getVideoInfo, type VideoInfo } from "./bilibili";
 import type { OperatorDB } from "./operatorDB";
 import type { Roster, RosterSlot } from "./types";
-import ALIASES from "../../data/aliases.json";
+import { aliasesForPrompt, recordUnknownName } from "./aliases";
 
 export interface StageMeta {
   video: VideoInfo;
@@ -70,7 +70,7 @@ export function buildRosterPromptText(meta: StageMeta, textContext: string): str
     textContext || "（无）",
     ``,
     `昵称/黑话对照表：`,
-    JSON.stringify(ALIASES.aliases),
+    JSON.stringify(aliasesForPrompt()),
     ``,
     `规则：`,
     `- name：画面上的干员名，逐字识别后按对照表还原全名；名字被遮挡且无其他截图佐证时跳过，不要猜测`,
@@ -118,6 +118,7 @@ export function parseRosterReply(raw: string, meta: StageMeta, opDB: OperatorDB)
     if (!name) continue;
     if (!opDB.exists(name)) {
       rejected.push(op.name ?? "");
+      void recordUnknownName(op.name ?? ""); // 记入昵称纠错待确认
       continue; // 字典校验：拦截幻觉名/误识别
     }
     slots.push({

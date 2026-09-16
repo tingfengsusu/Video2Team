@@ -6,6 +6,13 @@
 
 import { parseYituliuExcel } from "../shared/box";
 import { PRESETS, getLlmConfig, type LlmConfig } from "../shared/llm";
+import {
+  getPending,
+  approvePending,
+  dismissPending,
+  userAliasCount,
+  type PendingEntry,
+} from "../shared/aliases";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -258,10 +265,92 @@ async function initAdvancedSection(): Promise<void> {
   });
 }
 
+/** 昵称纠错：待确认列表渲染与采纳/忽略交互 */
+async function renderPending(): Promise<void> {
+  const list = $("pendingList");
+  const foot = $("pendingFoot") as HTMLElement;
+  const entries: PendingEntry[] = await getPending();
+
+  if (entries.length === 0) {
+    list.innerHTML = `<div class="note">（暂无待确认条目）</div>`;
+    foot.style.display = "none";
+  } else {
+    foot.style.display = "block";
+    list.innerHTML = entries
+      .map(
+        (e) => `
+      <div class="pendingRow" data-name="${escapeAttr(e.name)}">
+        <span class="pendingName">${escapeAttr(e.name)}</span>
+        <span class="note">×${e.count}</span>
+        ${e.sample ? `<div class="note">样例："${escapeAttr(e.sample)}"</div>` : ""}
+        <input list="operatorNames" placeholder="正确的干员全名" />
+        <button class="approve">采纳</button>
+        <button class="ghost dismiss">忽略</button>
+      </div>`,
+      )
+      .join("");
+  }
+
+  const userCount = await userAliasCount();
+  $("userAliasInfo").textContent =
+    userCount > 0 ? `本地对照已积累 ${userCount} 条（优先级最高，覆盖在线与内置数据）` : "本地对照暂无条目";
+}
+
+function escapeAttr(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+}
+
+async function initAliasSection(): Promise<void> {
+  // 干员全名候选列表（用于输入补全）
+  try {
+    const resp = await fetch(chrome.runtime.getURL("data/operators.json"));
+    const data = (await resp.json()) as Record<string, { name?: string }>;
+    const names = Object.values(data)
+      .map((v) => v.name)
+      .filter((n): n is string => !!n)
+      .sort((a, b) => a.localeCompare(b, "zh"));
+    $("operatorNames").innerHTML = names.map((n) => `<option value="${escapeAttr(n)}"></option>`).join("");
+  } catch {
+    /* 补全失败不阻塞 */
+  }
+
+  $("pendingList").addEventListener("click", async (e) => {
+    const target = e.target as HTMLElement;
+    const row = target.closest(".pendingRow") as HTMLElement | null;
+    if (!row) return;
+    const name = row.getAttribute("data-name") ?? "";
+    if (!name) return;
+    if (target.classList.contains("approve")) {
+      const input = row.querySelector("input") as HTMLInputElement;
+      const full = input.value.trim();
+      if (!full) {
+        input.focus();
+        $("pendingStatus").textContent = "请先填写正确的干员全名";
+        return;
+      }
+      await approvePending(name, full);
+      $("pendingStatus").textContent = "";
+      await renderPending();
+    } else if (target.classList.contains("dismiss")) {
+      await dismissPending(name);
+      await renderPending();
+    }
+  });
+
+  $("dismissAll").addEventListener("click", async () => {
+    const entries = await getPending();
+    await Promise.all(entries.map((e) => dismissPending(e.name)));
+    await renderPending();
+  });
+
+  await renderPending();
+}
+
 async function init(): Promise<void> {
   await initLlmSection();
   await initBoxSection();
   await initAdvancedSection();
+  await initAliasSection();
 }
 
 init();
