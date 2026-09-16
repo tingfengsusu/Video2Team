@@ -20,7 +20,9 @@
     "https://api.openai.com/*",
     "https://openrouter.ai/*",
     "http://localhost/*",
-    "http://127.0.0.1/*"
+    "http://127.0.0.1/*",
+    "https://cdn.jsdelivr.net/*",
+    "https://raw.githubusercontent.com/*"
   ],
   "optional_host_permissions": [
     "https://*/*",

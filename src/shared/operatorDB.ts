@@ -23,18 +23,74 @@ export interface OperatorInfo {
 
 const ALIAS_MAP = new Map<string, string>(Object.entries(ALIASES.aliases));
 
+// ---------- 干员字典数据源（在线优先 + 缓存 + 打包兜底） ----------
+
+const REMOTE_SOURCES = [
+  // 上游一图流数据（国内可达的 jsDelivr 优先）
+  "https://cdn.jsdelivr.net/gh/Arknights-yituliu/frontend-v2-plus@main/src/static/json/operator/character_table_simple.v2.json",
+  "https://raw.githubusercontent.com/Arknights-yituliu/frontend-v2-plus/main/src/static/json/operator/character_table_simple.v2.json",
+];
+const CACHE_KEY = "operators_remote";
+const CACHE_TTL = 24 * 3600 * 1000; // 24 小时
+
+type OperatorTable = Record<string, { name?: string; skills?: unknown } & Record<string, unknown>>;
+
+async function loadOperatorTable(): Promise<OperatorTable> {
+  // ① 缓存
+  try {
+    const stored = (await chrome.storage.local.get(CACHE_KEY)) as Record<
+      string,
+      { ts: number; data: OperatorTable } | undefined
+    >;
+    const c = stored[CACHE_KEY];
+    if (c && Date.now() - c.ts < CACHE_TTL && c.data && Object.keys(c.data).length > 0) {
+      return c.data;
+    }
+  } catch {
+    /* 存储不可用时继续走远程/打包 */
+  }
+
+  // ② 远程（失败逐个尝试，成功后写入缓存）
+  for (const url of REMOTE_SOURCES) {
+    try {
+      const resp = await fetch(url, { cache: "no-cache" });
+      if (!resp.ok) continue;
+      const data = (await resp.json()) as OperatorTable;
+      if (data && Object.keys(data).length > 100) {
+        void chrome.storage.local.set({ [CACHE_KEY]: { ts: Date.now(), data } }).catch?.(() => {});
+        return data;
+      }
+    } catch {
+      /* 尝试下一个源 */
+    }
+  }
+
+  // ③ 打包内兜底（离线/远程被墙时）
+  const resp = await fetch(chrome.runtime.getURL("data/operators.json"));
+  if (!resp.ok) throw new Error(`干员字典加载失败 HTTP ${resp.status}`);
+  return (await resp.json()) as OperatorTable;
+}
+
 export class OperatorDB {
   private byName = new Map<string, OperatorInfo>();
 
+  /**
+   * 加载干员字典（2026-09-16：在线优先，保证新干员及时入库）：
+   * ① local 缓存未过期（24h）直接用 → ② 依次尝试远程源（jsDelivr 国内可达 / raw GitHub）
+   * → ③ 全部失败回退打包内副本（离线可用）。远程/本地数据格式一致（charId → {name,profession,...}）。
+   */
   static async load(): Promise<OperatorDB> {
-    // scripts/build.mjs 将 data/operators.json 拷贝至 dist/data/
-    const url = chrome.runtime.getURL("data/operators.json");
-    const resp = await fetch(url);
-    if (!resp.ok) throw new Error(`干员字典加载失败 HTTP ${resp.status}`);
-    const raw: Record<string, any> = await resp.json();
+    const raw = await loadOperatorTable();
     const db = new OperatorDB();
     for (const [charId, info] of Object.entries(raw)) {
-      if (info?.name) db.byName.set(info.name, { charId, ...info });
+      if (!info?.name) continue;
+      // 兼容上游原始格式：skills 可能是 [{skillName}] 而非 ["技能名"]
+      const skills = Array.isArray(info.skills)
+        ? info.skills
+            .map((s: unknown) => (typeof s === "string" ? s : (s as { skillName?: string })?.skillName))
+            .filter((s): s is string => !!s)
+        : undefined;
+      db.byName.set(info.name, { charId, ...info, name: info.name, skills } as OperatorInfo);
     }
     return db;
   }
