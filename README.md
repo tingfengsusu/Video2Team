@@ -10,26 +10,33 @@
 
 ## 📥 安装（浏览器扩展）
 
-**方式 A：分发包（发给别人用）**
-1. 打包：`npm run pack` → 生成 `Video2Team_v{版本}.zip`
-2. 把 zip 发给用户，解压到任意目录；
-3. Chrome 打开 `chrome://extensions`（Edge 为 `edge://extensions`）→ 打开右上角「**开发者模式**」；
-4. 点「**加载已解压的扩展程序**」→ 选择解压出的目录（含 `manifest.json` 的那层）。
+**普通用户（推荐，无需任何开发环境）**
 
-**方式 B：源码**
+1. 到 [Releases](../../releases) 下载最新的 `Video2Team_vX.Y.Z.zip`；
+2. **解压**到任意目录（先解压再操作，不要在压缩包里直接点）；
+3. Chrome 打开 `chrome://extensions`（Edge 为 `edge://extensions`），打开右上角「**开发者模式**」；
+4. 点「**加载已解压的扩展程序**」→ 选择解压出来的文件夹（里面有 `manifest.json` 的那一层）。
+
+**开发者（从源码构建）**
+
 ```bash
-git clone <repo> && cd Video2Team
-npm install && npm run build     # 产物在 dist/
+git clone https://github.com/tingfengsusu/Video2Team.git
+cd Video2Team
+npm install
+npm run build        # 构建产物在 dist/
+npm run pack         # （可选）打包成可分发的 zip，用于发布 Release
 ```
-然后同上第 3-4 步加载 `dist/` 目录。
+
+构建完成后，同上第 3-4 步，第 4 步选择 `dist/` 目录即可。
 
 **首次使用（1 分钟）**
+
 1. 点插件图标 → 「⚙ 设置」；
 2. 干员 box：从 [一图流](https://ark.yituliu.cn/survey/operators) 导出 Excel 并导入；
 3. AI 接口：选「**DeepSeek 网页版（推荐，免 Key）**」保存即可（分析时只需在弹出页面按一次回车）；
    或选「API 直连」填写自己的 Key（任意 OpenAI 兼容服务）。
 
-> 上架 Edge 插件商店（国内可直接访问）是后续计划；`load unpacked` 是当前的分发方式。
+> 上架 Edge 插件商店（国内可直接访问）是后续计划；Releases 下载 + 开发者模式安装是当前的分发方式。
 
 
 ---
