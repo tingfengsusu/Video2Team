@@ -58,6 +58,7 @@ await esbuild.build({
 
 // manifest 与静态资源
 cpSync(join(root, "manifest.json"), join(dist, "manifest.json"));
+cpSync(join(root, "icons"), join(dist, "icons"), { recursive: true });
 cpSync(join(root, "src/popup/index.html"), join(dist, "popup.html"));
 cpSync(join(root, "src/options/index.html"), join(dist, "options.html"));
 mkdirSync(join(dist, "data"), { recursive: true });

@@ -4,7 +4,7 @@
 
 > 浏览器插件：在看B站明日方舟挂机攻略视频时一键分析 —— AI 提取阵容 → 结合弹幕/评论区实战替代建议 + 我的干员 box → 输出一份我当前 box 能用的阵容。
 
-🚧 **当前状态：v0.5 可用**（画面识别阵容 + 弹幕/评论挖掘 + box 适配 + 红绿标注；支持 DeepSeek 网页版免 Key 与 API 直连两种模式）。设计文档：[docs/design.md](docs/design.md)
+**当前版本：[v0.2.0](../../releases)** —— 画面识别阵容 + 弹幕/评论建议挖掘 + box 适配（红绿标注）；支持 DeepSeek 网页版（免 Key）与任意 OpenAI 兼容 API；干员字典与昵称表**在线自动更新**。设计文档：[docs/design.md](docs/design.md)
 
 ---
 
