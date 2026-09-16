@@ -1,5 +1,7 @@
 # data/ 目录说明
 
+> 各文件的确切来源、更新方式与致谢详见 [data-sources.md](data-sources.md)。
+
 - `operators.json`（待添加）：干员基础数据（名字典 + 属性上下文）。来源已定：一图流开源仓库
   `Arknights-yituliu/frontend-v2-plus` 的 `src/static/json/operator/character_table_simple.v2.json`
   （字段已侦察确认，见 docs/notes/recon.md）。

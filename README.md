@@ -99,15 +99,13 @@ Video2Team/
 └── tests/
 ```
 
-## 🗺️ 版本规划
+## 🗺️ 路线图
 
-| 版本 | 内容 |
-|------|------|
-| **v0 (MVP)** | 视频页一键分析 + Excel box + 评论区（置顶/高赞）映射命中推荐，popup 展示结果 |
-| **v1** | 合集遍历、弹幕挖掘、L2 泛化知识（图表帧提取，依赖可选本地服务）、LLM 补充推断、风险分级与溯源 |
-| **v2** | 森空岛扫码登录、长视频分段兼容、L2 知识库积累与共享 |
+- ✅ **v0.2.0（当前）**：画面识别阵容、弹幕/评论建议挖掘、box 适配（红绿标注）、网页版免 Key 与 API 双模式、干员字典/昵称表在线更新、昵称纠错闭环
+- 🔜 **v0.2+**：弹幕全量获取（分段接口）、合集批量分析、结果导出
+- 🚫 **明确不做**（防止重复讨论）：LLM 兜底发明建议、森空岛扫码、长视频分段路由
 
-详见 [docs/design.md](docs/design.md) §8。
+完整路线图与理由见 [docs/design.md](docs/design.md) §8。
 
 ## 🛠️ 技术栈
 
@@ -117,8 +115,12 @@ Video2Team/
 | 语言/构建 | TypeScript + esbuild（四入口单文件 bundle，规避 crxjs beta 的 chunk 问题） |
 | Excel 解析 | SheetJS (xlsx)，纯前端本地解析 |
 | AI 分析 | 任意 OpenAI 兼容接口（预设 DeepSeek/硅基流动/智谱/Kimi/通义/豆包/OpenAI/OpenRouter/本地 Ollama + 自定义端点） |
-| 数据 | B站公开 API、干员数据 JSON（PRTS/一图流开源数据） |
+| 数据 | B站公开 API（实时）、干员字典（[一图流开源数据](docs/data-sources.md)）、社区昵称对照（[猜猜乐插件](docs/data-sources.md) + 本地积累） |
+
+## 📚 数据来源与致谢
+
+干员字典、昵称对照等数据全部来自社区开源项目（[一图流](https://ark.yituliu.cn/)、[猜猜乐插件](https://github.com/Li-shi-ling/astrbot_plugin_mrfzccl) 等），详见 [docs/data-sources.md](docs/data-sources.md)。
 
 ## 📄 许可证
 
-MIT License
+本仓库代码基于 MIT License。游戏角色名称与内容版权归鹰角网络所有；内置数据的来源与许可详见 [docs/data-sources.md](docs/data-sources.md)。
