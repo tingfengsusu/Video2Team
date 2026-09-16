@@ -223,6 +223,7 @@ export function parseMiningReply(
   stage: string,
   videoId: string,
   opDB: OperatorDB,
+  onUnknown?: (name: string, sample?: string) => void,
 ): Substitution[] {
   const out: Substitution[] = [];
   for (const raw of items ?? []) {
@@ -233,7 +234,10 @@ export function parseMiningReply(
     // removed 归一到阵容（含异格启发式）；replacement 必须是真实干员（字典校验，防幻觉/还原错误）
     if (!removed) continue;
     if (!replacement || !opDB.exists(replacement)) {
-      if (replacement) void recordUnknownName(replacement, it?.evidence ?? ""); // 记入昵称纠错待确认
+      if (replacement) {
+        void recordUnknownName(replacement, it?.evidence ?? ""); // 记入昵称纠错待确认
+        onUnknown?.(replacement, it?.evidence ?? "");
+      }
       continue;
     }
     if (removed === replacement) continue;

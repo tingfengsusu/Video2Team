@@ -108,6 +108,7 @@ export interface AnalysisOutput extends StageResult {
     danmakuTotal: number; // 抓取到的弹幕总数（XML 接口返回）
     commentCandidates: number; // 进入候选池的评论数
     danmakuCandidates: number; // 进入候选池的弹幕数（正则命中）
+    unknownNames?: string[]; // 本次分析中字典无法识别的称呼（已记入昵称纠错）
   };
 }
 

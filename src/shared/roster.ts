@@ -103,7 +103,12 @@ export function buildRosterMessages(
 }
 
 /** 解析阵容识别回复（{"operators":[...]}）并过干员名字典校验 */
-export function parseRosterReply(raw: string, meta: StageMeta, opDB: OperatorDB): Roster {
+export function parseRosterReply(
+  raw: string,
+  meta: StageMeta,
+  opDB: OperatorDB,
+  onUnknown?: (name: string) => void,
+): Roster {
   let parsed: { operators?: ExtractedOperator[] };
   try {
     parsed = parseJsonLoose<{ operators?: ExtractedOperator[] }>(raw);
@@ -118,7 +123,9 @@ export function parseRosterReply(raw: string, meta: StageMeta, opDB: OperatorDB)
     if (!name) continue;
     if (!opDB.exists(name)) {
       rejected.push(op.name ?? "");
-      void recordUnknownName(op.name ?? ""); // 记入昵称纠错待确认
+      const unknownName = op.name ?? "";
+      void recordUnknownName(unknownName); // 记入昵称纠错待确认
+      if (unknownName) onUnknown?.(unknownName);
       continue; // 字典校验：拦截幻觉名/误识别
     }
     slots.push({

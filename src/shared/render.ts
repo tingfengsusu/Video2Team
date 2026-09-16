@@ -82,6 +82,11 @@ export function renderResult(out: AnalysisOutput, hasOp: HasOp): string {
     `<div class="video-title">${esc(out.videoTitle)}</div>` +
     `<div class="stage">${esc(out.stage)} 适配结果（阵容来自画面识别）</div>` +
     `<div class="hint">实战替代建议：${out.substitutions.length} 条｜${statsLine}名字颜色：<span class="own">绿=你有</span>／<span class="miss">红=你没有</span></div>` +
-    out.recommendations.map((s2) => renderSlot(s2, hasOp)).join("")
+    out.recommendations.map((s2) => renderSlot(s2, hasOp)).join("") +
+    (s?.unknownNames && s.unknownNames.length
+      ? `<div class="slot unresolved">⚠ 有 ${s.unknownNames.length} 个称呼未能识别：${s.unknownNames
+          .map((n) => esc(n))
+          .join("、")}<div class="note">已记入设置页「昵称纠错」——填写正确干员名并采纳后，下次分析即可识别</div></div>`
+      : "")
   );
 }

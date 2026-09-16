@@ -337,6 +337,49 @@ async function initAliasSection(): Promise<void> {
     }
   });
 
+  async function buildSubmission(): Promise<string> {
+    const stored = (await chrome.storage.local.get("aliases_user")) as {
+      aliases_user?: Record<string, string>;
+    };
+    return Object.entries(stored.aliases_user ?? {})
+      .map(([k, v]) => `${k} → ${v}`)
+      .join("\n");
+  }
+
+  $("submitCommunity").addEventListener("click", async () => {
+    const body = await buildSubmission();
+    if (!body) {
+      $("submitStatus").textContent = "本地对照为空，无需提交";
+      return;
+    }
+    const title = "[昵称补充] 本地积累的昵称→干员对照";
+    const content =
+      "以下昵称→干员全名对照来自插件本地积累，均经人工确认，申请并入社区对照表：\n\n```\n" +
+      body +
+      "\n```\n";
+    const url =
+      "https://github.com/tingfengsusu/Video2Team/issues/new?title=" +
+      encodeURIComponent(title) +
+      "&body=" +
+      encodeURIComponent(content);
+    window.open(url, "_blank");
+    $("submitStatus").textContent = "已打开 GitHub 提交页（需登录 GitHub；无账号请用「复制内容」）";
+  });
+
+  $("copyCommunity").addEventListener("click", async () => {
+    const body = await buildSubmission();
+    if (!body) {
+      $("submitStatus").textContent = "本地对照为空，无需提交";
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(body);
+      $("submitStatus").textContent = "已复制，可粘贴到 Issue / 帖子 / 群里";
+    } catch {
+      $("submitStatus").textContent = "复制失败，请手动选中文本";
+    }
+  });
+
   $("dismissAll").addEventListener("click", async () => {
     const entries = await getPending();
     await Promise.all(entries.map((e) => dismissPending(e.name)));

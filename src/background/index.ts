@@ -210,7 +210,12 @@ async function analyzeVideo(
   if (!parsed.roster || typeof parsed.roster !== "object") {
     throw new Error("回复里缺少 roster 字段：请确认模型输出的是完整 JSON（含 roster 与 substitutions）");
   }
-  const roster: Roster = parseRosterReply(JSON.stringify(parsed.roster), meta, opDB);
+  const unknownNames: string[] = [];
+  const onUnknown = (n: string): void => {
+    const t = n.trim();
+    if (t && !unknownNames.includes(t)) unknownNames.push(t);
+  };
+  const roster: Roster = parseRosterReply(JSON.stringify(parsed.roster), meta, opDB, onUnknown);
   const items = Array.isArray(parsed.substitutions) ? parsed.substitutions : [];
   const substitutions: Substitution[] = parseMiningReply(
     items,
@@ -219,6 +224,7 @@ async function analyzeVideo(
     roster.stage,
     roster.videoId,
     opDB,
+    onUnknown,
   );
 
   const recommendations = recommend(roster, substitutions, box);
@@ -226,6 +232,7 @@ async function analyzeVideo(
     danmakuTotal: danmaku.length,
     commentCandidates: candidates.filter((c) => c.source !== "danmaku").length,
     danmakuCandidates: candidates.filter((c) => c.source === "danmaku").length,
+    unknownNames,
   };
   return { roster, substitutions, recommendations, videoTitle: meta.video.title, stage: meta.stage, bvid, stats };
 }

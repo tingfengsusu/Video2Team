@@ -93,7 +93,8 @@
       <h2>昵称纠错（本地积累）</h2>
       <p class="note">
         分析时遇到干员字典无法识别的称呼（新黑话、新干员昵称）会自动记在这里。
-        填入正确的干员全名并采纳后，之后所有分析都会使用你的本地对照表。
+        填入正确的干员全名并采纳后，之后所有分析都会使用你的本地对照表。<br />
+        积累的对照可「提交到社区」——并入共享对照表后，所有用户 24 小时内自动获得。
       </p>
       <div id="pendingList"></div>
       <div id="pendingFoot" style="margin-top: 8px; display: none">
@@ -101,6 +102,11 @@
         <span id="pendingStatus" class="note" style="margin-left: 8px"></span>
       </div>
       <div id="userAliasInfo" class="note" style="margin-top: 6px"></div>
+      <div style="margin-top: 8px">
+        <button id="submitCommunity">📤 提交到社区</button>
+        <button id="copyCommunity" class="ghost">复制内容</button>
+        <span id="submitStatus" class="note" style="margin-left: 8px"></span>
+      </div>
       <datalist id="operatorNames"></datalist>
     </section>
 
