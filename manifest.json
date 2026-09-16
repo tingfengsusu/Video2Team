@@ -1,9 +1,12 @@
 {
   "manifest_version": 3,
-  "name": "Video2Team",
+  "name": "Video2Team · 方舟作业适配器",
   "version": "0.1.0",
   "description": "把大佬的作业，改成你抄得动的作业 — B站明日方舟挂机攻略阵容适配",
-  "permissions": ["storage", "activeTab"],
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
   "host_permissions": [
     "https://api.bilibili.com/*",
     "https://comment.bilibili.com/*",
@@ -19,24 +22,35 @@
     "http://localhost/*",
     "http://127.0.0.1/*"
   ],
-  "optional_host_permissions": ["https://*/*", "http://*/*"],
+  "optional_host_permissions": [
+    "https://*/*",
+    "http://*/*"
+  ],
   "background": {
     "service_worker": "background.js",
     "type": "module"
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Video2Team — 把大佬的作业，改成你抄得动的作业"
+    "default_title": "Video2Team · 方舟作业适配器"
   },
   "options_page": "options.html",
   "content_scripts": [
     {
-      "matches": ["https://www.bilibili.com/video/*"],
-      "js": ["content.js"]
+      "matches": [
+        "https://www.bilibili.com/video/*"
+      ],
+      "js": [
+        "content.js"
+      ]
     },
     {
-      "matches": ["https://chat.deepseek.com/*"],
-      "js": ["content-deepseek.js"]
+      "matches": [
+        "https://chat.deepseek.com/*"
+      ],
+      "js": [
+        "content-deepseek.js"
+      ]
     }
   ]
 }
