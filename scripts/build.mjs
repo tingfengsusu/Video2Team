@@ -56,11 +56,20 @@ await esbuild.build({
   outfile: join(dist, "options.js"),
 });
 
+// 结果大窗口页（面板/popup 的「⤢ 大窗口查看」经 chrome.windows.create 打开）
+await esbuild.build({
+  ...common,
+  entryPoints: [join(root, "src/result/main.ts")],
+  format: "esm",
+  outfile: join(dist, "result.js"),
+});
+
 // manifest 与静态资源
 cpSync(join(root, "manifest.json"), join(dist, "manifest.json"));
 cpSync(join(root, "icons"), join(dist, "icons"), { recursive: true });
 cpSync(join(root, "src/popup/index.html"), join(dist, "popup.html"));
 cpSync(join(root, "src/options/index.html"), join(dist, "options.html"));
+cpSync(join(root, "src/result/index.html"), join(dist, "result.html"));
 mkdirSync(join(dist, "data"), { recursive: true });
 cpSync(join(root, "data/operators.json"), join(dist, "data/operators.json"));
 cpSync(join(root, "data/aliases.json"), join(dist, "data/aliases.json"));

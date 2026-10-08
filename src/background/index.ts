@@ -412,6 +412,33 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     sendResponse({ ok: true });
     return true;
   }
+  // 「⤢ 大窗口查看结果」：把当前结果存 session 后开一个独立扩展窗口（~900px，一次性看全）
+  if (msg?.type === "OPEN_BIG_RESULT") {
+    void (async () => {
+      const result = msg.result as AnalysisOutput | undefined;
+      if (!result) {
+        sendResponse({ ok: false, error: "没有可显示的结果" });
+        return;
+      }
+      await chrome.storage.session.set({ bigResult: { result, ts: Date.now() } });
+      const url = chrome.runtime.getURL("result.html");
+      const existing = await chrome.tabs.query({ url }).catch(() => []);
+      const tab = existing.find((t) => t.id != null);
+      if (tab?.windowId != null) {
+        await chrome.tabs.update(tab.id!, { active: true }).catch(() => {});
+        await chrome.windows.update(tab.windowId, { focused: true }).catch(() => {});
+      } else {
+        await chrome.windows.create({
+          url,
+          type: "popup",
+          width: 940,
+          height: Math.min(1060, Math.max(720, Math.round((msg.height as number) || 980))),
+        });
+      }
+      sendResponse({ ok: true });
+    })().catch((err: Error) => sendResponse({ ok: false, error: err.message }));
+    return true;
+  }
   // ---------- §2 MAA 作业站（prts.maa.plus）数据源 ----------
   if (msg?.type === "MAA_RESOLVE_EVENT") {
     void (async () => {

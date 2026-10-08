@@ -601,10 +601,78 @@ const poolHtml = v43.renderResult(
   },
   hasAll,
   {},
-  { stageKind: "target" },
+  // 7 套方案 + 上限 4 → 触发「另有 N 条方案未展示」；关掉可抄过滤以免 fixture 干员被隐藏
+  { stageKind: "target", hideUnavailable: false, maxSchemeRows: 4 },
 );
 check("渲染含「另有 N 条方案未展示」提示", /另有 \d+ 条方案未展示/.test(poolHtml));
 check("MAA 与 B站 方案同屏可见", poolHtml.includes("MAA作业") && poolHtml.includes("bili:BV0"));
+
+console.log("\n== 候选池：可抄过滤 + 显示上限 ==");
+/** fixture：operators 变了 opers 也要跟着变（渲染优先用 opers） */
+const schemeWith = (over) => {
+  const merged = { ...maaScheme, ...over };
+  if (over.operators) merged.opers = over.operators.map((n) => ({ name: n }));
+  return merged;
+};
+check(
+  "可抄判定：干员都在 box 且未被占用",
+  v43.isSchemeUsable(schemeWith({ operators: ["凯尔希"] }), () => true, {}, "VEC-SP02").usable === true,
+);
+check(
+  "可抄判定：缺干员 → 不可抄并给出原因",
+  (() => {
+    const v = v43.isSchemeUsable(schemeWith({ operators: ["凯尔希", "银灰"] }), (n) => n === "凯尔希", {}, "VEC-SP02");
+    return !v.usable && /缺 银灰/.test(v.reason ?? "");
+  })(),
+);
+check(
+  "可抄判定：被别的关占用 → 不可抄；本关自己占用不算",
+  (() => {
+    const locksOther = { 凯尔希: "VEC-SP05（难以相交）" };
+    const locksSelf = { 凯尔希: "VEC-SP02（心中热火）" };
+    const ops = ["凯尔希"];
+    return (
+      !v43.isSchemeUsable(schemeWith({ operators: ops }), () => true, locksOther, "VEC-SP02").usable &&
+      v43.isSchemeUsable(schemeWith({ operators: ops }), () => true, locksSelf, "VEC-SP02").usable
+    );
+  })(),
+);
+
+const poolWithMix = {
+  ...guidePool,
+  schemes: [
+    schemeWith({ operators: ["凯尔希"] }), // 有
+    schemeWith({ copilotId: 2, operators: ["银灰"] }), // 缺
+    schemeWith({ copilotId: 3, operators: ["能天使"], source: "bili", sourceLabel: "B站视频", bvid: "BV1X", url: "" }), // 被占
+  ],
+};
+const mixedHtml = v43.renderResult(
+  { ...baseResult, dispatchGuides: [poolWithMix] },
+  (n) => n !== "银灰",
+  { 能天使: "VEC-SP05（难以相交）" },
+  { stageKind: "target", hideUnavailable: true },
+);
+check("默认隐藏不可抄方案（缺干员/被占用）", mixedHtml.includes("凯尔希") && !mixedHtml.includes(">银灰<"));
+check("并说明隐藏了几条、为什么", /已隐藏 2 条不可抄/.test(mixedHtml) && /缺 银灰/.test(mixedHtml));
+const showAllHtml = v43.renderResult(
+  { ...baseResult, dispatchGuides: [poolWithMix] },
+  (n) => n !== "银灰",
+  { 能天使: "VEC-SP05（难以相交）" },
+  { stageKind: "target", hideUnavailable: false },
+);
+check("关掉过滤后全部显示", showAllHtml.includes("银灰") && showAllHtml.includes("能天使") && !/已隐藏/.test(showAllHtml));
+const allUnusableHtml = v43.renderResult(
+  { ...baseResult, dispatchGuides: [{ ...guidePool, schemes: [schemeWith({ operators: ["没练的人"] })] }] },
+  () => false,
+  {},
+  { stageKind: "target", hideUnavailable: true },
+);
+check("整关都不可抄时说明原因（不留空白）", /该关 1 套方案都不可抄/.test(allUnusableHtml));
+const manyRows = v43.pickVisibleSchemes(
+  Array.from({ length: 30 }, (_, i) => ({ source: i % 2 ? "maa" : "bili", tag: `S${i}` })),
+  { total: 12, perSource: 6 },
+);
+check("显示上限放宽到 12 条（不再是 3+3）", manyRows.shown.length === 12, String(manyRows.shown.length));
 
 console.log("\n== q4 结果可读性：总览块 + 分区标题 ==");
 check("总览块：本关用这套（含人数与干员）", guideHtml.includes("🎯 本关用这套（1 人）") && guideHtml.includes("凯尔希"));

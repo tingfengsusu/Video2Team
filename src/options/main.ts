@@ -262,6 +262,8 @@ async function initAdvancedSection(): Promise<void> {
       biliScope?: string;
       biliPages?: number;
       biliMaxAgeDays?: number;
+      hideUnavailableSchemes?: boolean;
+      schemeRows?: number;
     };
   };
   const { resultCache } = (await chrome.storage.local.get(RESULT_CACHE_KEY)) as {
@@ -274,6 +276,9 @@ async function initAdvancedSection(): Promise<void> {
     advanced?.biliScope === "thin" || advanced?.biliScope === "off" ? advanced.biliScope : "all";
   ($("biliPages") as HTMLInputElement).value = String(advanced?.biliPages ?? 2);
   ($("biliMaxAgeDays") as HTMLSelectElement).value = String(advanced?.biliMaxAgeDays ?? 180);
+  // 默认开：候选池只列可抄方案（缺干员/已被占用不显示）——列表更长更可用
+  ($("hideUnavailable") as HTMLInputElement).checked = advanced?.hideUnavailableSchemes !== false;
+  ($("schemeRows") as HTMLInputElement).value = String(advanced?.schemeRows ?? 12);
   const cacheCount = Object.keys(resultCache ?? {}).length;
   $("cacheStatus").textContent =
     cacheCount > 0 ? `当前缓存 ${cacheCount} 条（最多 30 条 / 7 天）` : "当前无分析缓存";
@@ -285,6 +290,7 @@ async function initAdvancedSection(): Promise<void> {
     };
     const pages = parseInt(($("biliPages") as HTMLInputElement).value || "2", 10);
     const ageDays = parseInt(($("biliMaxAgeDays") as HTMLSelectElement).value || "180", 10);
+    const rows = parseInt(($("schemeRows") as HTMLInputElement).value || "12", 10);
     await chrome.storage.local.set({
       advanced: {
         commentCap: clamp("capComments", 60),
@@ -293,6 +299,8 @@ async function initAdvancedSection(): Promise<void> {
         biliScope: ($("biliScope") as HTMLSelectElement).value,
         biliPages: Number.isFinite(pages) ? Math.min(5, Math.max(1, pages)) : 2,
         biliMaxAgeDays: Number.isFinite(ageDays) && ageDays > 0 ? ageDays : 0,
+        hideUnavailableSchemes: ($("hideUnavailable") as HTMLInputElement).checked,
+        schemeRows: Number.isFinite(rows) ? Math.min(30, Math.max(2, rows)) : 12,
       },
     });
     const el = $("advStatus");

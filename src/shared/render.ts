@@ -103,6 +103,10 @@ export interface ResultRenderOptions {
   ambiguousDispatch?: boolean;
   /** §9.3 候选池勾选态（关卡显示码 → 已勾选方案） */
   picks?: DispatchPicks;
+  /** 隐藏「不可抄」的方案（缺干员 / 被其它关占用）；设置页可关 */
+  hideUnavailable?: boolean;
+  /** 每关最多显示几条方案（默认 12，替代原先的 3+3=6 上限） */
+  maxSchemeRows?: number;
 }
 
 /** 一条候选方案的干员列表（本关自己锁定的干员不置灰——它们是这一关要用的） */
@@ -161,6 +165,27 @@ function renderScheme(
     `${title}${author}${openLink}</span>` +
     `</div>`
   );
+}
+
+/**
+ * 方案是否"可抄"：干员都在你的练度表里，且没有被**别的关**占用。
+ * （"被别的关占用"= lockedOps 指向另一关；本关自己勾选的不算，见 isLockLabelOfStage）
+ */
+export function isSchemeUsable(
+  scheme: MergedScheme,
+  hasOp: HasOp,
+  lockedOps: LockedOps,
+  stageCode: string,
+): { usable: boolean; reason?: string } {
+  const ops = scheme.operators.length ? scheme.operators : scheme.opers.map((o) => o.name);
+  const missing = ops.filter((n) => !hasOp(n));
+  if (missing.length) return { usable: false, reason: `缺 ${missing.join("、")}` };
+  const occupied = ops.filter((n) => {
+    const label = lockedOps[n];
+    return !!label && !isLockLabelOfStage(label, stageCode);
+  });
+  if (occupied.length) return { usable: false, reason: `已占用 ${occupied.join("、")}` };
+  return { usable: true };
 }
 
 /** 分区标题（q4：结果区一眼能分出「本关阵容 / 前置关候选池」） */
@@ -249,10 +274,11 @@ export function renderDispatchGuides(
   pools: NonNullable<AnalysisOutput["dispatchGuides"]>,
   hasOp: HasOp,
   lockedOps: LockedOps = {},
-  opts: { note?: string; picks?: DispatchPicks } = {},
+  opts: { note?: string; picks?: DispatchPicks; hideUnavailable?: boolean; maxRows?: number } = {},
 ): string {
   const picks = opts.picks ?? {};
   if (pools.length === 0 && !opts.note) return "";
+  const maxRows = Math.max(2, opts.maxRows ?? 12);
   const totalSchemes = pools.reduce((n, pool) => n + pool.schemes.length, 0);
   const heading = sectionHeading(
     "🚩 P1 派遣关攻略",
@@ -260,14 +286,37 @@ export function renderDispatchGuides(
   );
   const blocks = pools
     .map((pool: MergedStagePool) => {
-      const { shown: schemes, hidden } = pickVisibleSchemes(pool.schemes);
+      // 「不可抄」的方案（缺干员 / 已被别的关占用）默认隐藏——列表更长也更可用；
+      // 设置页可关掉过滤（那时保留全部，便于浏览别人的打法）。
+      const unavailable: string[] = [];
+      const candidates = opts.hideUnavailable
+        ? pool.schemes.filter((scheme) => {
+            const verdict = isSchemeUsable(scheme, hasOp, lockedOps, pool.displayCode);
+            if (!verdict.usable) unavailable.push(`${scheme.sourceLabel}：${verdict.reason}`);
+            return verdict.usable;
+          })
+        : pool.schemes;
+      const { shown: schemes, hidden } = pickVisibleSchemes(candidates, {
+        total: maxRows,
+        perSource: Math.ceil(maxRows / 2),
+      });
       const picked = picks[pool.displayCode.toUpperCase()];
+      const hiddenNote = [
+        hidden > 0 ? `另有 ${hidden} 条方案未展示` : "",
+        unavailable.length
+          ? `已隐藏 ${unavailable.length} 条不可抄（${unavailable.slice(0, 2).join("；")}${unavailable.length > 2 ? "…" : ""}）`
+          : "",
+      ]
+        .filter(Boolean)
+        .join("；");
       const rows = schemes.length
         ? schemes.map((scheme) => renderScheme(scheme, pool, hasOp, lockedOps, picked)).join("") +
-          (hidden > 0
-            ? `<div class="dim" style="font-size:11px;margin-top:2px">另有 ${hidden} 条方案未展示（可用标题链接去作业站 / B站搜索该关）</div>`
-            : "")
-        : `<div class="dim" style="font-size:12px;margin-top:3px">MAA / B站暂未找到公开方案</div>`;
+          (hiddenNote ? `<div class="dim" style="font-size:11px;margin-top:2px">${esc(hiddenNote)}</div>` : "")
+        : `<div class="dim" style="font-size:12px;margin-top:3px">` +
+          (pool.schemes.length && opts.hideUnavailable
+            ? `该关 ${pool.schemes.length} 套方案都不可抄（${esc(unavailable.slice(0, 3).join("；"))}${unavailable.length > 3 ? "…" : ""}）`
+            : "MAA / B站暂未找到公开方案") +
+          `</div>`;
       return (
         `<div style="padding:6px 8px;margin:4px 0;background:#fffdf6;border:1px solid #eadfbd;border-radius:5px">` +
         `<div style="font-size:12px">` +
@@ -328,6 +377,8 @@ export function renderResult(
   const dispatchGuides = renderDispatchGuides(out.dispatchGuides ?? [], hasOp, lockedOps, {
     note: out.dispatchGuideNote,
     picks: options.picks,
+    hideUnavailable: options.hideUnavailable,
+    maxRows: options.maxSchemeRows,
   });
   return (
     `<div class="video-title">${esc(out.videoTitle)}</div>` +

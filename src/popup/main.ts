@@ -46,6 +46,9 @@ let lockedOps: LockedOps = {};
 /** §9.3 候选池勾选态（关卡显示码 → 已勾选方案） */
 let dispatchPicks: DispatchPicks = {};
 let stageKindOverrides: StageKindOverrides = {};
+/** 候选池过滤（设置页可调）：默认只列可抄方案、每关最多 12 条 */
+let hideUnavailable = true;
+let schemeRows = 12;
 let currentResult: AnalysisOutput | null = null;
 
 function taskMatchesCurrent(task: TaskState): boolean {
@@ -94,6 +97,11 @@ async function renderChecklist(): Promise<void> {
   const llmReadyNow = llm?.mode === "web" || !!(llm?.baseUrl && llm?.model) || !!apiKey;
   llmReady = llmReadyNow;
   hasOp = (n) => !!box?.operators[n];
+  const { advanced } = (await chrome.storage.local.get("advanced")) as {
+    advanced?: { hideUnavailableSchemes?: boolean; schemeRows?: number };
+  };
+  hideUnavailable = advanced?.hideUnavailableSchemes !== false; // 默认：只列可抄方案
+  schemeRows = Number.isFinite(Number(advanced?.schemeRows)) ? Number(advanced?.schemeRows) : 12;
 
   const items = [
     currentCtx.videoPage
@@ -234,6 +242,8 @@ function showResult(result: AnalysisOutput): void {
     allowDispatchSwitch: stageKind.kind === "unknown" && !ambiguousDispatch,
     ambiguousDispatch,
     picks: dispatchPicks,
+    hideUnavailable,
+    maxSchemeRows: schemeRows,
   });
 
   const switchLink = $("result").querySelector<HTMLAnchorElement>('[data-act="mark-dispatch"]');
@@ -244,6 +254,18 @@ function showResult(result: AnalysisOutput): void {
       showResult(result);
     })();
   });
+
+  // 「⤢ 大窗口查看结果」：任何关卡类型都提供（独立扩展窗口，勾选双向同步）
+  const bigBtn = document.createElement("button");
+  bigBtn.className = "act ghost";
+  bigBtn.style.cssText =
+    "margin:4px 0;padding:7px 12px;font-size:13px;border-radius:6px;background:#f0f3f5;color:#333;border:1px solid #d0d7de;cursor:pointer";
+  bigBtn.textContent = "⤢ 大窗口查看结果";
+  bigBtn.title = "在新窗口铺开显示：本关阵容 + 各前置关候选池 + 占用清单（勾选双向同步）";
+  bigBtn.addEventListener("click", () => {
+    void chrome.runtime.sendMessage({ type: "OPEN_BIG_RESULT", result: currentResult, height: 980 });
+  });
+  $("result").appendChild(bigBtn);
 
   if (!shouldShowDispatchAction(stageKind.kind, ambiguousDispatch)) return;
 

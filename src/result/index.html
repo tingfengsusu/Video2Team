@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Video2Team · 结果大窗口</title>
+    <style>
+      :root { color-scheme: light; }
+      body { font-family: system-ui, "Microsoft YaHei", sans-serif; margin: 0; padding: 0 16px 28px; background: #fff; }
+      /* 吸顶头部：结果很长时按钮始终可见 */
+      header { position: sticky; top: 0; z-index: 5; background: #fff; padding: 12px 0 8px;
+               border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 10px; }
+      header h1 { font-size: 15px; margin: 0; }
+      header .grow { flex: auto; }
+      .btn { border: none; background: #23ade5; color: #fff; border-radius: 6px; padding: 6px 12px;
+             font-size: 13px; cursor: pointer; }
+      .btn.ghost { background: #f0f3f5; color: #333; border: 1px solid #d0d7de; }
+      #status { font-size: 12px; color: #888; margin: 6px 0 0; }
+      /* 与页内面板/popup 同一套渲染样式 */
+      .video-title { font-size: 12px; color: #555; margin: 6px 0; }
+      .stage { font-size: 16px; font-weight: bold; margin: 10px 0 4px; }
+      .slot { font-size: 14px; line-height: 1.65; padding: 6px 9px; border-radius: 5px; margin-bottom: 5px;
+              background: #fafbfc; border-left: 3px solid #d0d7de; }
+      .keep { border-left-color: #1a7f37; }
+      .sub { border-left-color: #d29922; }
+      .unresolved { border-left-color: #c0392b; }
+      .slot .note { color: #c0392b; font-size: 12px; }
+      .slot a, a.link { color: #23ade5; text-decoration: none; font-size: 12px; }
+      .slot .alts { font-size: 12px; color: #555; margin-top: 2px; }
+      .sub-line { display: block; line-height: 1.7; }
+      .own { color: #1a7f37; font-weight: 700; }
+      .miss { color: #c0392b; font-weight: 700; }
+      .occupied { color: #999; text-decoration: line-through; }
+      .pickbox { cursor: pointer; margin: 2px 0 0; }
+      .quote { color: #999; }
+      .dim { color: #888; font-size: 12px; }
+      .err { font-size: 13px; color: #c0392b; }
+      .hint { font-size: 11px; color: #888; line-height: 1.6; }
+      #locks { margin: 4px 0 8px; }
+      .lockhead { font-size: 12px; color: #888; margin-top: 4px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>🎮 Video2Team · 结果</h1>
+      <span id="headline" class="dim"></span>
+      <span class="grow"></span>
+      <button class="btn ghost" id="refreshBtn" title="重新读取结果">⟳ 刷新</button>
+      <button class="btn ghost" id="clearLocks">清除占用清单</button>
+    </header>
+    <div id="status"></div>
+    <div class="lockhead">🔒 占用清单（派遣关锁定）<span id="lockCount"></span></div>
+    <div id="locks"></div>
+    <div id="result"></div>
+    <script type="module" src="./result.js"></script>
+  </body>
+</html>

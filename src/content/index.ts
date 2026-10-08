@@ -83,6 +83,9 @@ let panelOpen = false;
 let images: string[] = [];
 /** 默认按「没有」处理（更保守，不会误报拥有）；openPanel 时从 localStorage box 加载真实判断 */
 let hasOp: HasOp = () => false;
+/** 候选池过滤（设置页可调）：默认只列可抄方案、每关最多 12 条 */
+let hideUnavailable = true;
+let schemeRows = 12;
 let pollTimer: number | undefined;
 let stageKindOverrides: StageKindOverrides = {};
 let currentResult: AnalysisOutput | null = null;
@@ -231,8 +234,13 @@ async function readImages(): Promise<string[]> {
 }
 
 async function loadBox(): Promise<void> {
-  const { box } = (await chrome.storage.local.get("box")) as { box?: Box };
+  const { box, advanced } = (await chrome.storage.local.get(["box", "advanced"])) as {
+    box?: Box;
+    advanced?: { hideUnavailableSchemes?: boolean; schemeRows?: number };
+  };
   hasOp = (n) => !!box?.operators[n];
+  hideUnavailable = advanced?.hideUnavailableSchemes !== false; // 默认：只列可抄方案
+  schemeRows = Number.isFinite(Number(advanced?.schemeRows)) ? Number(advanced?.schemeRows) : 12;
 }
 
 /** 面板头部就绪状态：box / AI 接口（缺项红字提示去设置） */
@@ -330,6 +338,8 @@ function showResult(result: AnalysisOutput): void {
     allowDispatchSwitch: stageKind.kind === "unknown" && !ambiguousDispatch,
     ambiguousDispatch,
     picks: dispatchPicks,
+    hideUnavailable,
+    maxSchemeRows: schemeRows,
   });
 
   const switchLink = shadow?.querySelector<HTMLAnchorElement>('[data-act="mark-dispatch"]');
@@ -340,6 +350,20 @@ function showResult(result: AnalysisOutput): void {
       showResult(result);
     })();
   });
+
+  // 「⤢ 大窗口查看结果」：任何关卡类型都提供（独立扩展窗口，一次看全，勾选双向同步）
+  const bigBtn = document.createElement("button");
+  bigBtn.className = "act ghost";
+  bigBtn.textContent = "⤢ 大窗口查看结果";
+  bigBtn.title = "在新窗口铺开显示：本关阵容 + 各前置关候选池 + 占用清单（勾选双向同步）";
+  bigBtn.addEventListener("click", () => {
+    void chrome.runtime.sendMessage({
+      type: "OPEN_BIG_RESULT",
+      result: currentResult,
+      height: Math.round(window.innerHeight * 1.5),
+    });
+  });
+  q("#result").appendChild(bigBtn);
 
   if (!shouldShowDispatchAction(stageKind.kind, ambiguousDispatch)) return;
 

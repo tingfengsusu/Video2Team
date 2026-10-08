@@ -62,13 +62,11 @@ export function extractStageCodes(text: string): string[] {
     const code = `VEC-${suffix}`;
     if (!out.includes(code)) out.push(code);
   }
-  // 已进入 VEC-SP 语境时，裸写的「SP06」也算关卡引用
-  // （实测合集标题常写成「VEC-SP05 SP06 SP07 SP13 SP14 …」，兄弟关不带 VEC 前缀）
-  if (out.some((c) => c.startsWith("VEC-SP"))) {
-    for (const m of s.matchAll(/SP[\s_-]*(\d{1,2})/gi)) {
-      const code = `VEC-SP${String(Number(m[1])).padStart(2, "0")}`;
-      if (!out.includes(code)) out.push(code);
-    }
+  // 裸写的「SP06」同样是关卡引用（实测合集标题写「VEC-SP05 SP06 SP07…」，
+  // 分P 也常直接写「SP12 蕾缪安」；带「SP+数字」的其它语义极少见）
+  for (const m of s.matchAll(/\bSP[\s_-]*(\d{1,2})\b/gi)) {
+    const code = `VEC-SP${String(Number(m[1])).padStart(2, "0")}`;
+    if (!out.includes(code)) out.push(code);
   }
   return out;
 }
@@ -430,13 +428,14 @@ export async function mineStage(
     !filterByStage || matchStageText(text, target) === "target";
   let titleEntries = toEntries(items).filter((e) => belongsToTarget(e.text));
 
-  // 关名兜底：显示码几乎搜不到本关内容时，再用关卡中文名搜 1 页
-  // （实测部分视频标题只写关名不写码；关名可能是通用词，结果仍要过归属过滤）
-  if (nameKeyword && nameKeyword !== keyword && titleEntries.length < 3) {
+  // 关名补搜：**每关都跑 1 页**（实测某条标题只写码的视频排在码搜索 40 名之外，
+  // 但用关卡中文名搜能进前 20；关名可能是通用词，结果仍要过归属过滤）
+  if (nameKeyword && nameKeyword !== keyword) {
     await searchAndCollect(nameKeyword, 1);
     titleEntries = toEntries(items).filter((e) => belongsToTarget(e.text));
   }
-  const entries = titleEntries;
+  // entries 从标题层起步，后续分P / 简介层往里追加（同一个可变数组）
+  const entries: CorpusEntry[] = [...titleEntries];
   stats.searched = items.length;
   if (!searchOk && items.length === 0) return { schemes: [], stats, failed: true };
   stats.skippedEntries = toEntries(items).length - entries.length;
@@ -449,29 +448,47 @@ export async function mineStage(
   };
 
   // —— ② 命中合集的分P标题（候选不足时才拉；partsThreshold=Infinity 时必拉） ——
-  // 分P 标题是「关卡 + 干员」的最佳载体；只采纳指向本关的分P，并记住 ?p= 页码。
-  // 合集类视频优先排查（单集视频的标题层已能覆盖，合集的干货全在分P 里）。
+  // 分P 标题是「关卡 + 干员」的最佳载体（「VEC-SP12 玛恩纳流明3技能」就是一套方案）。
+  // 合集类视频优先排查，随后按搜索结果顺序；只采纳指向本关的分P，并记住 ?p= 页码。
   if (distinctCount() < partsThreshold && maxPartsVideos > 0 && items.length) {
-    const targets = [...items]
-      .sort(
-        (a, b) =>
-          Number(isMultiStageText(b.title)) - Number(isMultiStageText(a.title)),
-      )
-      .slice(0, maxPartsVideos)
-      .map((i) => i.bvid);
+    // 抓谁的分P（分桶，避免"合集"把名额占完）：
+    //   ① 合集/多关标题（≤3）② 标题指向本关且**列了 ≥3 个干员**的多解视频（≤3，
+    //      实测 BV1C2Hi6AEHc 标题列了 玛恩纳/流明/怒潮凛冬，4 个分P 各是一套方案）③ 其余按搜索顺序
+    const collections: SearchVideoItem[] = [];
+    const multiOp: SearchVideoItem[] = [];
+    const rest: SearchVideoItem[] = [];
+    for (const it of items) {
+      const text = `${it.title} ｜ ${it.description}`;
+      if (isMultiStageText(it.title)) collections.push(it);
+      else if (matchStageText(text, target) === "target" && matchOperators(text, dict, index).length >= 3) {
+        multiOp.push(it);
+      } else rest.push(it);
+    }
+    const targets = [
+      ...collections.slice(0, 3),
+      ...multiOp.slice(0, 3),
+      ...rest.slice(0, Math.max(0, maxPartsVideos - collections.slice(0, 3).length - multiOp.slice(0, 3).length)),
+    ].map((it) => it.bvid);
     const infos = await fetchVideoInfos(targets);
     for (const [bvid, info] of infos) {
       if (info.pages.length < 2) continue;
       stats.partsFetched += 1;
       // 父视频标题要像"关卡清单"，才允许按分P 序号兜底归属（避免误挂）
       const numbered = looksLikeStageList(info.title);
+      // 父视频标题**只指向本关**（unique 码 = 本关）：分P 里没写关卡信息时，
+      // 它们就是本关的多套打法（实测 BV1C2Hi6AEHc：标题写 VEC-SP12，4 个分P 是
+      // 「玛恩纳流明3技能」「怒潮凛冬7级3技能流明7级一技能」等不同解）
+      const parentIsTarget =
+        matchStageText(`${info.title} ｜ ${info.desc}`, target) === "target";
       for (const pg of info.pages) {
         const part = stripHighlight(pg.part);
         if (!part) continue;
         const matched = matchStageText(part, target);
         // 序号兜底：合集分P 常写「05缴械装备 令」（补给名不在关卡库，只能靠序号归属）
         const byNumber = matched === "unknown" && numbered && partNumberMatches(part, keyword);
-        if (matched !== "target" && !byNumber) {
+        // 父视频层级兜底：分P 既没写本关也没写别关（unknown）→ 随父视频归本关
+        const byParent = matched === "unknown" && parentIsTarget;
+        if (matched !== "target" && !byNumber && !byParent) {
           stats.skippedEntries += 1;
           continue;
         }
@@ -483,6 +500,23 @@ export async function mineStage(
           page: pg.page,
           collection: stripHighlight(info.title),
         });
+      }
+    }
+
+    // ⚠️ 有分P 命中的视频：**丢弃它的标题层条目**。
+    // 实测 BV1C2Hi6AEHc（『矢量突破』VEC-SP12 四号站台 玛恩纳 流明…）：标题只说本关，
+    // 但 4 个分P 各是一套方案（玛恩纳流明3技能 / 7级二技能 / 怒潮凛冬…）；
+    // 保留标题层会把干员**并成一条**、把分P 的具体打法丢掉。
+    const partHitBvids = new Set(
+      entries.filter((e) => e.kind === "part").map((e) => e.bvid),
+    );
+    if (partHitBvids.size) {
+      for (let i = entries.length - 1; i >= 0; i -= 1) {
+        const e = entries[i]!;
+        if (e.kind === "title" && partHitBvids.has(e.bvid)) {
+          entries.splice(i, 1);
+          stats.skippedEntries += 1;
+        }
       }
     }
   }
