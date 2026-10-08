@@ -158,7 +158,32 @@ function renderScheme(
   );
 }
 
-/** P1 黄色格识别出的派遣关攻略；每关只展示前 3 条，避免面板过长。 */
+/**
+ * 每关展示哪几条方案：**按来源配额**取（默认 MAA 3 条 + B站 3 条，总 6 条）。
+ * 只按顺序截断会让 MAA 排满窗口、把 B站全挤掉（用户实测「清一色 MAA作业」的直接原因之一）；
+ * 某来源不足时由另一来源补齐，`hidden` 用于提示「另有 N 条」。
+ */
+export function pickVisibleSchemes(
+  schemes: readonly MergedScheme[],
+  opts: { total?: number; perSource?: number } = {},
+): { shown: MergedScheme[]; hidden: number } {
+  const total = Math.max(1, opts.total ?? 6);
+  const perSource = Math.max(1, opts.perSource ?? 3);
+  const picked = new Set<number>();
+  const used = { maa: 0, bili: 0 };
+  schemes.forEach((scheme, i) => {
+    if (used[scheme.source] < perSource) {
+      picked.add(i);
+      used[scheme.source] += 1;
+    }
+  });
+  for (let i = 0; i < schemes.length && picked.size < total; i += 1) picked.add(i);
+  const indices = [...picked].sort((a, b) => a - b).slice(0, total);
+  const shown = indices.map((i) => schemes[i]!);
+  return { shown, hidden: schemes.length - shown.length };
+}
+
+/** P1 黄色格识别出的派遣关攻略；每关按来源配额展示（见 pickVisibleSchemes）。 */
 export function renderDispatchGuides(
   pools: NonNullable<AnalysisOutput["dispatchGuides"]>,
   hasOp: HasOp,
@@ -172,12 +197,13 @@ export function renderDispatchGuides(
     `P1 派遣关攻略（按黄色格位置识别）</div>`;
   const blocks = pools
     .map((pool: MergedStagePool) => {
-      const schemes = pool.schemes.slice(0, 3);
+      const { shown: schemes, hidden } = pickVisibleSchemes(pool.schemes);
       const picked = picks[pool.displayCode.toUpperCase()];
       const rows = schemes.length
-        ? schemes
-            .map((scheme) => renderScheme(scheme, pool, hasOp, lockedOps, picked))
-            .join("")
+        ? schemes.map((scheme) => renderScheme(scheme, pool, hasOp, lockedOps, picked)).join("") +
+          (hidden > 0
+            ? `<div class="dim" style="font-size:11px;margin-top:2px">另有 ${hidden} 条方案未展示（可用标题链接去作业站 / B站搜索该关）</div>`
+            : "")
         : `<div class="dim" style="font-size:12px;margin-top:3px">MAA / B站暂未找到公开方案</div>`;
       return (
         `<div style="padding:6px 8px;margin:4px 0;background:#fffdf6;border:1px solid #eadfbd;border-radius:5px">` +

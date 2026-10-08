@@ -61,10 +61,13 @@ check("未登录 → 不出现署名行", !fb.buildFeedbackText({ ...loggedIn, s
 
 const defaultAction = fb.buildFeedbackAction(loggedIn);
 check(
-  "仓库默认（作者 UID 未配置）→ 主按钮可用且不报错",
-  defaultAction.mode === "copy-only" && defaultAction.text === text,
-  defaultAction.mode,
+  "仓库默认（作者 UID 已配置 1819482012）→ 主按钮直达作者私信",
+  defaultAction.mode === "copy+dm" &&
+    defaultAction.dmUrl === "https://message.bilibili.com/#/whisper/mid1819482012" &&
+    defaultAction.text === text,
+  `${defaultAction.mode} ${defaultAction.dmUrl}`,
 );
+// 显式传空 UID = 「未配置」的降级分支（保留该路径的回归覆盖）
 const degraded = fb.buildFeedbackAction({ ...loggedIn, mid: "" });
 check("未配置 UID → 主按钮降级为仅复制", degraded.mode === "copy-only" && degraded.dmUrl === "");
 check("未配置 UID → 提示「作者私信直达未配置」", degraded.hint.includes("未配置"));

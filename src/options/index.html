@@ -88,6 +88,21 @@
       <label style="display: block; margin-top: 6px">
         <input type="checkbox" id="webAutoRead" /> 网页版模式自动读取回复（失败时可手动粘贴兜底）
       </label>
+      <label style="display: block; margin-top: 8px">
+        派遣关 B站挖掘
+        <select id="biliScope" style="margin-left: 6px">
+          <option value="all">全部派遣关（推荐：B站攻略基数更大，召回优先）</option>
+          <option value="thin">仅 MAA 方案不足的关（省请求）</option>
+          <option value="off">关闭（只用 MAA 作业站）</option>
+        </select>
+      </label>
+      <label style="display: block; margin-top: 4px">
+        每关搜索页数 <input type="number" id="biliPages" min="1" max="5" style="width: 70px" />
+      </label>
+      <p class="note">
+        派遣关候选池会同时列出 MAA 作业与 B站实战视频。B站挖掘全程只用<strong>干员字典 + 别名表</strong>程序化提取
+        （标题 + 合集分P标题），不消耗 AI token；页数越多召回越高、耗时与触发B站风控的概率也略增（结果按 12 小时缓存）。
+      </p>
       <div style="margin-top: 8px">
         <button id="saveAdvanced">保存</button>
         <span id="advStatus" class="note"></span>

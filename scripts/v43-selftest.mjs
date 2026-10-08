@@ -27,6 +27,7 @@ await esbuild.build({
       export * from "../src/shared/render.ts";
       export * from "../src/shared/dispatchPool.ts";
       export * from "../src/shared/dispatchPicks.ts";
+      export * from "../src/shared/dispatchGuides.ts";
       export * from "../src/shared/nameClean.ts";
       export * from "../src/shared/operatorDB.ts";
       export * from "../src/shared/roster.ts";
@@ -391,6 +392,91 @@ check(
   "prompt 要求只读黄格内部名称区域",
   schemaText.includes("黄色格内部") && schemaText.includes("特别战线"),
 );
+
+console.log("\n== q1 B站挖掘：默认全关 + 范围/页数可配 ==");
+const minePools = [
+  { displayCode: "VEC-SP01", schemes: [{}, {}, {}] }, // MAA 方案充足
+  { displayCode: "VEC-SP02", schemes: [{}] }, // MAA 方案薄
+  { displayCode: "VEC-SP03", schemes: [] }, // MAA 无方案
+  { displayCode: "VEC-SP04", schemes: [{}, {}] },
+];
+check(
+  "默认（scope=all）全部候选关都挖",
+  v43.selectBiliTargets(minePools, { scope: "all" }).map((t) => t.displayCode).join(",") ===
+    "VEC-SP01,VEC-SP02,VEC-SP03,VEC-SP04",
+);
+check(
+  "scope=thin 仅挖 MAA 方案不足的关（旧行为）",
+  v43.selectBiliTargets(minePools, { scope: "thin", thinThreshold: 2 })
+    .map((t) => t.displayCode)
+    .join(",") === "VEC-SP02,VEC-SP03",
+);
+check("scope=off 不挖", v43.selectBiliTargets(minePools, { scope: "off" }).length === 0);
+check(
+  "maxStages 截断挖掘关数（不影响展示）",
+  v43.selectBiliTargets(minePools, { scope: "all", maxStages: 2 })
+    .map((t) => t.displayCode)
+    .join(",") === "VEC-SP01,VEC-SP02",
+);
+
+const noteStats = {
+  biliScope: "all",
+  biliPages: 2,
+  biliMined: 4,
+  biliCached: 3,
+  biliFailed: 1,
+  biliHits: 9,
+  biliShown: 6,
+};
+const note = v43.biliMiningNote(noteStats);
+check("结果区展示挖掘关数与命中条数", note.includes("B站挖掘：4 关 · 命中 9 条"), note);
+check("标注缓存命中关数", note.includes("缓存 3 关"));
+check("标注搜索失败关数", note.includes("1 关搜索失败"));
+check("标注与 MAA 同阵容的去重条数", note.includes("3 条与 MAA 方案同阵容，已去重"));
+check("关闭挖掘时不出现该行", v43.biliMiningNote({ ...noteStats, biliScope: "off" }) === "");
+check(
+  "没有挖掘行为时不出现该行",
+  v43.biliMiningNote({ ...noteStats, biliMined: 0, biliFailed: 0, biliHits: 0, biliCached: 0 }) === "",
+);
+
+console.log("\n== q1 候选池展示：按来源配额（B站不再被 MAA 挤掉） ==");
+const manySchemes = [
+  ...Array.from({ length: 6 }, (_, i) => ({ source: "maa", tag: `M${i}` })),
+  ...Array.from({ length: 8 }, (_, i) => ({ source: "bili", tag: `B${i}` })),
+];
+const visible = v43.pickVisibleSchemes(manySchemes);
+check(
+  "默认展示 6 条 = MAA 3 + B站 3",
+  visible.shown.length === 6 &&
+    visible.shown.filter((s) => s.source === "maa").length === 3 &&
+    visible.shown.filter((s) => s.source === "bili").length === 3,
+  visible.shown.map((s) => s.tag).join(","),
+);
+check("保持池内顺序（不重排热度/挖掘序）", visible.shown.map((s) => s.tag).join(",") === "M0,M1,M2,B0,B1,B2");
+check("统计未展示条数用于提示", visible.hidden === 8);
+const biliOnly = v43.pickVisibleSchemes(Array.from({ length: 4 }, (_, i) => ({ source: "bili", tag: `B${i}` })));
+check(
+  "某来源不足时由另一来源补齐",
+  biliOnly.shown.length === 4 && biliOnly.hidden === 0,
+  biliOnly.shown.map((s) => s.tag).join(","),
+);
+const poolHtml = v43.renderResult(
+  {
+    ...baseResult,
+    dispatchGuides: [{ ...guidePool, schemes: [...guidePool.schemes, ...Array.from({ length: 5 }, (_, i) => ({
+      ...biliScheme,
+      bvid: `BV${i}`,
+      url: `https://www.bilibili.com/video/BV${i}`,
+      operators: [`低星干员${i}`],
+      opers: [{ name: `低星干员${i}` }],
+    }))] }],
+  },
+  hasAll,
+  {},
+  { stageKind: "target" },
+);
+check("渲染含「另有 N 条方案未展示」提示", /另有 \d+ 条方案未展示/.test(poolHtml));
+check("MAA 与 B站 方案同屏可见", poolHtml.includes("MAA作业") && poolHtml.includes("bili:BV0"));
 
 console.log(failures === 0 ? "\n✅ v4.3 修复清单验收自测全部通过" : `\n❌ ${failures} 项未通过`);
 process.exit(failures === 0 ? 0 : 1);

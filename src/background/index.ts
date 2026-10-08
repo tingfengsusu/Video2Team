@@ -28,7 +28,7 @@ import { normalizePage, putCachedResult } from "../shared/resultCache";
 import { buildDispatchPool, listDispatchStages, queryCopilots, resolveEventPrefix } from "../shared/maa";
 import { mineStageWithLlm, type BiliScheme } from "../shared/biliDig";
 import { mergePools } from "../shared/dispatchPool";
-import { buildDispatchGuides } from "../shared/dispatchGuides";
+import { biliMiningNote, buildDispatchGuides, type DispatchGuidesStats } from "../shared/dispatchGuides";
 import { formatStageResolution, resolveStageForAnalysis } from "../shared/stageResolver";
 import type {
   AnalysisOutput,
@@ -68,17 +68,30 @@ async function getLockedOps(): Promise<Record<string, string>> {
   return lockedOps ?? {};
 }
 
-/** 读取用户高级设置（候选上限 / 自动读取开关） */
+/** 读取用户高级设置（候选上限 / 自动读取开关 / 派遣关 B站挖掘范围与页数） */
 async function getAdvanced(): Promise<{
   caps: { comments?: number; danmaku?: number };
   autoRead: boolean;
+  biliScope: "all" | "thin" | "off";
+  biliPages: number;
 }> {
   const { advanced } = (await chrome.storage.local.get("advanced")) as {
-    advanced?: { commentCap?: number; danmakuCap?: number; webAutoRead?: boolean };
+    advanced?: {
+      commentCap?: number;
+      danmakuCap?: number;
+      webAutoRead?: boolean;
+      biliScope?: "all" | "thin" | "off";
+      biliPages?: number;
+    };
   };
+  const scope = advanced?.biliScope;
+  const pages = Number(advanced?.biliPages);
   return {
     caps: { comments: advanced?.commentCap, danmaku: advanced?.danmakuCap },
     autoRead: advanced?.webAutoRead !== false, // 默认开启自动读取
+    // 默认全关挖掘（B站攻略基数大于 MAA，召回优先）；页数默认 2 页
+    biliScope: scope === "thin" || scope === "off" ? scope : "all",
+    biliPages: Number.isFinite(pages) ? Math.min(5, Math.max(1, Math.trunc(pages))) : 2,
   };
 }
 
@@ -157,7 +170,7 @@ async function analyzeVideo(
     await resolveStageForAnalysis(sourceStage, meta.video.title, meta.video.desc)
   ).resolution;
   meta = { ...meta, stage: formatStageResolution(stageResolution, sourceStage) };
-  const { caps, autoRead } = await getAdvanced();
+  const { caps, autoRead, biliScope, biliPages } = await getAdvanced();
 
   await setTask({ ...taskBase, status: "running", startedAt, stage: meta.stage, progress: "抓取弹幕/评论…" });
   const commentsPromise = fetchComments(meta.video.aid, 200).catch(() => []);
@@ -270,7 +283,11 @@ async function analyzeVideo(
   stageResolution = visionResolution.resolution;
   meta = { ...meta, stage: visionResolution.displayStage };
   const dispatchCandidates = visionResolution.dispatchCandidates;
-  let dispatchGuidesPromise: Promise<AnalysisOutput["dispatchGuides"]> = Promise.resolve([]);
+  // 与下面的解析/推荐并行跑（MAA + B站查询较慢，不阻塞结果）
+  let dispatchGuidesPromise: Promise<{
+    pools: NonNullable<AnalysisOutput["dispatchGuides"]>;
+    stats: DispatchGuidesStats | null;
+  }> = Promise.resolve({ pools: [], stats: null });
   if (dispatchCandidates.length > 0) {
     await setTask({
       ...taskBase,
@@ -280,9 +297,14 @@ async function analyzeVideo(
       progress: `已识别 P1 的 ${dispatchCandidates.length} 个派遣关，正在查询攻略…`,
     });
     dispatchGuidesPromise = buildDispatchGuides(dispatchCandidates, opDB, {
-      maxBiliStages: 6,
+      perStageLimit: 8, // MAA 每关多留几条（同一次前缀查询里本来就有，只是不再过早截断）
+      maxBiliStages: 8,
       thinThreshold: 2,
-    }).catch(() => []);
+      biliScope, // 默认全部候选关（高级设置可改「仅薄关 / 关闭」）
+      biliPages, // 每关搜索页数（默认 2）
+      maxPartsVideos: 3,
+      maxDescVideos: 0, // 搜索结果自带简介，不再额外拉简介请求
+    }).catch(() => ({ pools: [], stats: null }));
   }
   const unknownNames: string[] = [];
   const onUnknown = (n: string): void => {
@@ -308,7 +330,7 @@ async function analyzeVideo(
     danmakuCandidates: candidates.filter((c) => c.source === "danmaku").length,
     unknownNames,
   };
-  const dispatchGuides = (await dispatchGuidesPromise) ?? [];
+  const { pools: dispatchGuides, stats: guidesStats } = await dispatchGuidesPromise;
   const dispatchGuideNote = [
     visionResolution.dispatchGridNote,
     dispatchCandidates.length > 0 &&
@@ -316,6 +338,7 @@ async function analyzeVideo(
     dispatchGuides.every((pool) => pool.schemes.length === 0)
       ? "已识别 P1 派遣关，但 MAA / B站暂未查到公开攻略"
       : "",
+    guidesStats ? biliMiningNote(guidesStats) : "",
   ]
     .filter(Boolean)
     .join("；") || undefined;

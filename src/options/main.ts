@@ -16,6 +16,7 @@ import {
 import { clearResultCache, RESULT_CACHE_KEY, type ResultCache } from "../shared/resultCache";
 import { normalizePage } from "../shared/resultCache";
 import { clearLevelDbCache } from "../shared/maa";
+import { clearBiliMineCache } from "../shared/dispatchGuides";
 import { fetchBiliAccount } from "../shared/bilibili";
 import {
   FEEDBACK_TYPES,
@@ -251,10 +252,16 @@ function renderBoxStatus(box: { operators?: Record<string, unknown>; source?: st
       : "尚未导入";
 }
 
-/** 高级：候选上限 + 网页版自动读取开关 */
+/** 高级：候选上限 + 网页版自动读取开关 + 派遣关 B站挖掘范围/页数 */
 async function initAdvancedSection(): Promise<void> {
   const { advanced } = (await chrome.storage.local.get("advanced")) as {
-    advanced?: { commentCap?: number; danmakuCap?: number; webAutoRead?: boolean };
+    advanced?: {
+      commentCap?: number;
+      danmakuCap?: number;
+      webAutoRead?: boolean;
+      biliScope?: string;
+      biliPages?: number;
+    };
   };
   const { resultCache } = (await chrome.storage.local.get(RESULT_CACHE_KEY)) as {
     resultCache?: ResultCache;
@@ -262,6 +269,9 @@ async function initAdvancedSection(): Promise<void> {
   ($("capComments") as HTMLInputElement).value = String(advanced?.commentCap ?? 60);
   ($("capDanmaku") as HTMLInputElement).value = String(advanced?.danmakuCap ?? 60);
   ($("webAutoRead") as HTMLInputElement).checked = advanced?.webAutoRead !== false; // 默认开
+  ($("biliScope") as HTMLSelectElement).value =
+    advanced?.biliScope === "thin" || advanced?.biliScope === "off" ? advanced.biliScope : "all";
+  ($("biliPages") as HTMLInputElement).value = String(advanced?.biliPages ?? 2);
   const cacheCount = Object.keys(resultCache ?? {}).length;
   $("cacheStatus").textContent =
     cacheCount > 0 ? `当前缓存 ${cacheCount} 条（最多 30 条 / 7 天）` : "当前无分析缓存";
@@ -271,11 +281,14 @@ async function initAdvancedSection(): Promise<void> {
       const v = parseInt(($(id) as HTMLInputElement).value || String(def), 10);
       return Number.isFinite(v) ? Math.min(300, Math.max(10, v)) : def;
     };
+    const pages = parseInt(($("biliPages") as HTMLInputElement).value || "2", 10);
     await chrome.storage.local.set({
       advanced: {
         commentCap: clamp("capComments", 60),
         danmakuCap: clamp("capDanmaku", 60),
         webAutoRead: ($("webAutoRead") as HTMLInputElement).checked,
+        biliScope: ($("biliScope") as HTMLSelectElement).value,
+        biliPages: Number.isFinite(pages) ? Math.min(5, Math.max(1, pages)) : 2,
       },
     });
     const el = $("advStatus");
@@ -286,6 +299,7 @@ async function initAdvancedSection(): Promise<void> {
   $("clearCache").addEventListener("click", async () => {
     if (!window.confirm("确定清空全部分析结果缓存吗？")) return;
     await clearResultCache();
+    await clearBiliMineCache().catch(() => {});
     await clearLevelDbCache().catch(() => {});
     $("cacheStatus").textContent = "已清空分析缓存";
   });
@@ -509,9 +523,9 @@ async function initFeedbackSection(): Promise<void> {
   });
 
   const status = $("fbStatus");
-  if (!FEEDBACK_MID.trim()) {
-    status.textContent = "作者私信直达未配置（FEEDBACK_MID 为空）—— 主按钮当前为「仅复制」模式";
-  }
+  status.textContent = FEEDBACK_MID.trim()
+    ? `作者私信直达已配置（B站 UID ${FEEDBACK_MID}）—— 主按钮会复制反馈全文并打开私信页`
+    : "作者私信直达未配置（FEEDBACK_MID 为空）—— 主按钮当前为「仅复制」模式";
 
   const collect = () => ({
     type,

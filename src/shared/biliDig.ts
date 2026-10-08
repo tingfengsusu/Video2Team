@@ -3,7 +3,8 @@
  *
  * 用于补充 MAA 源没有的视频实战内容（新干员单核、低配打法）。三级渐进：
  *   ① 搜索主标题   `x/web-interface/wbi/search/type?search_type=video&keyword=VEC-SP07`（wbi 签名）
- *   ② 命中合集的分P标题（view API 的 pages[].part，每合集 1 请求）
+ *   ② 命中合集的分P标题（view API 的 pages[].part，每合集 1 请求；
+ *      默认「标题层干员不足 3 个」才拉，`partsThreshold: Infinity` 可强制必拉——候选池召回优先）
  *   ③ 简介补充（view API 的 desc，触发式：候选池 < 3 个干员时才拉）
  *
  * 三级语料合成后**一次 LLM 调用**提取 `{operators[], mode}`，
@@ -58,9 +59,15 @@ export interface BiliMineResult {
 }
 
 export interface MineOptions {
-  pages?: number; // 搜索页数（默认 2）
+  pages?: number; // 搜索页数（默认 2，1-5；页数越多召回越高）
   maxPartsVideos?: number; // 层级②最多拉几个合集（默认 5）
   maxDescVideos?: number; // 层级③最多拉几个简介（默认 8）
+  /**
+   * 层级②的分P 抓取门槛：标题层算出的不同干员数 **低于** 该值才拉分P（默认 3）。
+   * 传 `Infinity` = 必拉（候选池召回优先时用：分P 标题是最有信息量的一层，
+   * 实测「VEC-SP05 令」这种「关卡+干员」对全在分P里）。
+   */
+  partsThreshold?: number;
   ask?: AskFn | null; // LLM 调用器；不传则只用字典兜底
 }
 
@@ -244,9 +251,10 @@ export async function mineStage(
   dict: NameDict,
   opts: MineOptions = {},
 ): Promise<BiliMineResult> {
-  const pages = Math.max(1, Math.min(3, Math.trunc(opts.pages ?? 2)));
+  const pages = Math.max(1, Math.min(5, Math.trunc(opts.pages ?? 2)));
   const maxPartsVideos = Math.max(0, opts.maxPartsVideos ?? 5);
   const maxDescVideos = Math.max(0, opts.maxDescVideos ?? 8);
+  const partsThreshold = Number.isFinite(opts.partsThreshold) ? Number(opts.partsThreshold) : 3;
   const stats: BiliMineStats = {
     searched: 0,
     pagesSearched: 0,
@@ -284,8 +292,8 @@ export async function mineStage(
     return set.size;
   };
 
-  // —— ② 命中合集的分P标题（候选不足时才拉） ——
-  if (distinctCount() < 3 && maxPartsVideos > 0 && items.length) {
+  // —— ② 命中合集的分P标题（候选不足时才拉；partsThreshold=Infinity 时必拉） ——
+  if (distinctCount() < partsThreshold && maxPartsVideos > 0 && items.length) {
     const targets = items.slice(0, maxPartsVideos).map((i) => i.bvid);
     const infos = await fetchVideoInfos(targets);
     for (const [bvid, info] of infos) {
