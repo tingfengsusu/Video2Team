@@ -28,6 +28,7 @@ await esbuild.build({
       export * from "../src/shared/dispatchPool.ts";
       export * from "../src/shared/dispatchPicks.ts";
       export * from "../src/shared/dispatchGuides.ts";
+      export * from "../src/shared/biliDig.ts";
       export * from "../src/shared/nameClean.ts";
       export * from "../src/shared/operatorDB.ts";
       export * from "../src/shared/roster.ts";
@@ -382,9 +383,124 @@ const realConflict = v43.resolveStageWithVision(
   levels,
 );
 check(
-  "真实通名冲突提示保留（位置优先）",
-  realConflict.displayCode === "VEC-SP01" && realConflict.needsVerification === true && /不一致/.test(realConflict.note ?? ""),
-  realConflict.note,
+  "格内名称与位置冲突时按名称采用（位置读数实测不可靠）",
+  realConflict.displayCode === "VEC-SP07" && realConflict.needsVerification === true && /按名称采用/.test(realConflict.note ?? ""),
+  `${realConflict.displayCode}｜${realConflict.note}`,
+);
+
+console.log("\n== 二次实测修复：补给界面网格 / B站合集归属 ==");
+// 用户实测截图：P1 黄格内是补给名（催化装备…），不是关卡名 → 不得按位置硬猜关卡
+const supplyGrid = v43.resolveDispatchGridFromVision(
+  "P1 特别战线",
+  "【矢量突破#3】拟生态",
+  "",
+  {
+    explicitCode: "VEC-C",
+    gridColumns: 4,
+    gridCells: [
+      { row: 2, column: 1, name: "催化装备" },
+      { row: 2, column: 3, name: "缴械装备" },
+      { row: 3, column: 4, name: "净血装备" },
+    ],
+  },
+  levels,
+);
+check("补给/配置界面不产出派遣候选", supplyGrid.candidates.length === 0, JSON.stringify(supplyGrid.candidates));
+check(
+  "并说明原因（名称不属于本活动关卡）",
+  /不属于本活动任何关卡/.test(supplyGrid.note ?? "") && /催化装备/.test(supplyGrid.note ?? ""),
+  supplyGrid.note,
+);
+// 名称能匹配时以名称为准（位置读数偏差被纠正）
+const namedGrid = v43.resolveDispatchGridFromVision(
+  "P1 特别战线",
+  "【矢量突破#3】拟生态",
+  "",
+  {
+    gridCells: [
+      { position: 1, name: "投资回报" }, // 位置推算=SP01（前沿阵地），名称=SP07
+      { position: 3, name: "心中热火" }, // 位置推算=SP07（投资回报），名称=SP02
+    ],
+  },
+  levels,
+);
+check(
+  "格内名称优先于位置推算",
+  namedGrid.candidates.map((c) => c.displayCode).join(",") === "VEC-SP07,VEC-SP02",
+  namedGrid.candidates.map((c) => c.displayCode).join(","),
+);
+check(
+  "名称与位置不一致时给出核实提示",
+  /已按名称采用/.test(namedGrid.note ?? "") && namedGrid.candidates.every((c) => c.needsVerification),
+  namedGrid.note,
+);
+
+// B站语料关卡归属
+check("提取多个关卡码", v43.extractStageCodes("核心突破/特别战线 全力以赴 VEC-ABCD").length >= 1);
+check(
+  "识别区间/合集标题",
+  v43.isMultiStageText("【特别战线】攻略合集VEC-SP-01~16 简单好抄 单人/单核") &&
+    v43.isMultiStageText("【矢量突破#3】拟生态全关卡 摆完挂机 核心突破/特别战线/全力以赴") &&
+    !v43.isMultiStageText("VEC-SP12 蕾缪安二技能 单人"),
+);
+check(
+  "合集/区间大标题不算本关方案（无法归属单关）",
+  v43.matchStageText("【特别战线】攻略合集VEC-SP-01~16 简单好抄", { code: "VEC-SP12", name: "四号站台" }) === "unknown" &&
+    v43.matchStageText("【矢量突破#3】拟生态全关卡 VEC-ABCD", { code: "VEC-SP12" }) === "unknown",
+);
+check(
+  "分P 标题按关卡码归属",
+  v43.matchStageText("VEC-SP12（蕾缪安二技能）", { code: "VEC-SP12" }) === "target" &&
+    v43.matchStageText("VEC-SP12（蕾缪安二技能）", { code: "VEC-SP16" }) === "other",
+);
+check(
+  "裸写兄弟关号也算关卡引用（VEC-SP05 SP06 SP07…）",
+  v43.extractStageCodes("VEC-SP05 SP06 SP07 SP13 SP14 难以相交").length === 5 &&
+    v43.matchStageText("VEC-SP05 SP06 SP07 SP13 SP14 难以相交", { code: "VEC-SP05" }) === "unknown",
+);
+check(
+  "合集分P 序号兜底归属（05缴械装备 令 → VEC-SP05）",
+  v43.partNumberMatches("05缴械装备 令", "VEC-SP05") &&
+    v43.partNumberMatches("12净血装备 莱伊", "VEC-SP12") &&
+    !v43.partNumberMatches("05缴械装备 令", "VEC-SP07") &&
+    !v43.partNumberMatches("15缴械装备 令", "VEC-SP05") &&
+    // 带显示码的分P 由 matchStageText 处理，不走序号兜底
+    !v43.partNumberMatches("VEC-SP12 单人", "VEC-SP12"),
+);
+check(
+  "序号兜底只在关卡清单类视频里生效",
+  v43.looksLikeStageList("VEC-SP01~14 矢量突破#3 特别战线合集") &&
+    v43.looksLikeStageList("【特别战线】攻略合集VEC-SP-01~16") &&
+    !v43.looksLikeStageList("明日方舟 4-4 随便打打"),
+);
+check(
+  "无码标题按关卡名归属",
+  v43.matchStageText("特别战线 SP16 最终愿望 挂机", { code: "VEC-SP16", name: "最终愿望" }) === "target" &&
+    v43.matchStageText("特别战线 荒废矿道 挂机", { code: "VEC-SP16", name: "最终愿望" }) === "unknown",
+);
+check(
+  "分P 方案带 ?p= 直达链接与分P 标注",
+  (() => {
+    const withPart = {
+      ...biliScheme,
+      page: 12,
+      collection: "【特别战线】攻略合集VEC-SP-01~16",
+      title: "VEC-SP12（蕾缪安二技能）",
+      url: "https://www.bilibili.com/video/BV1TEST?p=12",
+    };
+    const html = v43.renderResult(
+      { ...baseResult, dispatchGuides: [{ ...guidePool, schemes: [withPart] }] },
+      hasAll,
+      {},
+      { stageKind: "target" },
+    );
+    return (
+      html.includes('href="https://www.bilibili.com/video/BV1TEST?p=12"') &&
+      html.includes("VEC-SP12（蕾缪安二技能）") &&
+      html.includes("分P12页↗") &&
+      html.includes("合集：【特别战线】攻略合集VEC-SP-01~16（P12）")
+    );
+  })(),
 );
 
 const schemaText = JSON.stringify(v43.buildWebCombinedMessages("VEC-C", "roster", [], [], []).messages);
@@ -427,12 +543,14 @@ const noteStats = {
   biliFailed: 1,
   biliHits: 9,
   biliShown: 6,
+  biliSkipped: 5,
 };
 const note = v43.biliMiningNote(noteStats);
 check("结果区展示挖掘关数与命中条数", note.includes("B站挖掘：4 关 · 命中 9 条"), note);
 check("标注缓存命中关数", note.includes("缓存 3 关"));
 check("标注搜索失败关数", note.includes("1 关搜索失败"));
-check("标注与 MAA 同阵容的去重条数", note.includes("3 条与 MAA 方案同阵容，已去重"));
+check("标注与 MAA 同阵容的去重条数", note.includes("3 条与 MAA 方案同阵容已去重"));
+check("标注被排除的合集/他关语料条数", note.includes("已排除 5 条合集/他关语料"));
 check("关闭挖掘时不出现该行", v43.biliMiningNote({ ...noteStats, biliScope: "off" }) === "");
 check(
   "没有挖掘行为时不出现该行",

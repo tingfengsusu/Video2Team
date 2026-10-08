@@ -74,8 +74,10 @@ export interface MergedScheme {
   title: string;
   details: string;
   author: string; // MAA uploader / B站 UP 主
-  url: string; // 溯源链接（B站视频；MAA 无 → 空串）
+  url: string; // 溯源链接（B站视频，含 ?p= 分P；MAA 无 → 空串）
   bvid: string; // 仅 B站来源（§7 点赞致谢用）
+  page?: number; // 仅 B站来源：分P 序号（>1 时链接带 ?p=，UI 标注「分P」）
+  collection?: string; // 仅 B站来源：所属合集标题（悬停溯源）
   copilotId?: number; // 仅 MAA 来源
   views: number;
   hotScore: number;
@@ -159,6 +161,8 @@ function fromBili(scheme: BiliScheme, pool: { displayCode: string; stageName: st
     author: scheme.author,
     url: scheme.url,
     bvid: scheme.bvid,
+    page: scheme.page,
+    collection: scheme.collection,
     views: 0,
     hotScore: 0,
   };

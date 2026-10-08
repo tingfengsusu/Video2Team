@@ -39,6 +39,7 @@ export interface DispatchGuidesStats {
   biliFailed: number; // 搜索失败（断网/风控）的关数
   biliHits: number; // 挖掘出的方案条数（跨源去重前）
   biliShown: number; // 合并去重后真正展示的 B站方案条数
+  biliSkipped: number; // 因不指向本关（合集标题/其它关分P）被排除的语料条数
 }
 
 export interface DispatchGuidesBuildResult {
@@ -74,15 +75,17 @@ export interface SelectBiliTargetsOptions {
  * maxStages 只截断「参与挖掘」的关数，不影响这些关在结果里展示。
  */
 export function selectBiliTargets(
-  pools: readonly { displayCode: string; schemes: readonly unknown[] }[],
+  pools: readonly { displayCode: string; stageName?: string; schemes: readonly unknown[] }[],
   opts: SelectBiliTargetsOptions,
-): { displayCode: string }[] {
+): { displayCode: string; stageName?: string }[] {
   if (opts.scope === "off") return [];
   const thinThreshold = Math.max(1, opts.thinThreshold ?? 2);
   const maxStages = Math.max(0, opts.maxStages ?? Number.POSITIVE_INFINITY);
   const eligible =
     opts.scope === "thin" ? pools.filter((pool) => pool.schemes.length < thinThreshold) : pools;
-  return eligible.slice(0, maxStages).map((pool) => ({ displayCode: pool.displayCode }));
+  return eligible
+    .slice(0, maxStages)
+    .map((pool) => ({ displayCode: pool.displayCode, stageName: pool.stageName }));
 }
 
 // ---------- B站挖掘结果缓存（避免重复分析重复请求 + 降低风控概率） ----------
@@ -149,9 +152,11 @@ export function biliMiningNote(stats: DispatchGuidesStats): string {
     stats.biliCached ? `（缓存 ${stats.biliCached} 关）` : "",
     stats.biliFailed ? `（${stats.biliFailed} 关搜索失败）` : "",
   ];
+  const tail: string[] = [];
   const deduped = stats.biliHits - stats.biliShown;
-  const tail = deduped > 0 ? `；其中 ${deduped} 条与 MAA 方案同阵容，已去重` : "";
-  return parts.filter(Boolean).join("") + tail;
+  if (deduped > 0) tail.push(`${deduped} 条与 MAA 方案同阵容已去重`);
+  if (stats.biliSkipped > 0) tail.push(`已排除 ${stats.biliSkipped} 条合集/他关语料`);
+  return parts.filter(Boolean).join("") + (tail.length ? `；${tail.join("、")}` : "");
 }
 
 export function emptyGuidesStats(scope: BiliMineScope = "all", pages = 2): DispatchGuidesStats {
@@ -163,6 +168,7 @@ export function emptyGuidesStats(scope: BiliMineScope = "all", pages = 2): Dispa
     biliFailed: 0,
     biliHits: 0,
     biliShown: 0,
+    biliSkipped: 0,
   };
 }
 
@@ -236,6 +242,8 @@ export async function buildDispatchGuides(
           maxPartsVideos,
           maxDescVideos,
           partsThreshold: Number.POSITIVE_INFINITY, // 分P 一层的「关卡+干员」对信息量最高，必拉
+          // 关卡归属：合集大标题/其它关的分P 不采纳（避免整合集干员并集当本关阵容）
+          stageHint: { displayCode: target.displayCode, stageName: target.stageName },
           ask: null, // 程序化提取：干员字典 + 别名表，不花 token
         });
         if (result.failed) {
@@ -243,6 +251,7 @@ export async function buildDispatchGuides(
         } else {
           stats.biliMined += 1;
           stats.biliHits += result.schemes.length;
+          stats.biliSkipped += result.stats.skippedEntries;
           cache[key] = { ts: now, schemes: result.schemes };
           cacheDirty = true;
           if (result.schemes.length) biliByStage.set(code, result.schemes);

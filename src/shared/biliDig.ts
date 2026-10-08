@@ -10,6 +10,10 @@
  * 三级语料合成后**一次 LLM 调用**提取 `{operators[], mode}`，
  * 结果再过干员名字典 + 纠错集校验（防幻觉）。LLM 不可用时退回确定性字典匹配。
  * 标题空心（没有任何干员名）的条目会被丢弃，不产生幻觉条目。
+ *
+ * ⚠️ 关卡归属（v4.3 二次实测）：合集视频的**大标题 + 各分P 干员并集**不是"本关阵容"。
+ * 传 `stageHint` 后，只有明确指向本关的标题/分P 才被采纳（合集/区间标题与其它关的分P 丢弃），
+ * 且命中分P 时 `title` 用分P 标题、`url` 带 `?p=` 直达那一关。
  */
 
 import { fetchVideoInfos, searchVideos, stripHighlight, type SearchVideoItem } from "./bilibili";
@@ -27,11 +31,13 @@ export interface NameDict {
 export interface BiliScheme {
   bvid: string;
   url: string;
-  title: string; // 来源标题 / 分P标题（已去 <em> 高亮）
+  title: string; // 来源标题：分P 命中时为**分P 标题**（如「VEC-SP12（蕾缪安二技能）」）
   operators: string[]; // 字典校验后的标准全名
   mode: string; // 单人 / 双人 / 低星 / 挂机 …（可空）
   author: string;
   kind: CorpusKind; // 命中层级
+  page?: number; // 分P 序号（命中层级②时；用于 ?p= 直达与「分P」标注）
+  collection?: string; // 所属合集/整视频标题（层级②时，供悬停溯源）
 }
 
 type CorpusKind = "title" | "part" | "desc";
@@ -41,13 +47,96 @@ interface CorpusEntry {
   text: string;
   kind: CorpusKind;
   title: string;
+  page?: number;
+  collection?: string;
 }
+
+// ---------- 关卡归属：一条语料到底说的是"本关"还是"整个合集" ----------
+
+/** 文中的全部 VEC 显示码（规范化为 VEC-SP07 / VEC-C，去重保序） */
+export function extractStageCodes(text: string): string[] {
+  const s = String(text ?? "");
+  const out: string[] = [];
+  for (const m of s.matchAll(/VEC[\s_-]*(SP[\s_-]*\d{1,2}|[A-D](?:[\s_-]*\d{1,2})?)/gi)) {
+    const suffix = (m[1] ?? "").toUpperCase().replace(/[\s_-]+/g, "");
+    const code = `VEC-${suffix}`;
+    if (!out.includes(code)) out.push(code);
+  }
+  // 已进入 VEC-SP 语境时，裸写的「SP06」也算关卡引用
+  // （实测合集标题常写成「VEC-SP05 SP06 SP07 SP13 SP14 …」，兄弟关不带 VEC 前缀）
+  if (out.some((c) => c.startsWith("VEC-SP"))) {
+    for (const m of s.matchAll(/SP[\s_-]*(\d{1,2})/gi)) {
+      const code = `VEC-SP${String(Number(m[1])).padStart(2, "0")}`;
+      if (!out.includes(code)) out.push(code);
+    }
+  }
+  return out;
+}
+
+/**
+ * 是否"覆盖多关"的文本（合集标题 / 关卡区间 / 多模式罗列）。
+ * 实测坑：`【特别战线】攻略合集VEC-SP-01~16`、`核心突破/特别战线/全力以赴 VEC-ABCD`
+ * 这类大标题会把整个合集的干员并集算成"本关阵容"，必须排除。
+ */
+export function isMultiStageText(text: string): boolean {
+  const s = String(text ?? "");
+  if (/VEC[\s_-]*SP[\s_-]*\d{1,2}\s*[-~～—－至到]\s*\d{1,2}/i.test(s)) return true; // VEC-SP-01~16
+  if (/全关卡|全部关卡|全套|全\s*SP|SP\s*[-0-9]*\s*全|合集|一览/i.test(s)) return true;
+  const modes = ["核心突破", "特别战线", "全力以赴"].filter((k) => s.includes(k));
+  if (modes.length >= 2) return true; // 同时提到多个玩法 = 覆盖多关
+  return extractStageCodes(s).length > 1;
+}
+
+export type StageMatch = "target" | "other" | "unknown";
+
+/**
+ * 「序号 + 关卡内容」式分P 标题的序号匹配：`05缴械装备 令` / `12 蕾缪安二技能` / `VEC-SP12 单人`。
+ *
+ * 实测（2026-10-08）：特别战线合集的干货分P 常写成「NN<补给名> <干员>」——
+ * 序号即关卡编号（05 = VEC-SP05），补给名（缴械装备等）不在关卡库里，只能靠序号归属。
+ * 仅在**父视频标题确认是关卡清单**（合集/特别战线/VEC）时才允许这条兜底，避免误挂。
+ */
+export function partNumberMatches(partTitle: string, displayCode: string): boolean {
+  const num = /(\d{1,2})\s*$/.exec(String(displayCode ?? "").trim())?.[1];
+  if (!num) return false;
+  const wanted = String(Number(num));
+  const m = /^\s*(?:p|第)?\s*0*(\d{1,2})(?![0-9])/i.exec(String(partTitle ?? ""));
+  return !!m && String(Number(m[1])) === wanted;
+}
+
+/** 视频标题是否"看起来就是关卡清单"（合集 / 特别战线 / 含 SP 或 VEC 码） */
+export function looksLikeStageList(title: string): boolean {
+  const s = String(title ?? "");
+  return isMultiStageText(s) || /特别战线|VEC|SP[\s_-]*\d/i.test(s);
+}
+
+/** 判断一段文本（标题 / 分P 标题 / 简介）说的是不是目标关：
+ * - `target`：唯一关卡码就是目标关，或没写码但出现了目标关中文名；
+ * - `other`：写的是别的关；
+ * - `unknown`：区间/合集/多码，无法归属到单关（宁可不采纳，也不把合集干员并集算到本关）。
+ */
+export function matchStageText(text: string, target: { code?: string; name?: string }): StageMatch {
+  const s = String(text ?? "");
+  const code = String(target.code ?? "").trim().toUpperCase();
+  const codes = extractStageCodes(s);
+  // 区间/合集/多玩法罗列 → 无法归属到单关（即便包含目标关的码，也不能用它的干员并集）
+  if (isMultiStageText(s)) return "unknown";
+  if (codes.length === 0) {
+    const name = String(target.name ?? "").trim();
+    return name && s.includes(name) ? "target" : "unknown";
+  }
+  if (codes.length === 1) return codes[0] === code ? "target" : "other";
+  return codes.includes(code) ? "unknown" : "other";
+}
+
 
 export interface BiliMineStats {
   searched: number; // 搜索结果条数
   pagesSearched: number;
   partsFetched: number; // 层级②触发的合集数
   descsFetched: number; // 层级③触发的简介数
+  /** 因不指向本关（合集大标题 / 其它关的分P）被丢弃的语料条数 */
+  skippedEntries: number;
   llmUsed: boolean; // 是否走了 LLM 精筛（false = 字典兜底）
 }
 
@@ -68,6 +157,12 @@ export interface MineOptions {
    * 实测「VEC-SP05 令」这种「关卡+干员」对全在分P里）。
    */
   partsThreshold?: number;
+  /**
+   * 目标关身份（显示码 + 中文名）。给了就对每条语料做**关卡归属过滤**：
+   * 合集大标题（VEC-SP-01~16 / 全关卡 / 多玩法罗列）与其它关的分P 一律不采纳，
+   * 避免把整个合集的干员并集当成"本关阵容"；只有明确指向本关的标题/分P 才产出方案。
+   */
+  stageHint?: { displayCode?: string; stageName?: string };
   ask?: AskFn | null; // LLM 调用器；不传则只用字典兜底
 }
 
@@ -167,6 +262,26 @@ interface ExtractedScheme {
   mode?: unknown;
 }
 
+/** 分P 直达链接：命中分P 时带 ?p=（实测坑：不带就永远落在 P1，不是对应的那一关） */
+function videoUrl(bvid: string, page?: number): string {
+  const base = `https://www.bilibili.com/video/${bvid}`;
+  return page && page > 1 ? `${base}?p=${page}` : base;
+}
+
+function schemeOf(entry: CorpusEntry, ops: string[], mode: string): BiliScheme {
+  return {
+    bvid: entry.bvid,
+    url: videoUrl(entry.bvid, entry.page),
+    title: entry.title,
+    operators: ops,
+    mode,
+    author: "",
+    kind: entry.kind,
+    page: entry.page,
+    collection: entry.collection,
+  };
+}
+
 /** 解析 LLM 回复：行号回填 bvid，干员名过字典校验（幻觉名被丢弃） */
 export function parseExtractReply(raw: string, entries: CorpusEntry[], dict: NameDict): BiliScheme[] {
   let parsed: { schemes?: ExtractedScheme[] };
@@ -186,18 +301,10 @@ export function parseExtractReply(raw: string, entries: CorpusEntry[], dict: Nam
       if (dict.exists(full) && !ops.includes(full)) ops.push(full);
     }
     if (!ops.length) continue; // 标题空心 → 不产生条目
-    const key = `${entry.bvid}|${ops.join("+")}|${entry.kind}`;
+    const key = `${entry.bvid}|${entry.page ?? 0}|${ops.join("+")}|${entry.kind}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    out.push({
-      bvid: entry.bvid,
-      url: `https://www.bilibili.com/video/${entry.bvid}`,
-      title: entry.title,
-      operators: ops,
-      mode: String(s?.mode ?? "").trim() || detectMode(entry.text),
-      author: "",
-      kind: entry.kind,
-    });
+    out.push(schemeOf(entry, ops, String(s?.mode ?? "").trim() || detectMode(entry.text)));
   }
   return out;
 }
@@ -210,18 +317,10 @@ export function extractByDictionary(entries: CorpusEntry[], dict: NameDict): Bil
   for (const entry of entries) {
     const ops = matchOperators(entry.text, dict, index);
     if (!ops.length) continue;
-    const key = `${entry.bvid}|${ops.join("+")}|${entry.kind}`;
+    const key = `${entry.bvid}|${entry.page ?? 0}|${ops.join("+")}|${entry.kind}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    out.push({
-      bvid: entry.bvid,
-      url: `https://www.bilibili.com/video/${entry.bvid}`,
-      title: entry.title,
-      operators: ops,
-      mode: detectMode(entry.text),
-      author: "",
-      kind: entry.kind,
-    });
+    out.push(schemeOf(entry, ops, detectMode(entry.text)));
   }
   return out;
 }
@@ -241,7 +340,6 @@ function toEntries(items: SearchVideoItem[]): CorpusEntry[] {
   }
   return out;
 }
-
 /**
  * 三级挖掘一个关卡的 B站实战方案。
  * 搜索失败 → `failed: true`（无网络/风控），调用方静默降级。
@@ -254,12 +352,15 @@ export async function mineStage(
   const pages = Math.max(1, Math.min(5, Math.trunc(opts.pages ?? 2)));
   const maxPartsVideos = Math.max(0, opts.maxPartsVideos ?? 5);
   const maxDescVideos = Math.max(0, opts.maxDescVideos ?? 8);
-  const partsThreshold = Number.isFinite(opts.partsThreshold) ? Number(opts.partsThreshold) : 3;
+  // 注意：不能写 Number.isFinite（Infinity 会被判为 false 而退回 3）——Infinity 是"必拉分P"的合法取值
+  const rawThreshold = opts.partsThreshold === undefined ? 3 : Number(opts.partsThreshold);
+  const partsThreshold = Number.isNaN(rawThreshold) ? 3 : rawThreshold;
   const stats: BiliMineStats = {
     searched: 0,
     pagesSearched: 0,
     partsFetched: 0,
     descsFetched: 0,
+    skippedEntries: 0,
     llmUsed: false,
   };
 
@@ -267,23 +368,48 @@ export async function mineStage(
   if (!keyword) return { schemes: [], stats, failed: true };
 
   // —— ① 主标题搜索 ——
+  // 先按显示码搜；显示码几乎搜不到本关内容时再用关卡中文名补搜 1 页
+  // （实测部分视频标题只写关名不写码；关名可能是通用词，补搜结果仍要过归属过滤）
+  const nameKeyword = String(opts.stageHint?.stageName ?? "").trim();
   const items: SearchVideoItem[] = [];
+  const seenBvid = new Set<string>();
   let searchOk = false;
-  for (let page = 1; page <= pages; page += 1) {
-    try {
-      const got = await searchVideos(keyword, { page, pageSize: 20 });
-      stats.pagesSearched += 1;
-      searchOk = true;
-      if (!got.length) break;
-      items.push(...got);
-    } catch {
-      break; // 单页失败即停止翻页
+  const searchAndCollect = async (kw: string, pageCount: number): Promise<void> => {
+    for (let page = 1; page <= pageCount; page += 1) {
+      try {
+        const got = await searchVideos(kw, { page, pageSize: 20 });
+        stats.pagesSearched += 1;
+        searchOk = true;
+        if (!got.length) break;
+        for (const it of got) {
+          if (seenBvid.has(it.bvid)) continue;
+          seenBvid.add(it.bvid);
+          items.push(it);
+        }
+      } catch {
+        break; // 单页失败即停止翻页
+      }
     }
+  };
+
+  // 主关键词（显示码）：标题/简介里明确指向本关
+  await searchAndCollect(keyword, pages);
+  const target = { code: keyword, name: opts.stageHint?.stageName };
+  const filterByStage = !!opts.stageHint;
+  const belongsToTarget = (text: string): boolean =>
+    !filterByStage || matchStageText(text, target) === "target";
+  let titleEntries = toEntries(items).filter((e) => belongsToTarget(e.text));
+
+  // 关名兜底：显示码几乎搜不到本关内容时，再用关卡中文名搜 1 页
+  // （实测部分视频标题只写关名不写码；关名可能是通用词，结果仍要过归属过滤）
+  if (nameKeyword && nameKeyword !== keyword && titleEntries.length < 3) {
+    await searchAndCollect(nameKeyword, 1);
+    titleEntries = toEntries(items).filter((e) => belongsToTarget(e.text));
   }
+  const entries = titleEntries;
   stats.searched = items.length;
   if (!searchOk && items.length === 0) return { schemes: [], stats, failed: true };
-
-  const entries = toEntries(items);
+  stats.skippedEntries = toEntries(items).length - entries.length;
   const authorOf = new Map(items.map((i) => [i.bvid, i.author]));
   const index = buildNameIndex(dict);
   const distinctCount = (): number => {
@@ -293,16 +419,40 @@ export async function mineStage(
   };
 
   // —— ② 命中合集的分P标题（候选不足时才拉；partsThreshold=Infinity 时必拉） ——
+  // 分P 标题是「关卡 + 干员」的最佳载体；只采纳指向本关的分P，并记住 ?p= 页码。
+  // 合集类视频优先排查（单集视频的标题层已能覆盖，合集的干货全在分P 里）。
   if (distinctCount() < partsThreshold && maxPartsVideos > 0 && items.length) {
-    const targets = items.slice(0, maxPartsVideos).map((i) => i.bvid);
+    const targets = [...items]
+      .sort(
+        (a, b) =>
+          Number(isMultiStageText(b.title)) - Number(isMultiStageText(a.title)),
+      )
+      .slice(0, maxPartsVideos)
+      .map((i) => i.bvid);
     const infos = await fetchVideoInfos(targets);
     for (const [bvid, info] of infos) {
       if (info.pages.length < 2) continue;
       stats.partsFetched += 1;
+      // 父视频标题要像"关卡清单"，才允许按分P 序号兜底归属（避免误挂）
+      const numbered = looksLikeStageList(info.title);
       for (const pg of info.pages) {
         const part = stripHighlight(pg.part);
         if (!part) continue;
-        entries.push({ bvid, text: part, kind: "part", title: part });
+        const matched = matchStageText(part, target);
+        // 序号兜底：合集分P 常写「05缴械装备 令」（补给名不在关卡库，只能靠序号归属）
+        const byNumber = matched === "unknown" && numbered && partNumberMatches(part, keyword);
+        if (matched !== "target" && !byNumber) {
+          stats.skippedEntries += 1;
+          continue;
+        }
+        entries.push({
+          bvid,
+          text: part,
+          kind: "part",
+          title: part,
+          page: pg.page,
+          collection: stripHighlight(info.title),
+        });
       }
     }
   }
@@ -313,7 +463,7 @@ export async function mineStage(
     const infos = await fetchVideoInfos(targets);
     for (const [bvid, info] of infos) {
       const desc = stripHighlight(info.desc);
-      if (!desc) continue;
+      if (!desc || !belongsToTarget(desc)) continue;
       stats.descsFetched += 1;
       entries.push({ bvid, text: desc, kind: "desc", title: info.title });
     }

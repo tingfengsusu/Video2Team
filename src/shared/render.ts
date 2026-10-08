@@ -134,13 +134,18 @@ function renderScheme(
 ): string {
   const key = schemeKeyOf(scheme);
   const url = schemeSourceUrl(scheme);
-  const unit = scheme.source === "maa" ? "作业" : "视频";
+  // B站命中分P 时明确标注「分P12」并直链 ?p=12（实测坑：不带 ?p= 永远落在 P1）
+  const isPart = scheme.source === "bili" && !!scheme.page && scheme.page > 1;
+  const unit = scheme.source === "maa" ? "作业" : isPart ? `分P${scheme.page}` : "视频";
   const label = url
     ? `<a href="${esc(url)}" target="_blank" rel="noreferrer" style="color:#0969da;font-weight:700" ` +
-      `title="${esc(`${scheme.sourceLabel} · ${SOURCE_TIPS[scheme.source]}｜打开该${unit}页`)}">${esc(scheme.sourceLabel)}</a>`
+      `title="${esc(`${scheme.sourceLabel} · ${SOURCE_TIPS[scheme.source]}｜打开该${unit}`)}">${esc(scheme.sourceLabel)}</a>`
     : `<span style="color:#0969da;font-weight:700" title="${esc(SOURCE_TIPS[scheme.source])}">${esc(scheme.sourceLabel)}</span>`;
+  const openTitle = scheme.collection
+    ? `合集：${scheme.collection}${scheme.page ? `（P${scheme.page}）` : ""}`
+    : `打开${unit}`;
   const openLink = url
-    ? ` <a href="${esc(url)}" target="_blank" rel="noreferrer" class="dim" title="打开${unit}页">${unit}页↗</a>`
+    ? ` <a href="${esc(url)}" target="_blank" rel="noreferrer" class="dim" title="${esc(openTitle)}">${unit}页↗</a>`
     : "";
   const mode = scheme.mode ? `<b>${esc(scheme.mode)}</b> ` : "";
   const title = scheme.title ? `<span class="dim"> ｜ ${esc(scheme.title)}</span>` : "";
