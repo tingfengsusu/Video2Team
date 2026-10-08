@@ -3,6 +3,8 @@
  * 分析管道中流动的四类结构 + 替换类型常量。
  */
 
+import type { MergedStagePool } from "./dispatchPool";
+
 /** 替换类型：L2 图表底部的语义注解表明替代是多粒度的 */
 export const KIND_OPERATOR_SWAP = "operator_swap" as const; // 换干员（默认）
 export const KIND_SKILL_SWAP = "skill_swap" as const; // 换技能/攻速
@@ -161,6 +163,8 @@ export interface AnalysisOutput extends StageResult {
   stageCode?: string; // 已解析的显示码，如 VEC-SP07
   stageName?: string; // 已解析的关卡通名
   stageResolution?: StageResolution;
+  dispatchGuides?: MergedStagePool[]; // P1 黄色格对应的派遣关攻略（MAA + B站）
+  dispatchGuideNote?: string; // P1 识别成功但攻略查询失败时的降级说明
   stats?: {
     danmakuTotal: number; // 抓取到的弹幕总数（XML 接口返回）
     commentCandidates: number; // 进入候选池的评论数

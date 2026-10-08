@@ -85,6 +85,68 @@ export interface ResultRenderOptions {
   ambiguousDispatch?: boolean;
 }
 
+/** P1 黄色格识别出的派遣关攻略；每关只展示前 3 条，避免面板过长。 */
+export function renderDispatchGuides(
+  pools: NonNullable<AnalysisOutput["dispatchGuides"]>,
+  hasOp: HasOp,
+  lockedOps: LockedOps = {},
+  note?: string,
+): string {
+  if (pools.length === 0 && !note) return "";
+  const heading =
+    `<div style="font-size:13px;font-weight:700;margin:8px 0 4px">` +
+    `P1 派遣关攻略（按黄色格位置识别）</div>`;
+  const blocks = pools
+    .map((pool) => {
+      const schemes = pool.schemes.slice(0, 3);
+      const rows = schemes.length
+        ? schemes
+            .map((scheme) => {
+              const operNames = (scheme.opers.length
+                ? scheme.opers.map((oper) => ({
+                    name: oper.name,
+                    skill: oper.skill,
+                  }))
+                : scheme.operators.map((name) => ({ name, skill: undefined }))
+              )
+                .slice(0, 8)
+                .map(
+                  (oper) =>
+                    nameSpan(oper.name, hasOp, lockedOps) +
+                    (oper.skill ? `<span class="dim">${oper.skill}技</span>` : ""),
+                )
+                .join("、");
+              const mode = scheme.mode ? `<b>${esc(scheme.mode)}</b> ` : "";
+              const title = scheme.title ? `<span class="dim">${esc(scheme.title)}</span>` : "";
+              const author = scheme.author ? `<span class="dim"> · ${esc(scheme.author)}</span>` : "";
+              const link =
+                scheme.url && /^https?:\/\//i.test(scheme.url)
+                  ? ` <a href="${esc(scheme.url)}" target="_blank" rel="noreferrer">B站源</a>`
+                  : "";
+              return (
+                `<div style="font-size:12px;line-height:1.65;margin-top:3px">` +
+                `<span style="color:#0969da;font-weight:700">${esc(scheme.sourceLabel)}</span> ` +
+                `${mode}${operNames}${title ? ` ｜ ${title}` : ""}${author}${link}</div>`
+              );
+            })
+            .join("")
+        : `<div class="dim" style="font-size:12px;margin-top:3px">MAA / B站暂未找到公开方案</div>`;
+      return (
+        `<div style="padding:6px 8px;margin:4px 0;background:#fffdf6;border:1px solid #eadfbd;border-radius:5px">` +
+        `<div style="font-size:12px"><b>${esc(pool.displayCode)}</b>` +
+        `<span class="dim">（${esc(pool.stageName || "关卡名待核实")}）</span>` +
+        `<span class="dim" style="float:right">结构化 ${pool.counts.maa} ｜ 实战 ${pool.counts.bili}</span></div>` +
+        rows +
+        `</div>`
+      );
+    })
+    .join("");
+  const noteLine = note
+    ? `<div class="hint" style="color:#b8860b">${esc(note)}</div>`
+    : "";
+  return heading + blocks + noteLine;
+}
+
 export function renderResult(
   out: AnalysisOutput,
   hasOp: HasOp,
@@ -113,12 +175,19 @@ export function renderResult(
   const resolutionNote = out.stageResolution?.note
     ? `<div class="hint" style="color:#b8860b">关卡识别：${esc(out.stageResolution.note)}</div>`
     : "";
+  const dispatchGuides = renderDispatchGuides(
+    out.dispatchGuides ?? [],
+    hasOp,
+    lockedOps,
+    out.dispatchGuideNote,
+  );
   return (
     `<div class="video-title">${esc(out.videoTitle)}</div>` +
     `<div class="stage">${esc(out.stage)} — ${heading}</div>` +
     `<div class="hint">${stageHint}</div>` +
     switchLine +
     resolutionNote +
+    dispatchGuides +
     `<div class="hint">实战替代建议：${out.substitutions.length} 条｜${statsLine}名字颜色：<span class="own">绿=你有</span>／<span class="miss">红=你没有</span>${Object.keys(lockedOps).length ? "｜🔒=已派遣" : ""}</div>` +
     out.recommendations.map((s2) => renderSlot(s2, hasOp, lockedOps)).join("") +
     (s?.unknownNames && s.unknownNames.length

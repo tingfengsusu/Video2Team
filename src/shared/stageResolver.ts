@@ -58,14 +58,21 @@ function exactLevelByName(levels: readonly MaaLevel[], name: string): MaaLevel |
     .sort(newerLevel)[0];
 }
 
-function dispatchLevels(levels: readonly MaaLevel[]): MaaLevel[] {
-  return levels.filter((l) => /_sp\d+$/i.test(l.stageId));
+/** 从自由文本提取任意已登记形态的显示码，例如 VEC-C / VEC-SP07。 */
+export function extractDisplayCode(text: string): string | null {
+  const m = String(text ?? "").match(
+    /VEC[\s_-]*(SP[\s_-]*\d{1,2}|[A-D](?:[\s_-]*\d{1,2})?)/i,
+  );
+  if (!m?.[1]) return null;
+  const suffix = m[1].toUpperCase().replace(/[\s_-]+/g, "");
+  return `VEC-${suffix}`;
 }
 
 /** 从自由文本提取并规范 VEC-SPxx；无显式码返回 null。 */
 export function extractDispatchCode(text: string): string | null {
-  const m = String(text ?? "").match(/VEC[\s_-]*SP[\s_-]*(\d{1,2})/i);
-  if (!m) return null;
+  const code = extractDisplayCode(text);
+  const m = code?.match(/^VEC-SP(\d{1,2})$/);
+  if (!m?.[1]) return null;
   return `VEC-SP${String(Number(m[1])).padStart(2, "0")}`;
 }
 
@@ -117,7 +124,7 @@ export function resolveStageFromText(
   levels: readonly MaaLevel[],
 ): StageResolution {
   const text = [stage, videoTitle, extraText].filter(Boolean).join("\n");
-  const code = extractDispatchCode(text);
+  const code = extractDisplayCode(text);
   if (code) {
     const level = exactLevelByCode(levels, code);
     return level
@@ -125,7 +132,7 @@ export function resolveStageFromText(
       : { source: "text_code", displayCode: code };
   }
 
-  const named = matchRegisteredName(text, dispatchLevels(levels));
+  const named = matchRegisteredName(text, levels);
   if (named) return resolutionFromLevel(named, "level_name");
   return { source: "unknown" };
 }
@@ -141,9 +148,10 @@ export function codeFromGridPosition(
 }
 
 function normalizeGridPosition(vision: StageVisionHints): number | undefined {
+  const byRowColumn = positionFromRowColumn(vision.gridRow, vision.gridColumn, vision.gridColumns);
+  if (byRowColumn) return byRowColumn;
   const direct = Number(vision.gridPosition);
-  if (Number.isInteger(direct) && direct > 0) return direct;
-  return positionFromRowColumn(vision.gridRow, vision.gridColumn, vision.gridColumns);
+  return Number.isInteger(direct) && direct > 0 ? direct : undefined;
 }
 
 function positionFromRowColumn(
@@ -174,10 +182,11 @@ function normalizeGridCell(
   const row = Number(cell.row);
   const column = Number(cell.column);
   const columns = Number(cell.columns) || Number(fallbackColumns);
+  const direct = Number(cell.position);
+  const byRowColumn = positionFromRowColumn(row, column, columns);
   const position =
-    Number.isInteger(Number(cell.position)) && Number(cell.position) > 0
-      ? Math.trunc(Number(cell.position))
-      : positionFromRowColumn(row, column, columns);
+    byRowColumn ??
+    (Number.isInteger(direct) && direct > 0 ? Math.trunc(direct) : undefined);
   if (!position) return null;
   return {
     position,
@@ -187,18 +196,8 @@ function normalizeGridCell(
   };
 }
 
-/** 合并新版 gridCells 与旧版单格字段，按阅读顺序去重。 */
-function collectGridHints(vision: StageVisionHints): NormalizedGridHint[] {
-  const singlePosition = normalizeGridPosition(vision);
-  if (singlePosition) {
-    return [{
-      position: singlePosition,
-      row: Number(vision.gridRow) || undefined,
-      column: Number(vision.gridColumn) || undefined,
-      name: normalizeText(vision.gridName ?? "") || undefined,
-    }];
-  }
-
+/** 只收集 P1 的黄色格列表，按阅读顺序去重。 */
+function collectGridCellHints(vision: StageVisionHints): NormalizedGridHint[] {
   const hints: NormalizedGridHint[] = [];
   for (const cell of vision.gridCells ?? []) {
     const normalized = normalizeGridCell(cell, vision.gridColumns);
@@ -216,6 +215,33 @@ function collectGridHints(vision: StageVisionHints): NormalizedGridHint[] {
     });
   }
   return [...deduped.values()].sort((a, b) => a.position - b.position);
+}
+
+/** P1 攻略查询优先用全部黄色格；旧版输出没有列表时退回单格位置。 */
+function collectDispatchGridHints(vision: StageVisionHints): NormalizedGridHint[] {
+  const cells = collectGridCellHints(vision);
+  if (cells.length > 0) return cells;
+  const position = normalizeGridPosition(vision);
+  if (!position) return [];
+  return [{
+    position,
+    row: Number(vision.gridRow) || undefined,
+    column: Number(vision.gridColumn) || undefined,
+    name: normalizeText(vision.gridName ?? "") || undefined,
+  }];
+}
+
+function collectCurrentGridHints(vision: StageVisionHints): NormalizedGridHint[] {
+  const position = normalizeGridPosition(vision);
+  if (position) {
+    return [{
+      position,
+      row: Number(vision.gridRow) || undefined,
+      column: Number(vision.gridColumn) || undefined,
+      name: normalizeText(vision.gridName ?? "") || undefined,
+    }];
+  }
+  return collectGridCellHints(vision);
 }
 
 function candidateFromLevel(
@@ -253,6 +279,75 @@ function resolutionFromGridCandidate(
   };
 }
 
+export interface DispatchGridResolution {
+  candidates: StageGridCandidate[];
+  invalidPositions: number[];
+  prefix?: string;
+  note?: string;
+}
+
+/**
+ * 独立解析 P1 特别战线选择界面的黄色格。
+ *
+ * 该结果不能与“当前关”互相覆盖：P1 可以同时有多个黄色派遣格，
+ * 而 P2 仍可能明确写着 VEC-C 这种推进关。
+ */
+export function resolveDispatchGridFromVision(
+  stage: string,
+  videoTitle: string,
+  extraText: string,
+  vision: StageVisionHints | undefined,
+  levels: readonly MaaLevel[],
+): DispatchGridResolution {
+  const hints = vision ? collectDispatchGridHints(vision) : [];
+  if (hints.length === 0) return { candidates: [], invalidPositions: [] };
+
+  const context = [
+    stage,
+    videoTitle,
+    extraText,
+    vision?.explicitCode,
+    vision?.matchedName,
+    vision?.gridName,
+  ]
+    .filter(Boolean)
+    .join("\n");
+  const prefix = inferEventPrefix(context, levels);
+  const stages = prefix ? listDispatchStagesFromLevels(levels, prefix) : [];
+  if (!prefix || stages.length === 0) {
+    return {
+      candidates: [],
+      invalidPositions: [],
+      note: "P1 截图像是特别战线网格，但未能确定所属活动，未自动查询派遣关攻略",
+    };
+  }
+
+  const candidates: StageGridCandidate[] = [];
+  const invalidPositions: number[] = [];
+  for (const hint of hints) {
+    const level = codeFromGridPosition(hint.position, stages);
+    if (level) candidates.push(candidateFromLevel(hint, level));
+    else invalidPositions.push(hint.position);
+  }
+
+  const mismatchNotes = candidates
+    .filter((candidate) => candidate.needsVerification)
+    .map(
+      (candidate) =>
+        `P1 通名“${candidate.gridName}”与位置推算“${candidate.stageName}”不一致，已按网格位置采用 ${candidate.displayCode}`,
+    );
+  const invalidNote = invalidPositions.length
+    ? `P1 网格位置 ${invalidPositions.join("、")} 超出该活动的派遣关范围`
+    : "";
+
+  return {
+    candidates,
+    invalidPositions,
+    prefix,
+    note: [...mismatchNotes, invalidNote].filter(Boolean).join("；") || undefined,
+  };
+}
+
 /**
  * 综合文本与画面提示。文本显式码最高优先，其次关卡库通名，最后网格位置。
  * 网格内通名与位置结果不一致时，位置胜出并标记 needsVerification。
@@ -267,7 +362,7 @@ export function resolveStageWithVision(
   const textResolution = resolveStageFromText(stage, videoTitle, extraText, levels);
   if (textResolution.source !== "unknown") return textResolution;
 
-  const hintedCode = extractDispatchCode(vision?.explicitCode ?? "");
+  const hintedCode = extractDisplayCode(vision?.explicitCode ?? "");
   if (hintedCode) {
     const level = exactLevelByCode(levels, hintedCode);
     return level
@@ -277,15 +372,31 @@ export function resolveStageWithVision(
 
   const hintedName = vision?.matchedName?.trim() ?? "";
   if (hintedName) {
-    const level = exactLevelByName(dispatchLevels(levels), hintedName);
+    const level = exactLevelByName(levels, hintedName);
     if (level) return resolutionFromLevel(level, "level_name");
   }
 
   const position = vision ? normalizeGridPosition(vision) : undefined;
-  const gridHints = vision ? collectGridHints(vision) : [];
-  if (!position && gridHints.length === 0) return { source: "unknown" };
+  const currentHints = vision ? collectCurrentGridHints(vision) : [];
+  if (currentHints.length === 0) {
+    return {
+      source: "unknown",
+      gridPosition: position,
+      gridName: vision?.gridName,
+      note: "截图像是特别战线网格，但未能确定所属活动，请核实关卡编号",
+    };
+  }
 
-  const context = [stage, videoTitle, extraText].filter(Boolean).join("\n");
+  const context = [
+    stage,
+    videoTitle,
+    extraText,
+    vision?.explicitCode,
+    vision?.matchedName,
+    vision?.gridName,
+  ]
+    .filter(Boolean)
+    .join("\n");
   const prefix = inferEventPrefix(context, levels);
   const stages = prefix ? listDispatchStagesFromLevels(levels, prefix) : [];
   if (!prefix || stages.length === 0) {
@@ -299,7 +410,7 @@ export function resolveStageWithVision(
 
   const candidates: StageGridCandidate[] = [];
   const invalidPositions: number[] = [];
-  for (const hint of gridHints.length ? gridHints : [{ position: position! }]) {
+  for (const hint of currentHints) {
     const level = codeFromGridPosition(hint.position, stages);
     if (level) candidates.push(candidateFromLevel(hint, level));
     else invalidPositions.push(hint.position);
@@ -308,7 +419,7 @@ export function resolveStageWithVision(
   if (candidates.length === 0) {
     return {
       source: "grid",
-      gridPosition: position ?? gridHints[0]?.position,
+      gridPosition: position ?? invalidPositions[0],
       gridName: vision?.gridName,
       needsVerification: true,
       note: `截图网格位置 ${invalidPositions.join("、")} 超出该活动的派遣关范围，请核实`,
@@ -364,8 +475,41 @@ export async function resolveStageForAnalysis(
   videoTitle: string,
   extraText: string,
   vision?: StageVisionHints,
-): Promise<{ resolution: StageResolution; displayStage: string }> {
+): Promise<{
+  resolution: StageResolution;
+  displayStage: string;
+  dispatchCandidates: StageGridCandidate[];
+  dispatchGridNote?: string;
+}> {
   const levels = await getLevelDb().catch(() => []);
   const resolution = resolveStageWithVision(stage, videoTitle, extraText, vision, levels);
-  return { resolution, displayStage: formatStageResolution(resolution, stage) };
+  const grid = resolveDispatchGridFromVision(
+    stage,
+    videoTitle,
+    extraText,
+    vision,
+    levels,
+  );
+  const dispatchCandidates = [...grid.candidates];
+  if (
+    dispatchCandidates.length === 0 &&
+    /^VEC-SP\d{1,2}$/i.test(resolution.displayCode ?? "") &&
+    resolution.stageId &&
+    resolution.stageName
+  ) {
+    dispatchCandidates.push({
+      gridPosition: resolution.gridPosition ?? 0,
+      gridName: resolution.gridName,
+      displayCode: resolution.displayCode!,
+      stageId: resolution.stageId,
+      stageName: resolution.stageName,
+      needsVerification: resolution.needsVerification,
+    });
+  }
+  return {
+    resolution,
+    displayStage: formatStageResolution(resolution, stage),
+    dispatchCandidates,
+    dispatchGridNote: grid.note,
+  };
 }

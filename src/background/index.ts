@@ -28,6 +28,7 @@ import { normalizePage, putCachedResult } from "../shared/resultCache";
 import { buildDispatchPool, listDispatchStages, queryCopilots, resolveEventPrefix } from "../shared/maa";
 import { mineStageWithLlm, type BiliScheme } from "../shared/biliDig";
 import { mergePools } from "../shared/dispatchPool";
+import { buildDispatchGuides } from "../shared/dispatchGuides";
 import { formatStageResolution, resolveStageForAnalysis } from "../shared/stageResolver";
 import type {
   AnalysisOutput,
@@ -268,6 +269,21 @@ async function analyzeVideo(
   );
   stageResolution = visionResolution.resolution;
   meta = { ...meta, stage: visionResolution.displayStage };
+  const dispatchCandidates = visionResolution.dispatchCandidates;
+  let dispatchGuidesPromise: Promise<AnalysisOutput["dispatchGuides"]> = Promise.resolve([]);
+  if (dispatchCandidates.length > 0) {
+    await setTask({
+      ...taskBase,
+      status: "running",
+      startedAt,
+      stage: meta.stage,
+      progress: `已识别 P1 的 ${dispatchCandidates.length} 个派遣关，正在查询攻略…`,
+    });
+    dispatchGuidesPromise = buildDispatchGuides(dispatchCandidates, opDB, {
+      maxBiliStages: 6,
+      thinThreshold: 2,
+    }).catch(() => []);
+  }
   const unknownNames: string[] = [];
   const onUnknown = (n: string): void => {
     const t = n.trim();
@@ -292,6 +308,17 @@ async function analyzeVideo(
     danmakuCandidates: candidates.filter((c) => c.source === "danmaku").length,
     unknownNames,
   };
+  const dispatchGuides = (await dispatchGuidesPromise) ?? [];
+  const dispatchGuideNote = [
+    visionResolution.dispatchGridNote,
+    dispatchCandidates.length > 0 &&
+    dispatchGuides.length > 0 &&
+    dispatchGuides.every((pool) => pool.schemes.length === 0)
+      ? "已识别 P1 派遣关，但 MAA / B站暂未查到公开攻略"
+      : "",
+  ]
+    .filter(Boolean)
+    .join("；") || undefined;
   return {
     roster,
     substitutions,
@@ -302,6 +329,8 @@ async function analyzeVideo(
     stageCode: stageResolution.displayCode,
     stageName: stageResolution.stageName,
     stageResolution,
+    dispatchGuides,
+    dispatchGuideNote,
     stats,
   };
 }

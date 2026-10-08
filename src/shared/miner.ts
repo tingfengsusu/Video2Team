@@ -188,17 +188,22 @@ export function buildWebCombinedMessages(
   const candidates = buildCandidates(comments, danmaku, caps);
   const outputSchema =
     `【最终输出】仅输出一个 JSON：\n` +
-    `{"stageResolution":{"explicitCode":"","matchedName":"","gridPosition":0,"gridRow":0,"gridColumn":0,"gridColumns":0,"gridName":"","gridCells":[{"row":0,"column":0,"columns":0,"name":""}],"note":""},"roster":{"operators":[{"name":"","support":false,"isKey":false,"keyReason":""}]},"substitutions":[{"removed":"","replacement":"","kind":"","evidence":"","commentIndex":编号}]}\n` +
+    `{"stageResolution":{"explicitCode":"","matchedName":"","gridPosition":0,"gridRow":0,"gridColumn":0,"gridColumns":0,"gridName":"","gridCells":[{"position":0,"row":0,"column":0,"columns":0,"name":""}],"note":""},"roster":{"operators":[{"name":"","support":false,"isKey":false,"keyReason":""}]},"substitutions":[{"removed":"","replacement":"","kind":"","evidence":"","commentIndex":编号}]}\n` +
     `- stageResolution：只在截图/文字里有关卡识别证据时填写，没有证据时保留空串/0\n` +
-    `  · explicitCode：明确写出的 VEC-SPxx；不要按数字猜\n` +
-    `  · matchedName：读到的关卡通名\n` +
-    `  · gridPosition：特别战线选择界面中当前/唯一高亮格按“从上到下、从左到右”从 1 编号的位置\n` +
+    `  · explicitCode：当前关（P2/最后一张阵容图或文字）明确写出的显示码，VEC-C 或 VEC-SPxx 都要填；不要按数字猜\n` +
+    `  · matchedName：当前关读到的中文通名\n` +
+    `  · gridPosition：仅在 P1 只有一个明确黄色格时填写，按“从上到下、从左到右”从 1 编号\n` +
     `  · 若更易判断，可填 gridRow/gridColumn/gridColumns，由插件换算；gridName 填该格中文通名供交叉校验\n` +
-    `  · gridCells：选择界面出现多个黄色/启用格时全部列出；行列按完整网格计算，上方第一行/左侧第一列为 1，并填该格通名\n` +
+    `  · gridCells：P1 特别战线选择界面（常见为左侧补给/图标网格）中的**全部黄色底格**，即使 P2 已识别出 VEC-C 也必须独立填写；白色、灰色、蓝色或仅边框高亮都不算\n` +
+    `  · gridCells.position 是按完整网格从上到下、从左到右的序号，不是“第几个黄色格”；行列也按完整网格计算，上方第一行/左侧第一列为 1，columns 填总列数，并尽量填该格通名\n` +
+    `  · 例：四列网格中第一行第二格 position=2，第二行第一格 position=5，第三行第四格 position=12；不要把黄色格重新排成 1、2、3…\n` +
     `- roster.operators：第一步识别出的全部干员（含助战干员）\n` +
     `- substitutions：第二步的替代建议；无建议时为空数组 []`;
   const text = [
     `任务：这是一次两步合并分析，请依次完成，最后只输出一个 JSON。`,
+    imageDataUrls.length > 1
+      ? `截图顺序：第 1 张通常是 P1 特别战线/派遣选择界面，后续图片是 P2 当前关阵容。两条证据必须分别识别，不能让 P2 的 VEC-C 覆盖 P1 的黄色格列表。`
+      : `若截图中出现特别战线网格，请同时识别当前关和全部黄色格，两者不能互相覆盖。`,
     ``,
     `【第一步：识别视频阵容】`,
     rosterPromptText,

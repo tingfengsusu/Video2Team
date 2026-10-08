@@ -108,7 +108,7 @@ for (const [position, name, code] of gridChecks) {
 
 const grid = stage.resolveStageWithVision(
   "P1 特别战线",
-  "VEC-C 全力以赴",
+  "矢量突破#3 拟生态",
   "",
   { gridPosition: 7, gridName: "投资回报" },
   levels,
@@ -121,7 +121,7 @@ check(
 
 const conflict = stage.resolveStageWithVision(
   "P1 特别战线",
-  "VEC-C 全力以赴",
+  "矢量突破#3 拟生态",
   "",
   { gridPosition: 1, gridName: "投资回报" },
   levels,
@@ -135,7 +135,7 @@ check("冲突结果带核实提示", /请核实/.test(conflict.note ?? ""), conf
 
 const rowColumn = stage.resolveStageWithVision(
   "P1 特别战线",
-  "VEC-C 全力以赴",
+  "矢量突破#3 拟生态",
   "",
   { gridRow: 2, gridColumn: 3, gridColumns: 4, gridName: "投资回报" },
   levels,
@@ -148,7 +148,7 @@ check(
 
 const multiGrid = stage.resolveStageWithVision(
   "P1 特别战线",
-  "VEC-C 全力以赴",
+  "矢量突破#3 拟生态",
   "",
   {
     gridColumns: 4,
@@ -158,7 +158,7 @@ const multiGrid = stage.resolveStageWithVision(
       { row: 2, column: 2 },
       { row: 2, column: 3 },
       { row: 3, column: 2 },
-      { row: 3, column: 3 },
+      { row: 3, column: 4 },
     ],
   },
   levels,
@@ -167,7 +167,7 @@ check(
   "多个黄色格全部按行列映射",
   multiGrid.source === "unknown" &&
     multiGrid.gridCandidates?.map((candidate) => candidate.displayCode).join(",") ===
-      "VEC-SP02,VEC-SP05,VEC-SP06,VEC-SP07,VEC-SP10,VEC-SP11",
+      "VEC-SP02,VEC-SP05,VEC-SP06,VEC-SP07,VEC-SP10,VEC-SP12",
   multiGrid.gridCandidates?.map((candidate) => candidate.displayCode).join(","),
 );
 check("多黄格无法唯一确定当前关时不猜测", /无法唯一定位当前关/.test(multiGrid.note ?? ""), multiGrid.note);
@@ -178,7 +178,7 @@ check(
 
 const currentCellWins = stage.resolveStageWithVision(
   "P1 特别战线",
-  "VEC-C 全力以赴",
+  "矢量突破#3 拟生态",
   "",
   {
     gridPosition: 3,
@@ -191,14 +191,14 @@ const currentCellWins = stage.resolveStageWithVision(
   levels,
 );
 check(
-  "显式当前格优先于多黄格列表",
+  "当前高亮格优先于多黄格列表用于当前关",
   currentCellWins.source === "grid" && currentCellWins.displayCode === "VEC-SP03",
   `${currentCellWins.source}/${currentCellWins.displayCode}`,
 );
 
 const hintName = stage.resolveStageWithVision(
   "P1 特别战线",
-  "VEC-C 全力以赴",
+  "矢量突破#3 拟生态",
   "",
   { matchedName: "投资回报" },
   levels,
@@ -207,6 +207,86 @@ check(
   "画面 OCR 通名可反查",
   hintName.source === "level_name" && hintName.displayCode === "VEC-SP07",
   `${hintName.source}/${hintName.displayCode}`,
+);
+
+// ---------- P1 派遣格识别与 P2 当前关并行 ----------
+const p1Vision = {
+  explicitCode: "VEC-C",
+  gridColumns: 4,
+  gridCells: [
+    { row: 1, column: 2 },
+    { row: 2, column: 1 },
+    { row: 2, column: 2 },
+    { row: 2, column: 3 },
+    { row: 3, column: 2 },
+    { row: 3, column: 4 },
+  ],
+};
+const p2Target = stage.resolveStageWithVision(
+  "P2 当前关",
+  "【全力以赴】VEC-C",
+  "",
+  p1Vision,
+  levels,
+);
+check(
+  "P2 显式 VEC-C 保持为目标关",
+  p2Target.source === "text_code" && p2Target.displayCode === "VEC-C",
+  `${p2Target.source}/${p2Target.displayCode}`,
+);
+
+const p1Grid = stage.resolveDispatchGridFromVision(
+  "P1 特别战线",
+  "【全力以赴】VEC-C",
+  "",
+  p1Vision,
+  levels,
+);
+check(
+  "P1 六个黄色格独立映射为 SP 候选",
+  p1Grid.candidates.map((candidate) => candidate.displayCode).join(",") ===
+    "VEC-SP02,VEC-SP05,VEC-SP06,VEC-SP07,VEC-SP10,VEC-SP12",
+  p1Grid.candidates.map((candidate) => candidate.displayCode).join(","),
+);
+
+const p1PositionGrid = stage.resolveDispatchGridFromVision(
+  "P1 特别战线",
+  "【全力以赴】VEC-C",
+  "",
+  {
+    explicitCode: "VEC-C",
+    gridCells: [
+      { position: 2 },
+      { position: 5 },
+      { position: 6 },
+      { position: 7 },
+      { position: 10 },
+      { position: 12 },
+    ],
+  },
+  levels,
+);
+check(
+  "P1 直接位置不会按黄格数量重排",
+  p1PositionGrid.candidates.map((candidate) => candidate.displayCode).join(",") ===
+    "VEC-SP02,VEC-SP05,VEC-SP06,VEC-SP07,VEC-SP10,VEC-SP12",
+  p1PositionGrid.candidates.map((candidate) => candidate.displayCode).join(","),
+);
+
+const p1GeometryWins = stage.resolveDispatchGridFromVision(
+  "P1 特别战线",
+  "【全力以赴】VEC-C",
+  "",
+  {
+    explicitCode: "VEC-C",
+    gridCells: [{ position: 1, row: 1, column: 2, columns: 4 }],
+  },
+  levels,
+);
+check(
+  "P1 行列坐标优先于被重排的 position",
+  p1GeometryWins.candidates[0]?.displayCode === "VEC-SP02",
+  p1GeometryWins.candidates[0]?.displayCode,
 );
 
 // ---------- UI 文案 ----------
@@ -236,6 +316,54 @@ check("多黄格不显示手动切换链接", !ambiguousHtml.includes("这其实
 
 const unknownHtml = stage.renderResult(result, () => false, {}, { stageKind: "unknown" });
 check("无法判断默认目标关并提供小链接", unknownHtml.includes("这其实是派遣关 → 当作派遣关"));
+
+const guideResult = {
+  ...result,
+  dispatchGuides: [{
+    displayCode: "VEC-SP02",
+    stageId: "act3break_sp02",
+    stageName: "校验关卡二",
+    counts: { maa: 1, bili: 1 },
+    schemes: [
+      {
+        source: "maa",
+        sourceLabel: "结构化",
+        displayCode: "VEC-SP02",
+        stageName: "校验关卡二",
+        operators: ["凯尔希"],
+        opers: [{ name: "凯尔希", skill: 3 }],
+        mode: "单人",
+        title: "凯尔希单核",
+        details: "",
+        author: "测试作业",
+        url: "",
+        bvid: "",
+        views: 100,
+        hotScore: 10,
+      },
+      {
+        source: "bili",
+        sourceLabel: "实战视频",
+        displayCode: "VEC-SP02",
+        stageName: "校验关卡二",
+        operators: ["能天使"],
+        opers: [{ name: "能天使" }],
+        mode: "低星",
+        title: "低保实战",
+        details: "",
+        author: "测试UP",
+        url: "https://www.bilibili.com/video/BV1TEST",
+        bvid: "BV1TEST",
+        views: 0,
+        hotScore: 0,
+      },
+    ],
+  }],
+};
+const guideHtml = stage.renderResult(guideResult, () => false);
+check("结果展示 P1 派遣关攻略区", guideHtml.includes("P1 派遣关攻略（按黄色格位置识别）"));
+check("攻略区展示 SP 编号与结构化方案", guideHtml.includes("VEC-SP02") && guideHtml.includes("结构化"));
+check("攻略区展示 B站实战方案与外链", guideHtml.includes("实战视频") && guideHtml.includes("BV1TEST"));
 
 console.log(failures === 0 ? "\n✅ v4.2 缺陷修复验收自测全部通过" : `\n❌ ${failures} 项未通过`);
 process.exit(failures === 0 ? 0 : 1);
