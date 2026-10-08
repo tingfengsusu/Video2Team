@@ -8,7 +8,8 @@
     "build": "node scripts/build.mjs",
     "typecheck": "tsc --noEmit",
     "pack": "node scripts/pack.mjs",
-    "selftest:maa": "node scripts/maa-selftest.mjs"
+    "selftest:maa": "node scripts/maa-selftest.mjs",
+    "selftest:bili": "node scripts/bili-selftest.mjs"
   },
   "devDependencies": {
     "@types/chrome": "^0.2.9",

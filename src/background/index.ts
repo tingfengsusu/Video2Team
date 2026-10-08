@@ -26,6 +26,8 @@ import {
 } from "../shared/llm";
 import { normalizePage, putCachedResult } from "../shared/resultCache";
 import { buildDispatchPool, listDispatchStages, queryCopilots, resolveEventPrefix } from "../shared/maa";
+import { mineStageWithLlm, type BiliScheme } from "../shared/biliDig";
+import { mergePools } from "../shared/dispatchPool";
 import type { AnalysisOutput, Box, Roster, Substitution, TaskState } from "../shared/types";
 
 const TASK_KEY = "task";
@@ -337,6 +339,55 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         maxPages: msg.maxPages,
       });
       sendResponse({ ok: true, pools });
+    })().catch((err: Error) => sendResponse({ ok: false, error: err.message }));
+    return true;
+  }
+  // ---------- §3 B站三级挖掘（补充数据源：实战视频与新打法） ----------
+  if (msg?.type === "BILI_MINE_STAGE") {
+    void (async () => {
+      const opDB = await OperatorDB.load();
+      await loadAliases(); // 标题纠错依赖合并后的别名表
+      const res = await mineStageWithLlm(String(msg.displayCode ?? ""), opDB, {
+        pages: msg.pages,
+        maxPartsVideos: msg.maxPartsVideos,
+        maxDescVideos: msg.maxDescVideos,
+        // useLlm=false 时显式传 null → 只用干员字典兜底（不给 LLM 花钱）
+        ask: msg.useLlm === false ? null : undefined,
+      });
+      sendResponse({ ok: true, ...res });
+    })().catch((err: Error) => sendResponse({ ok: false, error: err.message }));
+    return true;
+  }
+  // ---------- §3 候选池合并：MAA（结构化）+ B站（实战视频） ----------
+  if (msg?.type === "DISPATCH_MINE_MERGE") {
+    void (async () => {
+      const prefix = String(msg.prefix ?? "").trim();
+      const maaPools = await buildDispatchPool(prefix, {
+        perStageLimit: msg.perStageLimit,
+        maxPages: msg.maxPages,
+      });
+      const biliByStage = new Map<string, BiliScheme[]>();
+      const thinThreshold = Math.max(1, Number(msg.thinThreshold) || 3);
+      const maxStages = Math.max(0, Number(msg.maxStages) || 3);
+      if (msg.mineBili !== false && maaPools.length && maxStages > 0) {
+        const opDB = await OperatorDB.load();
+        await loadAliases();
+        // 只对「结构化方案较薄」的关卡做 B站挖掘，控制请求量
+        const targets = maaPools.filter((p) => p.schemes.length < thinThreshold).slice(0, maxStages);
+        for (const pool of targets) {
+          try {
+            const res = await mineStageWithLlm(pool.displayCode, opDB, {
+              pages: 2,
+              maxPartsVideos: 3,
+              maxDescVideos: 5,
+            });
+            if (!res.failed && res.schemes.length) biliByStage.set(pool.displayCode, res.schemes);
+          } catch {
+            /* 单关 B站挖掘失败静默跳过，不影响 MAA 池 */
+          }
+        }
+      }
+      sendResponse({ ok: true, pools: mergePools(maaPools, biliByStage) });
     })().catch((err: Error) => sendResponse({ ok: false, error: err.message }));
     return true;
   }

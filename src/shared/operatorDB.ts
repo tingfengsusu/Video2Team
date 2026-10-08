@@ -102,6 +102,11 @@ export class OperatorDB {
     return this.byName.has(this.resolve(name));
   }
 
+  /** 全部干员全名（供标题/简介的确定性字典匹配使用，见 §3） */
+  names(): string[] {
+    return [...this.byName.keys()];
+  }
+
   /** 属性上下文，供 LLM 推断替代时参考 */
   get(name: string): OperatorInfo | undefined {
     return this.byName.get(this.resolve(name));

@@ -65,13 +65,19 @@ function biliError(status: number): Error {
   );
 }
 
-async function getJson(url: string, params?: Record<string, string | number>): Promise<any> {
+async function getJson(
+  url: string,
+  params?: Record<string, string | number>,
+  opts2: { signed?: boolean } = {},
+): Promise<any> {
   const usp = new URLSearchParams();
   for (const [k, v] of Object.entries(params ?? {})) usp.append(k, String(v));
   const full = params ? `${url}?${usp.toString()}` : url;
+  // wbi 接口（搜索/导航）必须带签名：代理与直连都用签名 URL，避免先发一次裸请求
+  const signedUrl = opts2.signed && params ? `${url}?${await wbiSign(params)}` : null;
 
   // 1) 页面代理（首选）
-  const proxied = await pageProxyFetch(full);
+  const proxied = await pageProxyFetch(signedUrl ?? full);
   if (proxied) {
     if (proxied.status !== 200) throw biliError(proxied.status);
     const j = JSON.parse(proxied.text);
@@ -82,14 +88,15 @@ async function getJson(url: string, params?: Record<string, string | number>): P
   // 2) 回退：SW 直连（412 时升级 wbi 签名）
   const opts = { credentials: "include" as const, headers: { Referer: "https://www.bilibili.com/" } };
   const build = async (withWbi: boolean): Promise<Response> => {
+    if (withWbi && signedUrl) return fetch(signedUrl, opts);
     if (withWbi && params) return fetch(`${url}?${await wbiSign(params)}`, opts);
     return fetch(full, opts);
   };
 
-  let resp = await build(false);
+  let resp = await build(!!signedUrl);
   if (resp.status === 412) {
     await new Promise((r) => setTimeout(r, 900));
-    resp = await build(false);
+    resp = await build(!!signedUrl);
   }
   if (resp.status === 412 && params) {
     resp = await build(true); // 升级 wbi 签名
@@ -180,4 +187,71 @@ export async function fetchDanmaku(cid: number): Promise<Array<{ time: number; t
 /** 构造评论区溯源链接（推荐结果的 evidenceUrl） */
 export function replyUrl(bvid: string, rpid: number): string {
   return `https://www.bilibili.com/video/${bvid}/#reply${rpid}`;
+}
+
+// ---------- 搜索（§3 B站三级挖掘 · 层级①） ----------
+
+/** 去掉搜索结果的 `<em class="keyword">` 高亮标签，并还原 HTML 实体 */
+export function stripHighlight(html: string): string {
+  return String(html ?? "")
+    .replace(/<\/?em[^>]*>/gi, "")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
+}
+
+export interface SearchVideoItem {
+  bvid: string;
+  aid: number;
+  title: string; // 已去 <em> 高亮
+  description: string;
+  author: string;
+  mid: number;
+  play: number;
+  pubdate: number;
+}
+
+/** 视频搜索（wbi 签名；search_type=video）。失败抛错，由调用方降级。 */
+export async function searchVideos(
+  keyword: string,
+  opts: { page?: number; pageSize?: number } = {},
+): Promise<SearchVideoItem[]> {
+  const page = Math.max(1, Math.trunc(opts.page ?? 1));
+  const pageSize = Math.min(50, Math.max(1, Math.trunc(opts.pageSize ?? 20)));
+  const j = await getJson(
+    "https://api.bilibili.com/x/web-interface/wbi/search/type",
+    { search_type: "video", keyword, page, page_size: pageSize },
+    { signed: true },
+  );
+  const result: any[] = Array.isArray(j.data?.result) ? j.data.result : [];
+  return result
+    .filter((r) => r?.bvid && r?.type === "video")
+    .map((r) => ({
+      bvid: String(r.bvid),
+      aid: Number(r.aid) || 0,
+      title: stripHighlight(String(r.title ?? "")),
+      description: stripHighlight(String(r.description ?? r.desc ?? "")),
+      author: String(r.author ?? ""),
+      mid: Number(r.mid) || 0,
+      play: Number(r.play) || 0,
+      pubdate: Number(r.pubdate) || 0,
+    }));
+}
+
+/** 批量拉取视频信息（层级②分P标题 / 层级③简介）；逐个失败静默跳过。 */
+export async function fetchVideoInfos(
+  bvids: string[],
+): Promise<Map<string, VideoInfo>> {
+  const out = new Map<string, VideoInfo>();
+  for (const bvid of bvids) {
+    try {
+      out.set(bvid, await getVideoInfo(bvid));
+    } catch {
+      /* 单条失败不影响整体 */
+    }
+  }
+  return out;
 }
