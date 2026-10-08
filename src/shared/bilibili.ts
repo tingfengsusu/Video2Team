@@ -189,6 +189,29 @@ export function replyUrl(bvid: string, rpid: number): string {
   return `https://www.bilibili.com/video/${bvid}/#reply${rpid}`;
 }
 
+/** 当前登录的B站账号（§5 反馈署名用；只取昵称/UID，不碰任何凭证） */
+export interface BiliAccount {
+  isLogin: boolean;
+  uname: string;
+  uid: number;
+}
+
+/** 读取当前B站登录态（页面代理优先 → SW 直连）。未登录返回 isLogin:false，不抛异常。 */
+export async function fetchBiliAccount(): Promise<BiliAccount> {
+  try {
+    const { base } = target("https://api.bilibili.com/x/web-interface/nav");
+    const j = await getJson(base);
+    const d = j?.data ?? {};
+    return {
+      isLogin: d.isLogin === true,
+      uname: String(d.uname ?? "").trim(),
+      uid: Number(d.mid) || 0,
+    };
+  } catch {
+    return { isLogin: false, uname: "", uid: 0 };
+  }
+}
+
 // ---------- 搜索（§3 B站三级挖掘 · 层级①） ----------
 
 /** 去掉搜索结果的 `<em class="keyword">` 高亮标签，并还原 HTML 实体 */

@@ -309,6 +309,15 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     sendResponse({ ok: true });
     return true;
   }
+  if (msg?.type === "OPEN_FEEDBACK") {
+    // 面板底部「反馈」入口：打开设置页并滚动到反馈区
+    void chrome.storage.session
+      .set({ optionsFocus: "feedback" })
+      .catch(() => {})
+      .finally(() => chrome.runtime.openOptionsPage());
+    sendResponse({ ok: true });
+    return true;
+  }
   // ---------- §2 MAA 作业站（prts.maa.plus）数据源 ----------
   if (msg?.type === "MAA_RESOLVE_EVENT") {
     void (async () => {

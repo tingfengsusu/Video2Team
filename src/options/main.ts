@@ -14,7 +14,18 @@ import {
   type PendingEntry,
 } from "../shared/aliases";
 import { clearResultCache, RESULT_CACHE_KEY, type ResultCache } from "../shared/resultCache";
+import { normalizePage } from "../shared/resultCache";
 import { clearLevelDbCache } from "../shared/maa";
+import { fetchBiliAccount } from "../shared/bilibili";
+import {
+  FEEDBACK_TYPES,
+  buildDiagnostics,
+  buildFeedbackAction,
+  copyToClipboard,
+  type FeedbackSignature,
+} from "../shared/feedback";
+import { FEEDBACK_MID, REPO_ISSUES_URL } from "../shared/constants";
+import type { TaskState } from "../shared/types";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -404,11 +415,128 @@ async function initAliasSection(): Promise<void> {
   await renderPending();
 }
 
+/** §5：当前页面上下文（优先最近任务，其次任一打开的B站视频页） */
+async function feedbackPageContext(): Promise<{ bvid: string; page: number } | null> {
+  try {
+    const { task } = (await chrome.storage.session.get("task")) as { task?: TaskState };
+    if (task?.bvid) return { bvid: task.bvid, page: normalizePage(task.page) };
+  } catch {
+    /* session 不可用则继续 */
+  }
+  try {
+    const tabs = await chrome.tabs.query({ url: "https://www.bilibili.com/video/*" });
+    for (const t of tabs) {
+      const m = (t.url ?? "").match(/\/video\/(BV[0-9A-Za-z]+)/);
+      if (!m) continue;
+      const p = new URL(t.url!).searchParams.get("p");
+      return { bvid: m[1]!, page: normalizePage(p ? parseInt(p, 10) : undefined) };
+    }
+  } catch {
+    /* 忽略 */
+  }
+  return null;
+}
+
+/** §5 反馈：复制全文 + 打开作者B站私信（未配置 UID 时降级为仅复制） */
+async function initFeedbackSection(): Promise<void> {
+  let type: string = FEEDBACK_TYPES[0];
+  const typesEl = $("fbTypes");
+  typesEl.innerHTML = FEEDBACK_TYPES.map(
+    (t) => `<span class="fbType${t === type ? " on" : ""}" data-type="${escapeAttr(t)}">${escapeAttr(t)}</span>`,
+  ).join("");
+  typesEl.addEventListener("click", (e) => {
+    const el = (e.target as HTMLElement).closest(".fbType") as HTMLElement | null;
+    if (!el) return;
+    type = el.getAttribute("data-type") ?? type;
+    for (const s of typesEl.querySelectorAll(".fbType")) s.classList.toggle("on", s === el);
+  });
+
+  let signature: FeedbackSignature | null = null;
+  const account = await fetchBiliAccount();
+  if (account.isLogin && account.uname) {
+    signature = { uname: account.uname, uid: account.uid };
+    ($("fbSignRow") as HTMLElement).style.display = "";
+    $("fbSignInfo").textContent = `已读取B站昵称：${account.uname}（UID ${account.uid}）——不回传任何登录凭证`;
+  } else {
+    $("fbSignInfo").textContent = "未检测到B站登录（或本机还没打开过B站页面）：将不带署名发送";
+  }
+
+  const { llm, box } = (await chrome.storage.local.get(["llm", "box"])) as {
+    llm?: { mode?: string };
+    box?: { operators?: Record<string, unknown> };
+  };
+  let lastError = "";
+  try {
+    const s = (await chrome.storage.session.get("task")) as { task?: TaskState };
+    lastError = s.task?.error ?? "";
+  } catch {
+    /* 忽略 */
+  }
+  ($("fbDiag") as HTMLTextAreaElement).value = buildDiagnostics({
+    version: chrome.runtime.getManifest().version,
+    mode: llm?.mode === "web" ? "网页版" : llm?.mode === "api" ? "API" : "未配置",
+    boxCount: box?.operators ? Object.keys(box.operators).length : 0,
+    page: await feedbackPageContext(),
+    lastError,
+  });
+
+  const status = $("fbStatus");
+  if (!FEEDBACK_MID.trim()) {
+    status.textContent = "作者私信直达未配置（FEEDBACK_MID 为空）—— 主按钮当前为「仅复制」模式";
+  }
+
+  const collect = () => ({
+    type,
+    description: ($("fbDesc") as HTMLTextAreaElement).value,
+    diagnostics: ($("fbDiag") as HTMLTextAreaElement).value,
+    signature: ($("fbSign") as HTMLInputElement).checked ? signature : null,
+  });
+
+  $("fbMain").addEventListener("click", async () => {
+    const action = buildFeedbackAction(collect());
+    const ok = await copyToClipboard(action.text);
+    status.textContent = ok ? action.hint : "复制失败，请手动选中反馈文本";
+    if (action.mode === "copy+dm" && action.dmUrl) {
+      await chrome.tabs.create({ url: action.dmUrl }).catch(() => {});
+    }
+  });
+
+  $("fbCopy").addEventListener("click", async () => {
+    const ok = await copyToClipboard(buildFeedbackAction(collect()).text);
+    status.textContent = ok ? "已复制反馈全文到剪贴板" : "复制失败，请手动选中反馈文本";
+  });
+
+  $("fbIssue").addEventListener("click", () => {
+    const text = buildFeedbackAction(collect()).text;
+    const url =
+      `${REPO_ISSUES_URL}?title=${encodeURIComponent(`[反馈] ${type}`)}&body=${encodeURIComponent(text)}`;
+    window.open(url, "_blank");
+    status.textContent = "已打开 GitHub Issue 预填页（备用出口）";
+  });
+}
+
+/** 面板底部「反馈」入口 → 滚动到设置页反馈区 */
+async function handleOptionsFocus(): Promise<void> {
+  try {
+    const { optionsFocus } = (await chrome.storage.session.get("optionsFocus")) as {
+      optionsFocus?: string;
+    };
+    if (optionsFocus !== "feedback") return;
+    await chrome.storage.session.remove("optionsFocus");
+    document.getElementById("feedback")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    ($("fbDesc") as HTMLTextAreaElement).focus();
+  } catch {
+    /* 忽略 */
+  }
+}
+
 async function init(): Promise<void> {
   await initLlmSection();
   await initBoxSection();
   await initAdvancedSection();
+  await initFeedbackSection();
   await initAliasSection();
+  await handleOptionsFocus();
 }
 
 init();

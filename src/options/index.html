@@ -21,6 +21,11 @@
       .pendingRow button { padding: 4px 10px; font-size: 12px; }
       #llmStatus.ok { color: #1a7f37; }
       #llmStatus.bad { color: #c0392b; }
+      textarea { width: 100%; box-sizing: border-box; padding: 6px; margin-top: 3px;
+                 font-size: 13px; font-family: inherit; }
+      .fbType { display: inline-block; margin: 0 8px 6px 0; padding: 5px 10px; font-size: 12px;
+                border: 1px solid #d0d7de; border-radius: 14px; cursor: pointer; background: #f6f8fa; }
+      .fbType.on { background: #23ade5; color: #fff; border-color: #23ade5; }
     </style>
   </head>
   <body>
@@ -91,6 +96,31 @@
         <button id="clearCache" class="ghost">清空分析缓存</button>
         <span id="cacheStatus" class="note" style="margin-left: 8px"></span>
       </div>
+    </section>
+
+    <section id="feedback">
+      <h2>💬 反馈（直达作者B站私信）</h2>
+      <div id="fbTypes" style="margin: 6px 0 2px"></div>
+      <label>问题描述
+        <textarea id="fbDesc" rows="4" placeholder="遇到什么问题 / 想要什么功能 / 哪个数据源不对？"></textarea>
+      </label>
+      <label id="fbSignRow" style="display: none">
+        <input type="checkbox" id="fbSign" checked />
+        用我的B站昵称署名（只读取昵称/UID，不上传任何登录凭证）
+      </label>
+      <div id="fbSignInfo" class="note"></div>
+      <label>自动诊断信息（预览可编辑）
+        <textarea id="fbDiag" rows="4"></textarea>
+      </label>
+      <div style="margin-top: 8px">
+        <button id="fbMain">📋 复制并打开我的B站私信</button>
+        <button id="fbCopy" class="ghost">复制到剪贴板</button>
+        <button id="fbIssue" class="ghost">GitHub Issue 预填</button>
+      </div>
+      <div id="fbStatus" class="note" style="margin-top: 6px"></div>
+      <p class="note">
+        隐私边界：绝不上传 Cookie / 凭证 / 练度表内容。诊断信息仅在本机生成，由你确认后手动发送。
+      </p>
     </section>
 
     <section>

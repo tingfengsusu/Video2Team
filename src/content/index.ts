@@ -183,6 +183,9 @@ const PANEL_HTML = `
       <button class="act" data-act="paste">提交回复，出结果</button>
     </div>
     <div id="result"></div>
+    <div style="margin-top:10px;border-top:1px solid #eee;padding-top:8px">
+      <button class="link" data-act="feedback" style="border:none;background:none;cursor:pointer;padding:0;font-size:11px;color:#23ade5">💬 反馈 / 建议（直达作者B站私信）</button>
+    </div>
   </div>
 `;
 
@@ -471,6 +474,9 @@ function mount(): void {
   });
   q('[data-act="settings"]').addEventListener("click", () => {
     void chrome.runtime.sendMessage({ type: "OPEN_OPTIONS" });
+  });
+  q('[data-act="feedback"]').addEventListener("click", () => {
+    void chrome.runtime.sendMessage({ type: "OPEN_FEEDBACK" });
   });
   q('[data-act="paste"]').addEventListener("click", () => void submitPaste());
   q('[data-act="pick"]').addEventListener("click", () => q<HTMLInputElement>("input[type=file]").click());
