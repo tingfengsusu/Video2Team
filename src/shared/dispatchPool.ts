@@ -1,12 +1,15 @@
 /**
  * §3 候选池合并：把两个数据源统一成同一种「派遣关候选方案」结构。
  *
- * - MAA 作业站（§2）：`opers[].name` 是游戏标准全名 → 标记「结构化」，可信度最高
- * - B站三级挖掘（§3）：实战视频标题/分P/简介 → 标记「实战视频」，带 bvid 溯源
+ * - MAA 作业站（§2）：`opers[].name` 是游戏标准全名 → 标记「MAA作业」，可信度最高
+ * - B站三级挖掘（§3）：实战视频标题/分P/简介 → 标记「B站视频」，带 bvid 溯源
  *
  * 合并规则（§3 验收「无重复干员方案错乱」）：
- *   同一关卡内，按**干员集合**（排序后）去重，重复时保留 MAA 结构化方案，
- *   避免同一套阵容同时以「结构化」和「实战视频」两条出现两次。
+ *   同一关卡内，按**干员集合**（排序后）去重，重复时保留 MAA 方案，
+ *   避免同一套阵容同时以「MAA作业」和「B站视频」两条出现两次。
+ *
+ * §9.1：标签用「MAA作业 / B站视频」（原「结构化 / 实战」不易理解），计数与悬停说明同源。
+ * §9.2：方案来源可点击 —— MAA → prts.plus 作业详情页，B站 → 视频页（新标签打开）。
  */
 
 import type { BiliScheme } from "./biliDig";
@@ -14,6 +17,44 @@ import { detectMode } from "./biliDig";
 import type { DispatchStagePool, MaaScheme } from "./maa";
 
 export type DispatchSourceKind = "maa" | "bili";
+
+/** 数据源标签（§9.1：原「结构化 / 实战」改为「MAA作业 / B站视频」） */
+export const SOURCE_LABELS: Record<DispatchSourceKind, string> = {
+  maa: "MAA作业",
+  bili: "B站视频",
+};
+
+/** 计数处 title 悬停说明（§9.1） */
+export const SOURCE_TIPS: Record<DispatchSourceKind, string> = {
+  maa: "MAA 作业站（prts.plus）的结构化方案",
+  bili: "B站攻略视频挖掘",
+};
+
+/**
+ * MAA 作业站站点；作业详情路由实测为 `/operation/{id}`
+ * （2026-10-08 验证：旧版 `/copilot/{id}` 在现版本不存在，落 404）。
+ */
+export const MAA_SITE = "https://prts.plus";
+
+/** 作业详情页链接（无 id 时退回作业站首页）。 */
+export function maaOperationUrl(copilotId?: number): string {
+  const id = Math.trunc(Number(copilotId) || 0);
+  return id > 0 ? `${MAA_SITE}/operation/${id}` : `${MAA_SITE}/`;
+}
+
+/**
+ * 该关作业列表页（§9.2）：prts.plus **不支持按关直链**（筛选状态存本地，`?levelKeyword=` 不生效，已实测），
+ * 因此链接到作业站首页，由页面「关卡」筛选/搜索框输入显示码定位该关。
+ */
+export function maaLevelUrl(): string {
+  return `${MAA_SITE}/`;
+}
+
+/** B站视频页链接（新标签打开用）。 */
+export function biliVideoUrl(bvid: string): string {
+  const id = String(bvid ?? "").trim();
+  return id ? `https://www.bilibili.com/video/${id}` : "";
+}
 
 export interface PoolOper {
   name: string; // 游戏标准全名
@@ -24,7 +65,7 @@ export interface PoolOper {
 /** 合并后的单条候选方案（跨源统一结构） */
 export interface MergedScheme {
   source: DispatchSourceKind;
-  sourceLabel: string; // 「结构化」/「实战视频」（UI 直接展示）
+  sourceLabel: string; // §9.1：「MAA作业」/「B站视频」（UI 直接展示）
   displayCode: string; // 显示码 VEC-SP07
   stageName: string; // 关卡中文名
   operators: string[]; // 固定干员全名（B站方案为字典校验后的全名）
@@ -38,6 +79,23 @@ export interface MergedScheme {
   copilotId?: number; // 仅 MAA 来源
   views: number;
   hotScore: number;
+}
+
+/** 方案来源链接（§9.2）：MAA → 作业详情页；B站 → 视频页。 */
+export function schemeSourceUrl(scheme: MergedScheme): string {
+  if (scheme.source === "maa") return maaOperationUrl(scheme.copilotId);
+  if (scheme.url && /^https?:\/\//i.test(scheme.url)) return scheme.url;
+  return biliVideoUrl(scheme.bvid);
+}
+
+/** 方案在候选池中的稳定标识（§9.3 勾选态持久化用） */
+export function schemeKeyOf(scheme: MergedScheme): string {
+  if (scheme.source === "maa") {
+    return scheme.copilotId
+      ? `maa:${scheme.copilotId}`
+      : `maa:${operatorSignature(scheme.operators)}`;
+  }
+  return `bili:${scheme.bvid || operatorSignature(scheme.operators)}`;
 }
 
 export interface MergedStagePool {
@@ -70,7 +128,7 @@ function fromMaa(scheme: MaaScheme, pool: DispatchStagePool): MergedScheme {
   const details = [scheme.details, groupsText].filter(Boolean).join(" ｜ ");
   return {
     source: "maa",
-    sourceLabel: "结构化",
+    sourceLabel: SOURCE_LABELS.maa,
     displayCode: pool.displayCode,
     stageName: pool.stageName,
     operators: opers.map((o) => o.name),
@@ -90,7 +148,7 @@ function fromMaa(scheme: MaaScheme, pool: DispatchStagePool): MergedScheme {
 function fromBili(scheme: BiliScheme, pool: { displayCode: string; stageName: string }): MergedScheme {
   return {
     source: "bili",
-    sourceLabel: "实战视频",
+    sourceLabel: SOURCE_LABELS.bili,
     displayCode: pool.displayCode,
     stageName: pool.stageName,
     operators: [...scheme.operators],
@@ -108,7 +166,7 @@ function fromBili(scheme: BiliScheme, pool: { displayCode: string; stageName: st
 
 /**
  * 合并单关候选池：MAA 优先，B站补充同干员集合之外的新打法。
- * 输出排序：结构化在前（热度和播放量降序），实战视频在后（保持挖掘顺序）。
+ * 输出排序：MAA作业在前（热度和播放量降序），B站视频在后（保持挖掘顺序）。
  */
 export function mergeStagePool(
   pool: Pick<DispatchStagePool, "displayCode" | "stageId" | "stageName" | "schemes">,
@@ -129,7 +187,7 @@ export function mergeStagePool(
   }
   for (const s of biliSchemes) {
     const key = operatorSignature(s.operators);
-    if (!key || seen.has(key)) continue; // 与结构化重复的实战方案不再重复展示
+    if (!key || seen.has(key)) continue; // 与 MAA 作业重复的实战方案不再重复展示
     seen.add(key);
     merged.push(fromBili(s, pool));
   }

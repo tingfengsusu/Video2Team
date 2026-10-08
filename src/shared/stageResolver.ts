@@ -34,6 +34,33 @@ function normalizeName(text: string): string {
     .replace(/[\s·・:：,，.。/\\()[\]【】<>《》_-]+/g, "");
 }
 
+/**
+ * §9.6 界面标题/栏目名等「不是关卡名」的文案：OCR 易把页面标题当成格内通名
+ * （实测「特别战线」被当成通名 → 误报「通名与位置推算不一致」）。
+ * 命中即视为没读到通名（留空），位置规则正常生效、不再误报冲突。
+ */
+const UI_TEXT_PATTERNS: RegExp[] = [
+  /特别战线/,
+  /矢量突破/,
+  /核心突破/,
+  /选择关卡/,
+  /请选择/,
+  /^关卡/,
+  /^作战$/,
+  /^活动关卡$/,
+  /^主线/,
+  /^派遣/,
+  /^驻防/,
+];
+// 已按 MAA 关卡库（2367 个关卡名）核对：以上模式不命中任何真实关卡名
+// （曾考虑 /^集火/，但存在真实关卡「集火-1」，故不纳入）。
+
+function sanitizeStageName(raw: string | undefined): string {
+  const name = normalizeText(raw ?? "");
+  if (!name) return "";
+  return UI_TEXT_PATTERNS.some((re) => re.test(name)) ? "" : name;
+}
+
 function activityRank(stageId: string): number {
   const m = /^act(\d+)/i.exec(stageId);
   return m ? Number(m[1]) || 0 : 0;
@@ -192,7 +219,7 @@ function normalizeGridCell(
     position,
     row: Number.isInteger(row) && row > 0 ? row : undefined,
     column: Number.isInteger(column) && column > 0 ? column : undefined,
-    name: normalizeText(cell.name ?? "") || undefined,
+    name: sanitizeStageName(cell.name) || undefined,
   };
 }
 
@@ -227,7 +254,7 @@ function collectDispatchGridHints(vision: StageVisionHints): NormalizedGridHint[
     position,
     row: Number(vision.gridRow) || undefined,
     column: Number(vision.gridColumn) || undefined,
-    name: normalizeText(vision.gridName ?? "") || undefined,
+    name: sanitizeStageName(vision.gridName) || undefined,
   }];
 }
 
@@ -238,7 +265,7 @@ function collectCurrentGridHints(vision: StageVisionHints): NormalizedGridHint[]
       position,
       row: Number(vision.gridRow) || undefined,
       column: Number(vision.gridColumn) || undefined,
-      name: normalizeText(vision.gridName ?? "") || undefined,
+      name: sanitizeStageName(vision.gridName) || undefined,
     }];
   }
   return collectGridCellHints(vision);
@@ -370,7 +397,7 @@ export function resolveStageWithVision(
       : { source: "text_code", displayCode: hintedCode };
   }
 
-  const hintedName = vision?.matchedName?.trim() ?? "";
+  const hintedName = sanitizeStageName(vision?.matchedName);
   if (hintedName) {
     const level = exactLevelByName(levels, hintedName);
     if (level) return resolutionFromLevel(level, "level_name");
@@ -382,7 +409,7 @@ export function resolveStageWithVision(
     return {
       source: "unknown",
       gridPosition: position,
-      gridName: vision?.gridName,
+      gridName: sanitizeStageName(vision?.gridName) || undefined,
       note: "截图像是特别战线网格，但未能确定所属活动，请核实关卡编号",
     };
   }
@@ -403,7 +430,7 @@ export function resolveStageWithVision(
     return {
       source: "unknown",
       gridPosition: position,
-      gridName: vision?.gridName,
+      gridName: sanitizeStageName(vision?.gridName) || undefined,
       note: "截图像是特别战线网格，但未能确定所属活动，请核实关卡编号",
     };
   }
@@ -420,7 +447,7 @@ export function resolveStageWithVision(
     return {
       source: "grid",
       gridPosition: position ?? invalidPositions[0],
-      gridName: vision?.gridName,
+      gridName: sanitizeStageName(vision?.gridName) || undefined,
       needsVerification: true,
       note: `截图网格位置 ${invalidPositions.join("、")} 超出该活动的派遣关范围，请核实`,
     };

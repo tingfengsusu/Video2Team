@@ -10,6 +10,12 @@
 import type { AnalysisOutput, Box, LockedOps, TaskState } from "../shared/types";
 import { esc, renderResult, renderLockedSection, type HasOp } from "../shared/render";
 import {
+  loadPicks,
+  togglePick,
+  type DispatchPicks,
+} from "../shared/dispatchPicks";
+import { schemeKeyOf } from "../shared/dispatchPool";
+import {
   getStageKindOverrides,
   isAmbiguousStageResolution,
   resolveStageKind,
@@ -159,6 +165,9 @@ const STYLE = `
   .sub-line { display: block; line-height: 1.7; }
   .own { color: #1a7f37; font-weight: 700; }
   .miss { color: #c0392b; font-weight: 700; }
+  /* §9.3 被占用：灰色 + 删除线（+ 🔒 徽章） */
+  .occupied { color: #999; text-decoration: line-through; }
+  .pickbox { cursor: pointer; margin: 2px 0 0; }
   .quote { color: #999; }
   .dim { color: #888; font-size: 12px; }
   .err { font-size: 13px; color: #c0392b; }
@@ -288,10 +297,13 @@ function setWebUi(status: string | undefined): void {
 // ---------- 占用清单（派遣锁定，矢量突破类活动） ----------
 
 let lockedOps: LockedOps = {};
+/** §9.3 候选池勾选态（关卡显示码 → 已勾选方案） */
+let dispatchPicks: DispatchPicks = {};
 
 async function loadLocks(): Promise<void> {
   const { lockedOps: lo } = (await chrome.storage.local.get("lockedOps")) as { lockedOps?: LockedOps };
   lockedOps = lo ?? {};
+  dispatchPicks = await loadPicks();
   renderLocks();
 }
 
@@ -316,6 +328,7 @@ function showResult(result: AnalysisOutput): void {
     stageKind: stageKind.kind,
     allowDispatchSwitch: stageKind.kind === "unknown" && !ambiguousDispatch,
     ambiguousDispatch,
+    picks: dispatchPicks,
   });
 
   const switchLink = shadow?.querySelector<HTMLAnchorElement>('[data-act="mark-dispatch"]');
@@ -344,6 +357,35 @@ function showResult(result: AnalysisOutput): void {
     (btn as HTMLButtonElement).disabled = true;
   });
   q("#result").appendChild(btn);
+}
+
+/**
+ * §9.3 候选池勾选：勾选即占用（同关自动换选），立即重渲染下方结果，不重新分析。
+ * 取消勾选 → 移出占用清单 → 颜色立即恢复。
+ */
+async function onPickChange(input: HTMLInputElement): Promise<void> {
+  if (!currentResult) return;
+  const stageCode = input.getAttribute("data-stage") ?? "";
+  const key = input.getAttribute("data-scheme") ?? "";
+  const pool = (currentResult.dispatchGuides ?? []).find(
+    (p) => p.displayCode.toUpperCase() === stageCode.toUpperCase(),
+  );
+  const scheme = pool?.schemes.find((s) => schemeKeyOf(s) === key);
+  if (!pool || !scheme) return;
+  const outcome = togglePick(lockedOps, dispatchPicks, {
+    stageCode: pool.displayCode,
+    stageName: pool.stageName,
+    key,
+    ops: scheme.operators,
+  });
+  lockedOps = outcome.lockedOps;
+  dispatchPicks = outcome.picks;
+  await chrome.storage.local.set({ lockedOps, dispatchPicks });
+  renderLocks();
+  q("#status").textContent = outcome.checked
+    ? `已占用 ${scheme.operators.length} 名干员（${pool.displayCode}）——下方结果已实时置灰`
+    : `已取消 ${pool.displayCode} 的占用`;
+  showResult(currentResult);
 }
 
 function showCachedResult(entry: ResultCacheEntry): void {
@@ -554,7 +596,13 @@ function mount(): void {
   });
   q('[data-act="lockclear"]').addEventListener("click", (e) => {
     e.preventDefault();
-    void chrome.storage.local.set({ lockedOps: {} });
+    // 清单与候选池勾选一起清空（否则勾选态与占用不一致）
+    void chrome.storage.local.set({ lockedOps: {}, dispatchPicks: {} });
+  });
+  // §9.3 候选池勾选（事件委托：#result 每次重渲染后依然有效）
+  q("#result").addEventListener("change", (e) => {
+    const target = e.target as HTMLElement | null;
+    if (target?.matches?.('input[data-pick="1"]')) void onPickChange(target as HTMLInputElement);
   });
   // popup 侧改动截图时同步（互通）
   chrome.storage.onChanged.addListener((changes, area) => {
@@ -562,9 +610,13 @@ function mount(): void {
       images = (changes[IMG_KEY].newValue as string[] | undefined) ?? [];
       renderThumbs();
     }
-    if (area === "local" && changes.lockedOps) {
-      lockedOps = (changes.lockedOps.newValue as LockedOps | undefined) ?? {};
+    if (area === "local" && (changes.lockedOps || changes.dispatchPicks)) {
+      if (changes.lockedOps) lockedOps = (changes.lockedOps.newValue as LockedOps | undefined) ?? {};
+      if (changes.dispatchPicks) {
+        dispatchPicks = (changes.dispatchPicks.newValue as DispatchPicks | undefined) ?? {};
+      }
       renderLocks();
+      if (currentResult) showResult(currentResult); // 勾选/取消 → 结果区实时置灰/恢复
     }
     if (area === "local" && changes.stageKindOverrides) {
       stageKindOverrides = (changes.stageKindOverrides.newValue as StageKindOverrides | undefined) ?? {};

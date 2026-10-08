@@ -10,6 +10,7 @@
  */
 
 import { resolveAlias } from "./aliases";
+import { stripModifiers } from "./nameClean";
 import type { OperatorEntry } from "./types";
 
 export interface OperatorInfo {
@@ -93,9 +94,20 @@ export class OperatorDB {
     return db;
   }
 
-  /** 别名 → 干员全名（未命中返回原名；别名表见 aliases.ts：内置 + 在线 + 本地积累） */
+  /**
+   * 别名 → 干员全名（未命中返回原名；别名表见 aliases.ts：内置 + 在线 + 本地积累）。
+   * §9.5 兜底：原名查不到字典时，剥离练度修饰词（高练/专三/满配/XX级…）再查一次——
+   * 「高练机械师」→「机械师」。清洗命中即正常使用，不会进昵称纠错队列。
+   */
   resolve(name: string): string {
-    return resolveAlias(name);
+    const direct = resolveAlias(name);
+    if (this.byName.has(direct)) return direct;
+    const cleaned = stripModifiers(name);
+    if (cleaned && cleaned !== String(name ?? "").trim()) {
+      const retried = resolveAlias(cleaned);
+      if (this.byName.has(retried)) return retried;
+    }
+    return direct;
   }
 
   exists(name: string): boolean {

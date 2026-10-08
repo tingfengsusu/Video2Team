@@ -4,11 +4,24 @@
  * 着色约定（用户要求，2026-09-13）：**干员名字体颜色** = 是否在你 box：
  * 绿色(.own) = 你有，红色(.miss) = 你没有。背景不做红绿（避免混淆），
  * 状态仅用左侧色条区分（保留/替换/无解）。
- * 派遣占用（矢量突破类活动）：被派遣锁定的干员名后加 🔒 徽章（悬停显示锁在哪个关）。
+ * 派遣占用（矢量突破类活动）：被派遣锁定的干员名 = 灰色 + 删除线 + 🔒 徽章（悬停显示锁在哪个关），
+ * 即「占用清单为空时结果区看不出过滤效果」的实时反馈（§9.3/§9.4）。
  */
 
 import type { AnalysisOutput, LockedOps, RecommendedSlot, Substitution } from "./types";
 import type { StageKind } from "./stageKind";
+import {
+  isLockLabelOfStage,
+  type DispatchPicks,
+} from "./dispatchPicks";
+import {
+  SOURCE_TIPS,
+  maaLevelUrl,
+  schemeKeyOf,
+  schemeSourceUrl,
+  type MergedScheme,
+  type MergedStagePool,
+} from "./dispatchPool";
 
 export function esc(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
@@ -19,15 +32,20 @@ export type HasOp = (name: string) => boolean;
 /** 内联样式（优先级最高，不依赖 CSS 类是否加载/更新） */
 const OWN_STYLE = "color:#1a7f37;font-weight:700";
 const MISS_STYLE = "color:#c0392b;font-weight:700";
+/** 被派遣占用：灰色 + 删除线（§9.3 视觉定义 .occupied） */
+const OCCUPIED_STYLE = "color:#999;text-decoration:line-through";
 
-/** 干员名（按是否持有着色——内联样式，绿=你有 红=你没有；被派遣则加 🔒） */
+/** 干员名（按是否持有着色——内联样式，绿=你有 红=你没有；被派遣则灰+删除线+🔒） */
 function nameSpan(name: string, hasOp: HasOp, lockedOps: LockedOps = {}): string {
-  const owned = hasOp(name);
   const lockStage = lockedOps[name];
-  const badge = lockStage
-    ? `<span class="lockbadge" style="color:#b8860b" title="已派遣：${esc(lockStage)}">🔒</span>`
-    : "";
-  return `<span class="${owned ? "own" : "miss"}" style="${owned ? OWN_STYLE : MISS_STYLE}">${esc(name)}</span>${badge}`;
+  if (lockStage) {
+    return (
+      `<span class="occupied" style="${OCCUPIED_STYLE}">${esc(name)}</span>` +
+      `<span class="lockbadge" style="color:#b8860b" title="已派遣：${esc(lockStage)}">🔒</span>`
+    );
+  }
+  const owned = hasOp(name);
+  return `<span class="${owned ? "own" : "miss"}" style="${owned ? OWN_STYLE : MISS_STYLE}">${esc(name)}</span>`;
 }
 
 function srcLabel(s: Substitution): string {
@@ -83,6 +101,61 @@ export interface ResultRenderOptions {
   stageKind?: StageKind;
   allowDispatchSwitch?: boolean;
   ambiguousDispatch?: boolean;
+  /** §9.3 候选池勾选态（关卡显示码 → 已勾选方案） */
+  picks?: DispatchPicks;
+}
+
+/** 一条候选方案的干员列表（本关自己锁定的干员不置灰——它们是这一关要用的） */
+function renderSchemeOperators(scheme: MergedScheme, hasOp: HasOp, lockedOps: LockedOps, stageCode: string): string {
+  const scopedLocks: LockedOps = {};
+  for (const [name, label] of Object.entries(lockedOps)) {
+    if (!isLockLabelOfStage(label, stageCode)) scopedLocks[name] = label;
+  }
+  const items = (scheme.opers.length
+    ? scheme.opers.map((oper) => ({ name: oper.name, skill: oper.skill }))
+    : scheme.operators.map((name) => ({ name, skill: undefined }))
+  )
+    .slice(0, 8)
+    .map(
+      (oper) =>
+        nameSpan(oper.name, hasOp, scopedLocks) +
+        (oper.skill ? `<span class="dim">${oper.skill}技</span>` : ""),
+    );
+  return items.join("、");
+}
+
+/** §9.2 方案来源链接：MAA → 作业详情页；B站 → 视频页（均新标签打开） */
+function renderScheme(
+  scheme: MergedScheme,
+  pool: MergedStagePool,
+  hasOp: HasOp,
+  lockedOps: LockedOps,
+  picked: { key: string } | undefined,
+): string {
+  const key = schemeKeyOf(scheme);
+  const url = schemeSourceUrl(scheme);
+  const unit = scheme.source === "maa" ? "作业" : "视频";
+  const label = url
+    ? `<a href="${esc(url)}" target="_blank" rel="noreferrer" style="color:#0969da;font-weight:700" ` +
+      `title="${esc(`${scheme.sourceLabel} · ${SOURCE_TIPS[scheme.source]}｜打开该${unit}页`)}">${esc(scheme.sourceLabel)}</a>`
+    : `<span style="color:#0969da;font-weight:700" title="${esc(SOURCE_TIPS[scheme.source])}">${esc(scheme.sourceLabel)}</span>`;
+  const openLink = url
+    ? ` <a href="${esc(url)}" target="_blank" rel="noreferrer" class="dim" title="打开${unit}页">${unit}页↗</a>`
+    : "";
+  const mode = scheme.mode ? `<b>${esc(scheme.mode)}</b> ` : "";
+  const title = scheme.title ? `<span class="dim"> ｜ ${esc(scheme.title)}</span>` : "";
+  const author = scheme.author ? `<span class="dim"> · ${esc(scheme.author)}</span>` : "";
+  const box =
+    `<input type="checkbox" class="pickbox" data-pick="1" data-stage="${esc(pool.displayCode)}" ` +
+    `data-scheme="${esc(key)}"${picked?.key === key ? " checked" : ""} ` +
+    `title="勾选＝本关使用这套方案：其干员计入占用清单（同关自动换选），其它结果立即置灰；取消勾选立即恢复">`;
+  return (
+    `<div style="font-size:12px;line-height:1.65;margin-top:3px;display:flex;gap:5px;align-items:baseline">` +
+    `<span style="flex:none">${box}</span>` +
+    `<span style="flex:auto">${label} ${mode}${renderSchemeOperators(scheme, hasOp, lockedOps, pool.displayCode)}` +
+    `${title}${author}${openLink}</span>` +
+    `</div>`
+  );
 }
 
 /** P1 黄色格识别出的派遣关攻略；每关只展示前 3 条，避免面板过长。 */
@@ -90,59 +163,39 @@ export function renderDispatchGuides(
   pools: NonNullable<AnalysisOutput["dispatchGuides"]>,
   hasOp: HasOp,
   lockedOps: LockedOps = {},
-  note?: string,
+  opts: { note?: string; picks?: DispatchPicks } = {},
 ): string {
-  if (pools.length === 0 && !note) return "";
+  const picks = opts.picks ?? {};
+  if (pools.length === 0 && !opts.note) return "";
   const heading =
     `<div style="font-size:13px;font-weight:700;margin:8px 0 4px">` +
     `P1 派遣关攻略（按黄色格位置识别）</div>`;
   const blocks = pools
-    .map((pool) => {
+    .map((pool: MergedStagePool) => {
       const schemes = pool.schemes.slice(0, 3);
+      const picked = picks[pool.displayCode.toUpperCase()];
       const rows = schemes.length
         ? schemes
-            .map((scheme) => {
-              const operNames = (scheme.opers.length
-                ? scheme.opers.map((oper) => ({
-                    name: oper.name,
-                    skill: oper.skill,
-                  }))
-                : scheme.operators.map((name) => ({ name, skill: undefined }))
-              )
-                .slice(0, 8)
-                .map(
-                  (oper) =>
-                    nameSpan(oper.name, hasOp, lockedOps) +
-                    (oper.skill ? `<span class="dim">${oper.skill}技</span>` : ""),
-                )
-                .join("、");
-              const mode = scheme.mode ? `<b>${esc(scheme.mode)}</b> ` : "";
-              const title = scheme.title ? `<span class="dim">${esc(scheme.title)}</span>` : "";
-              const author = scheme.author ? `<span class="dim"> · ${esc(scheme.author)}</span>` : "";
-              const link =
-                scheme.url && /^https?:\/\//i.test(scheme.url)
-                  ? ` <a href="${esc(scheme.url)}" target="_blank" rel="noreferrer">B站源</a>`
-                  : "";
-              return (
-                `<div style="font-size:12px;line-height:1.65;margin-top:3px">` +
-                `<span style="color:#0969da;font-weight:700">${esc(scheme.sourceLabel)}</span> ` +
-                `${mode}${operNames}${title ? ` ｜ ${title}` : ""}${author}${link}</div>`
-              );
-            })
+            .map((scheme) => renderScheme(scheme, pool, hasOp, lockedOps, picked))
             .join("")
         : `<div class="dim" style="font-size:12px;margin-top:3px">MAA / B站暂未找到公开方案</div>`;
       return (
         `<div style="padding:6px 8px;margin:4px 0;background:#fffdf6;border:1px solid #eadfbd;border-radius:5px">` +
-        `<div style="font-size:12px"><b>${esc(pool.displayCode)}</b>` +
+        `<div style="font-size:12px">` +
+        `<b><a href="${esc(maaLevelUrl())}" target="_blank" rel="noreferrer" style="color:#0969da;text-decoration:none" ` +
+        `title="在 MAA 作业站（prts.plus）看该关作业：打开后点「关卡」筛选 ${esc(pool.displayCode)}，或把显示码/通名粘进搜索框">` +
+        `${esc(pool.displayCode)}</a></b>` +
         `<span class="dim">（${esc(pool.stageName || "关卡名待核实")}）</span>` +
-        `<span class="dim" style="float:right">结构化 ${pool.counts.maa} ｜ 实战 ${pool.counts.bili}</span></div>` +
+        `<span class="dim" style="float:right">` +
+        `<span title="${esc(SOURCE_TIPS.maa)}">MAA作业 ${pool.counts.maa}</span> ｜ ` +
+        `<span title="${esc(SOURCE_TIPS.bili)}">B站视频 ${pool.counts.bili}</span></span></div>` +
         rows +
         `</div>`
       );
     })
     .join("");
-  const noteLine = note
-    ? `<div class="hint" style="color:#b8860b">${esc(note)}</div>`
+  const noteLine = opts.note
+    ? `<div class="hint" style="color:#b8860b">${esc(opts.note)}</div>`
     : "";
   return heading + blocks + noteLine;
 }
@@ -175,20 +228,27 @@ export function renderResult(
   const resolutionNote = out.stageResolution?.note
     ? `<div class="hint" style="color:#b8860b">关卡识别：${esc(out.stageResolution.note)}</div>`
     : "";
-  const dispatchGuides = renderDispatchGuides(
-    out.dispatchGuides ?? [],
-    hasOp,
-    lockedOps,
-    out.dispatchGuideNote,
-  );
+  // §9.4 空清单引导：推图关结果、占用清单为空、且下方有可勾选的派遣关方案时，
+  // 告诉用户「去候选池勾一下就能立刻看到过滤效果」（无需重新分析）。
+  const hasPickableGuides = (out.dispatchGuides ?? []).some((pool) => pool.schemes.length > 0);
+  const emptyLocksHint =
+    !dispatch && hasPickableGuides && Object.keys(lockedOps).length === 0
+      ? `<div class="hint" style="background:#f3f8ff;border:1px solid #cfe3ff;border-radius:5px;padding:5px 8px;color:#0969da;margin:4px 0">` +
+        `勾选任意派遣关方案后，被占用干员将在此<b>实时置灰</b>（灰色 + 删除线 + 🔒，无需重新分析）</div>`
+      : "";
+  const dispatchGuides = renderDispatchGuides(out.dispatchGuides ?? [], hasOp, lockedOps, {
+    note: out.dispatchGuideNote,
+    picks: options.picks,
+  });
   return (
     `<div class="video-title">${esc(out.videoTitle)}</div>` +
     `<div class="stage">${esc(out.stage)} — ${heading}</div>` +
     `<div class="hint">${stageHint}</div>` +
     switchLine +
     resolutionNote +
+    emptyLocksHint +
     dispatchGuides +
-    `<div class="hint">实战替代建议：${out.substitutions.length} 条｜${statsLine}名字颜色：<span class="own">绿=你有</span>／<span class="miss">红=你没有</span>${Object.keys(lockedOps).length ? "｜🔒=已派遣" : ""}</div>` +
+    `<div class="hint">实战替代建议：${out.substitutions.length} 条｜${statsLine}名字颜色：<span class="own">绿=你有</span>／<span class="miss">红=你没有</span>${Object.keys(lockedOps).length ? "｜🔒=已派遣（灰+删除线）" : ""}</div>` +
     out.recommendations.map((s2) => renderSlot(s2, hasOp, lockedOps)).join("") +
     (s?.unknownNames && s.unknownNames.length
       ? `<div class="slot unresolved">⚠ 有 ${s.unknownNames.length} 个称呼未能识别：${s.unknownNames
@@ -202,7 +262,7 @@ export function renderResult(
 export function renderLockedSection(lockedOps: LockedOps): string {
   const entries = Object.entries(lockedOps);
   if (entries.length === 0) {
-    return `<div class="hint" style="color:#999">清单为空。分析每个派遣关的攻略后，点结果下方「加入占用清单」逐个累加。</div>`;
+    return `<div class="hint" style="color:#999">清单为空。在派遣关候选池里勾选方案即可占用（勾选是主路径，勾完其它结果立即置灰）；也可用结果下方「加入占用清单」手动兜底。</div>`;
   }
   return entries
     .map(

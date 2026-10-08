@@ -149,7 +149,7 @@ function buildMiningPromptText(
     ``,
     `规则：`,
     `- removed：用阵容中的干员全名；弹幕提到的干员若在阵容中只有异格/升变版本（如「星熊」→阵容里的「斩业星熊」），视为同一干员，用阵容中的名字`,
-    `- replacement：替代干员全名（昵称/简称先还原）`,
+    `- replacement：替代干员全名（昵称/简称先还原）；练度修饰词不属于名字，剥离后再还原（「高练机械师」→「机械师」）`,
     `- kind：operator_swap(默认)/skill_swap(换技能或攻速)/position_swap(换部署位置)/manual(改手动)`,
     `- 弹幕口语极简（如「老玛可以替askl」），结合阵容与对照表谨慎判断；不确定就忽略`,
     `- 只提取替代建议；求助、吐槽、讨论练度等一律忽略；evidence 摘录原文`,
@@ -191,13 +191,14 @@ export function buildWebCombinedMessages(
     `{"stageResolution":{"explicitCode":"","matchedName":"","gridPosition":0,"gridRow":0,"gridColumn":0,"gridColumns":0,"gridName":"","gridCells":[{"position":0,"row":0,"column":0,"columns":0,"name":""}],"note":""},"roster":{"operators":[{"name":"","support":false,"isKey":false,"keyReason":""}]},"substitutions":[{"removed":"","replacement":"","kind":"","evidence":"","commentIndex":编号}]}\n` +
     `- stageResolution：只在截图/文字里有关卡识别证据时填写，没有证据时保留空串/0\n` +
     `  · explicitCode：当前关（P2/最后一张阵容图或文字）明确写出的显示码，VEC-C 或 VEC-SPxx 都要填；不要按数字猜\n` +
-    `  · matchedName：当前关读到的中文通名\n` +
+    `  · matchedName：当前关读到的中文通名（只读关卡名文字；「特别战线」这类界面标题不是通名，不要填）\n` +
     `  · gridPosition：仅在 P1 只有一个明确黄色格时填写，按“从上到下、从左到右”从 1 编号\n` +
     `  · 若更易判断，可填 gridRow/gridColumn/gridColumns，由插件换算；gridName 填该格中文通名供交叉校验\n` +
     `  · gridCells：P1 特别战线选择界面（常见为左侧补给/图标网格）中的**全部黄色底格**，即使 P2 已识别出 VEC-C 也必须独立填写；白色、灰色、蓝色或仅边框高亮都不算\n` +
     `  · gridCells.position 是按完整网格从上到下、从左到右的序号，不是“第几个黄色格”；行列也按完整网格计算，上方第一行/左侧第一列为 1，columns 填总列数，并尽量填该格通名\n` +
     `  · 例：四列网格中第一行第二格 position=2，第二行第一格 position=5，第三行第四格 position=12；不要把黄色格重新排成 1、2、3…\n` +
-    `- roster.operators：第一步识别出的全部干员（含助战干员）\n` +
+    `  · 通名 OCR 只读**黄色格内部**的名称文字区域，不读格子外的界面标题/栏目名/按钮文案（「特别战线」「矢量突破」「选择关卡」「作战」等一律不算通名，宁可留空）\n` +
+    `- roster.operators：第一步识别出的全部干员（含助战干员）；name 只取干员名本体，练度修饰词（高练/低练/满练/满配/专三/专二/专一/满潜/满级/精二/精一/模组/XX级 等）剥离后填写\n` +
     `- substitutions：第二步的替代建议；无建议时为空数组 []`;
   const text = [
     `任务：这是一次两步合并分析，请依次完成，最后只输出一个 JSON。`,

@@ -327,7 +327,7 @@ const guideResult = {
     schemes: [
       {
         source: "maa",
-        sourceLabel: "结构化",
+        sourceLabel: "MAA作业",
         displayCode: "VEC-SP02",
         stageName: "校验关卡二",
         operators: ["凯尔希"],
@@ -343,7 +343,7 @@ const guideResult = {
       },
       {
         source: "bili",
-        sourceLabel: "实战视频",
+        sourceLabel: "B站视频",
         displayCode: "VEC-SP02",
         stageName: "校验关卡二",
         operators: ["能天使"],
@@ -362,8 +362,8 @@ const guideResult = {
 };
 const guideHtml = stage.renderResult(guideResult, () => false);
 check("结果展示 P1 派遣关攻略区", guideHtml.includes("P1 派遣关攻略（按黄色格位置识别）"));
-check("攻略区展示 SP 编号与结构化方案", guideHtml.includes("VEC-SP02") && guideHtml.includes("结构化"));
-check("攻略区展示 B站实战方案与外链", guideHtml.includes("实战视频") && guideHtml.includes("BV1TEST"));
+check("攻略区展示 SP 编号与 MAA 作业方案", guideHtml.includes("VEC-SP02") && guideHtml.includes("MAA作业"));
+check("攻略区展示 B站视频方案与外链", guideHtml.includes("B站视频") && guideHtml.includes("BV1TEST"));
 
 console.log(failures === 0 ? "\n✅ v4.2 缺陷修复验收自测全部通过" : `\n❌ ${failures} 项未通过`);
 process.exit(failures === 0 ? 0 : 1);

@@ -135,20 +135,20 @@ const maaPool = {
 };
 const merged = pool.mergeStagePool(maaPool, biliSchemes);
 check(
-  "跨源合并去重（凯尔希只保留结构化一条）",
+  "跨源合并去重（凯尔希只保留 MAA作业一条）",
   merged.schemes.length === 2 && merged.schemes.filter((s) => s.operators.join("+") === "凯尔希").length === 1,
   merged.schemes.map((s) => `${s.source}:${s.operators.join("+")}`).join(" / "),
 );
 check(
-  "MAA 方案标记「结构化」且带技能",
+  "MAA 方案标记「MAA作业」且带技能",
   merged.schemes[0].source === "maa" &&
-    merged.schemes[0].sourceLabel === "结构化" &&
+    merged.schemes[0].sourceLabel === "MAA作业" &&
     merged.schemes[0].opers[0].skill === 3,
 );
 check(
-  "B站补充方案标记「实战视频」且带 bvid",
+  "B站补充方案标记「B站视频」且带 bvid",
   merged.schemes[1].source === "bili" &&
-    merged.schemes[1].sourceLabel === "实战视频" &&
+    merged.schemes[1].sourceLabel === "B站视频" &&
     !!merged.schemes[1].bvid,
 );
 
