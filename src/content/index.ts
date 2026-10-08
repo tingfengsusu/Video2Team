@@ -9,6 +9,14 @@
 
 import type { AnalysisOutput, Box, LockedOps, TaskState } from "../shared/types";
 import { esc, renderResult, renderLockedSection, type HasOp } from "../shared/render";
+import {
+  getStageKindOverrides,
+  isAmbiguousStageResolution,
+  resolveStageKind,
+  setStageKindOverride,
+  shouldShowDispatchAction,
+  type StageKindOverrides,
+} from "../shared/stageKind";
 import { shrinkImage } from "../shared/img";
 import {
   getCachedResult,
@@ -70,6 +78,8 @@ let images: string[] = [];
 /** 默认按「没有」处理（更保守，不会误报拥有）；openPanel 时从 localStorage box 加载真实判断 */
 let hasOp: HasOp = () => false;
 let pollTimer: number | undefined;
+let stageKindOverrides: StageKindOverrides = {};
+let currentResult: AnalysisOutput | null = null;
 
 function taskMatchesCurrent(task: TaskState): boolean {
   const { bvid, page } = parseContext();
@@ -297,9 +307,28 @@ function renderLocks(): void {
   }
 }
 
-/** 渲染结果 + 挂「加入占用清单」按钮（派遣关工作流：逐关分析后一键累加） */
+/** 共享关卡分流：只有派遣关才挂「加入占用清单」按钮。 */
 function showResult(result: AnalysisOutput): void {
-  q("#result").innerHTML = renderResult(result, hasOp, lockedOps);
+  currentResult = result;
+  const stageKind = resolveStageKind(result.stage, result.videoTitle, stageKindOverrides);
+  const ambiguousDispatch = isAmbiguousStageResolution(result.stageResolution);
+  q("#result").innerHTML = renderResult(result, hasOp, lockedOps, {
+    stageKind: stageKind.kind,
+    allowDispatchSwitch: stageKind.kind === "unknown" && !ambiguousDispatch,
+    ambiguousDispatch,
+  });
+
+  const switchLink = shadow?.querySelector<HTMLAnchorElement>('[data-act="mark-dispatch"]');
+  switchLink?.addEventListener("click", (e) => {
+    e.preventDefault();
+    void (async () => {
+      stageKindOverrides = await setStageKindOverride(result.stage, result.videoTitle, "dispatch");
+      showResult(result);
+    })();
+  });
+
+  if (!shouldShowDispatchAction(stageKind.kind, ambiguousDispatch)) return;
+
   const btn = document.createElement("button");
   btn.className = "act ghost";
   btn.textContent = "➕ 本关阵容加入占用清单";
@@ -423,6 +452,7 @@ async function openPanel(): Promise<void> {
   // 先加载 box（local storage，内容脚本恒可访问）——决定红绿着色的 hasOp
   await loadBox();
   await loadLocks();
+  stageKindOverrides = await getStageKindOverrides();
   await renderReadiness();
   images = await readImages();
   renderThumbs();
@@ -535,6 +565,10 @@ function mount(): void {
     if (area === "local" && changes.lockedOps) {
       lockedOps = (changes.lockedOps.newValue as LockedOps | undefined) ?? {};
       renderLocks();
+    }
+    if (area === "local" && changes.stageKindOverrides) {
+      stageKindOverrides = (changes.stageKindOverrides.newValue as StageKindOverrides | undefined) ?? {};
+      if (currentResult) showResult(currentResult);
     }
   });
 

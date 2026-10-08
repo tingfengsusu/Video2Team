@@ -152,11 +152,11 @@ export async function getLevelDb(opts: { force?: boolean } = {}): Promise<MaaLev
   return [];
 }
 
-/** 从 stage_id 提取活动内部前缀：act3break_sp07 → act3break */
+/** 从 stage_id 提取活动内部前缀：act3break_sp07 / act3break_c → act3break */
 export function eventPrefixFromStageId(stageId: string): string {
   const id = stageId.trim().split("#")[0] ?? "";
-  // 去掉末尾的 `_sp07` / `_ex02` / `_h03` / `_12` 之类的关卡后缀
-  const m = /^(.*?)_([a-z]{0,3}\d+)$/i.exec(id);
+  // 去掉末尾的 `_sp07` / `_c` / `_ex02` / `_h03` / `_12` 之类的关卡后缀
+  const m = /^(.*?)_([a-z]*\d*)$/i.exec(id);
   return (m?.[1] ?? id).toLowerCase();
 }
 
@@ -196,9 +196,14 @@ export async function resolveEventPrefix(
  * 派遣关 = stage_id 形如 `{prefix}_spXX`。
  */
 export async function listDispatchStages(eventPrefix: string): Promise<MaaLevel[]> {
+  const levels = await getLevelDb();
+  return listDispatchStagesFromLevels(levels, eventPrefix);
+}
+
+/** listDispatchStages 的纯函数版本，便于离线测试与复用已拉取的关卡库。 */
+export function listDispatchStagesFromLevels(levels: readonly MaaLevel[], eventPrefix: string): MaaLevel[] {
   const prefix = eventPrefix.trim().toLowerCase();
   if (!prefix) return [];
-  const levels = await getLevelDb();
   return levels
     .filter((l) => {
       const p = eventPrefixFromStageId(l.stageId);

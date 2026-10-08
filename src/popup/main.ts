@@ -6,6 +6,14 @@
 
 import type { AnalysisOutput, Box, LockedOps, TaskState } from "../shared/types";
 import { esc, renderResult, renderLockedSection, type HasOp } from "../shared/render";
+import {
+  getStageKindOverrides,
+  isAmbiguousStageResolution,
+  resolveStageKind,
+  setStageKindOverride,
+  shouldShowDispatchAction,
+  type StageKindOverrides,
+} from "../shared/stageKind";
 import { shrinkImage } from "../shared/img";
 import {
   getCachedResult,
@@ -29,6 +37,8 @@ let pollTimer: number | undefined;
 let hasOp: HasOp = () => false;
 let llmReady = false;
 let lockedOps: LockedOps = {};
+let stageKindOverrides: StageKindOverrides = {};
+let currentResult: AnalysisOutput | null = null;
 
 function taskMatchesCurrent(task: TaskState): boolean {
   return (
@@ -205,9 +215,28 @@ function renderLocks(): void {
   $("lockCount").textContent = n ? `（${n} 人）` : "";
 }
 
-/** 渲染结果 + 挂「加入占用清单」按钮（派遣关工作流：逐关分析后一键累加） */
+/** 共享关卡分流：只有派遣关才挂「加入占用清单」按钮。 */
 function showResult(result: AnalysisOutput): void {
-  $("result").innerHTML = renderResult(result, hasOp, lockedOps);
+  currentResult = result;
+  const stageKind = resolveStageKind(result.stage, result.videoTitle, stageKindOverrides);
+  const ambiguousDispatch = isAmbiguousStageResolution(result.stageResolution);
+  $("result").innerHTML = renderResult(result, hasOp, lockedOps, {
+    stageKind: stageKind.kind,
+    allowDispatchSwitch: stageKind.kind === "unknown" && !ambiguousDispatch,
+    ambiguousDispatch,
+  });
+
+  const switchLink = $("result").querySelector<HTMLAnchorElement>('[data-act="mark-dispatch"]');
+  switchLink?.addEventListener("click", (e) => {
+    e.preventDefault();
+    void (async () => {
+      stageKindOverrides = await setStageKindOverride(result.stage, result.videoTitle, "dispatch");
+      showResult(result);
+    })();
+  });
+
+  if (!shouldShowDispatchAction(stageKind.kind, ambiguousDispatch)) return;
+
   const btn = document.createElement("button");
   btn.className = "act ghost";
   btn.style.cssText = "margin:4px 0;padding:7px 12px;font-size:13px;border-radius:6px;background:#f0f3f5;color:#333;border:1px solid #d0d7de;cursor:pointer";
@@ -362,6 +391,7 @@ async function restoreState(): Promise<void> {
 async function init(): Promise<void> {
   await renderChecklist();
   await loadLocks();
+  stageKindOverrides = await getStageKindOverrides();
   wireImageInputs();
   $("analyzeBtn").addEventListener("click", triggerAnalyze);
   $("pasteSubmit").addEventListener("click", () => void submitPaste());
@@ -385,6 +415,10 @@ async function init(): Promise<void> {
     if (area === "local" && changes.lockedOps) {
       lockedOps = (changes.lockedOps.newValue as LockedOps | undefined) ?? {};
       renderLocks();
+    }
+    if (area === "local" && changes.stageKindOverrides) {
+      stageKindOverrides = (changes.stageKindOverrides.newValue as StageKindOverrides | undefined) ?? {};
+      if (currentResult) showResult(currentResult);
     }
   });
   $("openOptions").addEventListener("click", (e) => {

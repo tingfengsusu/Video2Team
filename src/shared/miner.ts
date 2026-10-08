@@ -188,7 +188,13 @@ export function buildWebCombinedMessages(
   const candidates = buildCandidates(comments, danmaku, caps);
   const outputSchema =
     `【最终输出】仅输出一个 JSON：\n` +
-    `{"roster":{"operators":[{"name":"","support":false,"isKey":false,"keyReason":""}]},"substitutions":[{"removed":"","replacement":"","kind":"","evidence":"","commentIndex":编号}]}\n` +
+    `{"stageResolution":{"explicitCode":"","matchedName":"","gridPosition":0,"gridRow":0,"gridColumn":0,"gridColumns":0,"gridName":"","gridCells":[{"row":0,"column":0,"columns":0,"name":""}],"note":""},"roster":{"operators":[{"name":"","support":false,"isKey":false,"keyReason":""}]},"substitutions":[{"removed":"","replacement":"","kind":"","evidence":"","commentIndex":编号}]}\n` +
+    `- stageResolution：只在截图/文字里有关卡识别证据时填写，没有证据时保留空串/0\n` +
+    `  · explicitCode：明确写出的 VEC-SPxx；不要按数字猜\n` +
+    `  · matchedName：读到的关卡通名\n` +
+    `  · gridPosition：特别战线选择界面中当前/唯一高亮格按“从上到下、从左到右”从 1 编号的位置\n` +
+    `  · 若更易判断，可填 gridRow/gridColumn/gridColumns，由插件换算；gridName 填该格中文通名供交叉校验\n` +
+    `  · gridCells：选择界面出现多个黄色/启用格时全部列出；行列按完整网格计算，上方第一行/左侧第一列为 1，并填该格通名\n` +
     `- roster.operators：第一步识别出的全部干员（含助战干员）\n` +
     `- substitutions：第二步的替代建议；无建议时为空数组 []`;
   const text = [

@@ -97,6 +97,55 @@ export interface RecommendedSlot {
   lockedFrom?: string; // 原干员被派遣占用时的关卡标签（推图关需替换）
 }
 
+/** 派遣关编号的识别来源：文本显式码 → 关卡库通名 → 截图网格位置。 */
+export type StageResolutionSource = "text_code" | "level_name" | "grid" | "unknown";
+
+/** 截图中的关卡识别提示（由多模态模型仅凭画面证据输出）。 */
+export interface StageGridCellHint {
+  position?: number; // 直接给出阅读顺序位置时使用
+  row?: number; // 完整网格中的行（1-based）
+  column?: number; // 完整网格中的列（1-based）
+  columns?: number; // 完整网格总列数
+  name?: string; // 该格中文通名
+}
+
+export interface StageVisionHints {
+  explicitCode?: string; // 画面中明确写出的 VEC-SPxx
+  matchedName?: string; // 画面中读到的关卡通名
+  gridPosition?: number; // 选择界面网格阅读顺序位置（1-based）
+  gridRow?: number; // 网格行（1-based）
+  gridColumn?: number; // 网格列（1-based）
+  gridColumns?: number; // 网格总列数，用于由行列换算阅读顺序位置
+  gridName?: string; // 对应格子里的中文通名
+  gridCells?: StageGridCellHint[]; // 黄色/启用格；可一次返回多关
+  note?: string;
+}
+
+/** 截图中的单个格子按位置推算出的派遣关。 */
+export interface StageGridCandidate {
+  gridPosition: number;
+  gridRow?: number;
+  gridColumn?: number;
+  gridName?: string;
+  displayCode: string;
+  stageId: string;
+  stageName: string;
+  needsVerification?: boolean;
+}
+
+/** 一次分析最终采用的派遣关解析结果。 */
+export interface StageResolution {
+  source: StageResolutionSource;
+  displayCode?: string; // VEC-SP07
+  stageId?: string; // act3break_sp07
+  stageName?: string; // 投资回报
+  gridPosition?: number;
+  gridName?: string;
+  gridCandidates?: StageGridCandidate[]; // 多黄格截图的全部位置映射
+  needsVerification?: boolean; // 网格通名与位置推算不一致
+  note?: string;
+}
+
 /** 单个视频（=单个关卡）的完整分析结果 */
 export interface StageResult {
   roster: Roster;
@@ -109,6 +158,9 @@ export interface AnalysisOutput extends StageResult {
   videoTitle: string;
   stage: string;
   bvid: string;
+  stageCode?: string; // 已解析的显示码，如 VEC-SP07
+  stageName?: string; // 已解析的关卡通名
+  stageResolution?: StageResolution;
   stats?: {
     danmakuTotal: number; // 抓取到的弹幕总数（XML 接口返回）
     commentCandidates: number; // 进入候选池的评论数

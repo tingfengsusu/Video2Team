@@ -28,7 +28,15 @@ import { normalizePage, putCachedResult } from "../shared/resultCache";
 import { buildDispatchPool, listDispatchStages, queryCopilots, resolveEventPrefix } from "../shared/maa";
 import { mineStageWithLlm, type BiliScheme } from "../shared/biliDig";
 import { mergePools } from "../shared/dispatchPool";
-import type { AnalysisOutput, Box, Roster, Substitution, TaskState } from "../shared/types";
+import { formatStageResolution, resolveStageForAnalysis } from "../shared/stageResolver";
+import type {
+  AnalysisOutput,
+  Box,
+  Roster,
+  StageVisionHints,
+  Substitution,
+  TaskState,
+} from "../shared/types";
 
 const TASK_KEY = "task";
 
@@ -142,7 +150,12 @@ async function analyzeVideo(
   const box = await getBox();
   const opDB = await OperatorDB.load();
   await loadAliases(); // 别名三层：内置 + 在线 + 本地积累
-  const meta = await locateStage(bvid, page);
+  let meta = await locateStage(bvid, page);
+  const sourceStage = meta.stage;
+  let stageResolution = (
+    await resolveStageForAnalysis(sourceStage, meta.video.title, meta.video.desc)
+  ).resolution;
+  meta = { ...meta, stage: formatStageResolution(stageResolution, sourceStage) };
   const { caps, autoRead } = await getAdvanced();
 
   await setTask({ ...taskBase, status: "running", startedAt, stage: meta.stage, progress: "抓取弹幕/评论…" });
@@ -239,10 +252,22 @@ async function analyzeVideo(
     stage: meta.stage,
     progress: "解析回复并匹配你的 box…",
   });
-  const parsed = parseJsonLoose<{ roster?: unknown; substitutions?: unknown }>(finalText);
+  const parsed = parseJsonLoose<{
+    stageResolution?: StageVisionHints;
+    roster?: unknown;
+    substitutions?: unknown;
+  }>(finalText);
   if (!parsed.roster || typeof parsed.roster !== "object") {
     throw new Error("回复里缺少 roster 字段：请确认模型输出的是完整 JSON（含 roster 与 substitutions）");
   }
+  const visionResolution = await resolveStageForAnalysis(
+    sourceStage,
+    meta.video.title,
+    meta.video.desc,
+    parsed.stageResolution,
+  );
+  stageResolution = visionResolution.resolution;
+  meta = { ...meta, stage: visionResolution.displayStage };
   const unknownNames: string[] = [];
   const onUnknown = (n: string): void => {
     const t = n.trim();
@@ -267,7 +292,18 @@ async function analyzeVideo(
     danmakuCandidates: candidates.filter((c) => c.source === "danmaku").length,
     unknownNames,
   };
-  return { roster, substitutions, recommendations, videoTitle: meta.video.title, stage: meta.stage, bvid, stats };
+  return {
+    roster,
+    substitutions,
+    recommendations,
+    videoTitle: meta.video.title,
+    stage: meta.stage,
+    bvid,
+    stageCode: stageResolution.displayCode,
+    stageName: stageResolution.stageName,
+    stageResolution,
+    stats,
+  };
 }
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {

@@ -10,7 +10,8 @@
     "pack": "node scripts/pack.mjs",
     "selftest:maa": "node scripts/maa-selftest.mjs",
     "selftest:bili": "node scripts/bili-selftest.mjs",
-    "selftest:feedback": "node scripts/feedback-selftest.mjs"
+    "selftest:feedback": "node scripts/feedback-selftest.mjs",
+    "selftest:stage": "node scripts/stage-selftest.mjs"
   },
   "devDependencies": {
     "@types/chrome": "^0.2.9",

@@ -8,6 +8,7 @@
  */
 
 import type { AnalysisOutput, LockedOps, RecommendedSlot, Substitution } from "./types";
+import type { StageKind } from "./stageKind";
 
 export function esc(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
@@ -78,14 +79,46 @@ export function renderSlot(slot: RecommendedSlot, hasOp: HasOp, lockedOps: Locke
   );
 }
 
-export function renderResult(out: AnalysisOutput, hasOp: HasOp, lockedOps: LockedOps = {}): string {
+export interface ResultRenderOptions {
+  stageKind?: StageKind;
+  allowDispatchSwitch?: boolean;
+  ambiguousDispatch?: boolean;
+}
+
+export function renderResult(
+  out: AnalysisOutput,
+  hasOp: HasOp,
+  lockedOps: LockedOps = {},
+  options: ResultRenderOptions = {},
+): string {
   const s = out.stats;
+  const stageKind = options.stageKind ?? "unknown";
+  const dispatch = stageKind === "dispatch";
+  const ambiguousDispatch = options.ambiguousDispatch === true;
   const statsLine = s
     ? `抓取弹幕 ${s.danmakuTotal} 条 → 候选池：评论 ${s.commentCandidates} + 弹幕 ${s.danmakuCandidates}｜`
     : "";
+  const heading = dispatch ? "派遣关 · 候选方案" : "适配结果（含占用约束）";
+  const stageHint = ambiguousDispatch
+    ? "截图检测到多个派遣候选格：请先核对关卡编号；未唯一确定当前关前不会写入占用清单。"
+    : dispatch
+      ? "本关结果可加入占用清单；后续推图关会自动避开这些干员。"
+      : "本关为推进关：结果已避开占用清单中的干员。";
+  const allowSwitch = !ambiguousDispatch && (options.allowDispatchSwitch ?? stageKind === "unknown");
+  const switchLine =
+    allowSwitch
+      ? `<div class="hint">关卡类型无法自动判断，当前按推进关处理。` +
+        `<a href="#" data-act="mark-dispatch" class="link">这其实是派遣关 → 当作派遣关</a></div>`
+      : "";
+  const resolutionNote = out.stageResolution?.note
+    ? `<div class="hint" style="color:#b8860b">关卡识别：${esc(out.stageResolution.note)}</div>`
+    : "";
   return (
     `<div class="video-title">${esc(out.videoTitle)}</div>` +
-    `<div class="stage">${esc(out.stage)} 适配结果（阵容来自画面识别）</div>` +
+    `<div class="stage">${esc(out.stage)} — ${heading}</div>` +
+    `<div class="hint">${stageHint}</div>` +
+    switchLine +
+    resolutionNote +
     `<div class="hint">实战替代建议：${out.substitutions.length} 条｜${statsLine}名字颜色：<span class="own">绿=你有</span>／<span class="miss">红=你没有</span>${Object.keys(lockedOps).length ? "｜🔒=已派遣" : ""}</div>` +
     out.recommendations.map((s2) => renderSlot(s2, hasOp, lockedOps)).join("") +
     (s?.unknownNames && s.unknownNames.length
