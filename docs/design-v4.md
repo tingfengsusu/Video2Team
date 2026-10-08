@@ -5,24 +5,30 @@
 
 ---
 
-## 0. 仓库状态与启动指令（新会话先读这里）
-
-- 仓库：`D:\Code\Video2Team`（GitHub: tingfengsusu/Video2Team，分支 main）
-- **stash@{0} 已冻结一项完整实现**：「矢量突破派遣占用功能-实现暂存」（见 §1）
-- 构建命令：`npm run build`（esbuild，秒级）｜类型检查：`npx tsc --noEmit`
-- 共享工作区注意：另有会话可能同时编辑本仓库，动手前先 `git status` + `git pull`；提交前确认暂存区不含他人未完成改动
-
-**新会话启动指令（可直接粘贴）**：
+## 🚀 新会话启动指令（第一件事，直接复制粘贴）
 
 ```
 这是 Video2Team 项目的延续会话（Chrome 扩展：B站明日方舟攻略 → 阵容适配）。
-先读 docs/design-v4.md，然后按其中「§8 实现顺序建议」逐项实现。
-第一步：git stash list 确认 stash@{0} 是「矢量突破派遣占用功能-实现暂存」→ git stash pop 恢复，
-补齐 popup/index.html 缺失的占用清单区块（#locks / #lockCount / #lockClear），
-npx tsc --noEmit && npm run build 通过后提交。
-之后依次实现 §2（MAA作业数据源）、§6（结果缓存+错位修复）、§3（B站三级挖掘）。
-每项完成后按文档的「验收标准」自测。
+先读 docs/design-v4.md（重点：顶部启动指令、§0 仓库状态、§8 实现顺序），
+然后按 §8 的顺序逐项实现。
+
+第一步：git stash list 确认 stash@{0} 是「矢量突破派遣占用功能-实现暂存」
+→ git stash pop 恢复 → 补齐 popup/index.html 缺失的占用清单区块
+（#locks / #lockCount / #lockClear）→ npx tsc --noEmit && npm run build 通过后提交。
+
+之后依次实现 §2（MAA作业数据源）、§6（结果缓存+错位修复）、§3（B站三级挖掘）、
+§5（反馈直达B站私信）、§4（别名编辑器）、§7（点赞致谢）。
+每项完成后按文档中该节的「验收标准」自测。
 ```
+
+---
+
+## 0. 仓库状态与注意事项
+
+- 仓库：`D:\Code\Video2Team`（GitHub: tingfengsusu/Video2Team，分支 main，本文档已推送）
+- **stash@{0} 已冻结一项完整实现**：「矢量突破派遣占用功能-实现暂存」（见 §1）
+- 构建命令：`npm run build`（esbuild，秒级）｜类型检查：`npx tsc --noEmit`
+- 共享工作区注意：另有会话可能同时编辑本仓库，动手前先 `git status` + `git pull`；编辑 core 文件（如 content/index.ts、background/index.ts）前先 `Read` 再改，避免撞车
 
 ---
 
@@ -154,7 +160,10 @@ npx tsc --noEmit && npm run build 通过后提交。
 ```
 
 ### 实现要点
-- 作者 UID 常量：`src/shared/constants.ts` → `FEEDBACK_MID = ""` **（待作者填入自己的B站UID）**
+- ⚠️ **待办（作者填入）**：`src/shared/constants.ts` 新建并写入
+  `export const FEEDBACK_MID = "";  // TODO: 填入你的B站UID（纯数字）`
+  UID 获取方式：打开自己的B站个人空间，URL `space.bilibili.com/12345678` 里的数字即 UID。
+  **未填入时**：主按钮降级为仅「复制到剪贴板」并提示"作者私信直达未配置"。
 - B站账号信息：`/x/web-interface/nav`（页面代理通道）→ 只取 `uname`/`uid`；`isLogin:false` 则不显示署名勾选
 - 隐私边界写入 UI 文案：绝不上传 Cookie / 凭证 / 练度表内容
 
@@ -216,3 +225,10 @@ storage.local.resultCache = {
 
 **阶段总验收**：打开推图关合集视频 → 自动发现派遣关清单 → MAA 源一次拉全候选方案 → 用户每关选定 → 占用清单成型
 → 推图关截图两张（补给 + 阵容）→ 输出避开占用的适配阵容 + 冲突提示 → 对采纳来源一键致谢。
+
+---
+
+## 变更记录
+
+- **v4.1（2026-10-08）**：启动指令提至文档顶部（复制即用）；§5 FEEDBACK_MID 待办醒目标注（含未配置时的降级行为）；设计文档已推送 origin/main（截至 `720a69b`）。
+- **v4.0（2026-10-08）**：七项设计汇总成文（派遣占用 / MAA数据源 / 三级挖掘 / 别名编辑器 / 反馈私信 / 结果缓存 / 点赞致谢）。
