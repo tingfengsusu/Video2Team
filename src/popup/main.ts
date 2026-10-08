@@ -4,8 +4,8 @@
  * - 截图列表同样持久化（storage.session.capturedImages），与视频页内浮动面板互通。
  */
 
-import type { AnalysisOutput, Box, TaskState } from "../shared/types";
-import { esc, renderResult, type HasOp } from "../shared/render";
+import type { AnalysisOutput, Box, LockedOps, TaskState } from "../shared/types";
+import { esc, renderResult, renderLockedSection, type HasOp } from "../shared/render";
 import { shrinkImage } from "../shared/img";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -23,6 +23,7 @@ let currentCtx: PageContext = { bvid: null, page: null, videoPage: false };
 let pollTimer: number | undefined;
 let hasOp: HasOp = () => false;
 let llmReady = false;
+let lockedOps: LockedOps = {};
 
 async function getPageContext(): Promise<PageContext> {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -169,6 +170,43 @@ function setWebUi(status: string | undefined): void {
   ($("pasteBox") as HTMLElement).style.display = status === "web_paste" ? "block" : "none";
 }
 
+// ---------- 占用清单（派遣锁定，矢量突破类活动） ----------
+
+async function loadLocks(): Promise<void> {
+  const { lockedOps: lo } = (await chrome.storage.local.get("lockedOps")) as { lockedOps?: LockedOps };
+  lockedOps = lo ?? {};
+  renderLocks();
+}
+
+function renderLocks(): void {
+  const el = $("locks");
+  if (!el) return;
+  el.innerHTML = renderLockedSection(lockedOps);
+  const n = Object.keys(lockedOps).length;
+  $("lockCount").textContent = n ? `（${n} 人）` : "";
+}
+
+/** 渲染结果 + 挂「加入占用清单」按钮（派遣关工作流：逐关分析后一键累加） */
+function showResult(result: AnalysisOutput): void {
+  $("result").innerHTML = renderResult(result, hasOp, lockedOps);
+  const btn = document.createElement("button");
+  btn.className = "act ghost";
+  btn.style.cssText = "margin:4px 0;padding:7px 12px;font-size:13px;border-radius:6px;background:#f0f3f5;color:#333;border:1px solid #d0d7de;cursor:pointer";
+  btn.textContent = "➕ 本关阵容加入占用清单";
+  btn.addEventListener("click", async () => {
+    const names = result.roster.slots.filter((s) => !s.support).map((s) => s.operator);
+    const { lockedOps: lo } = (await chrome.storage.local.get("lockedOps")) as { lockedOps?: LockedOps };
+    const merged: LockedOps = { ...(lo ?? {}) };
+    for (const n of names) merged[n] = result.stage;
+    await chrome.storage.local.set({ lockedOps: merged });
+    lockedOps = merged;
+    renderLocks();
+    btn.textContent = `已加入占用清单 ✓（${names.length} 人）`;
+    (btn as HTMLButtonElement).disabled = true;
+  });
+  $("result").appendChild(btn);
+}
+
 /** 轮询后台任务状态（popup 关闭重开也能恢复） */
 function pollTask(): void {
   if (pollTimer) window.clearInterval(pollTimer);
@@ -188,7 +226,7 @@ function pollTask(): void {
       pollTimer = undefined;
       setWebUi(undefined);
       $("status").textContent = "";
-      $("result").innerHTML = renderResult(task.result, hasOp);
+      showResult(task.result);
     } else if (task.status === "error") {
       window.clearInterval(pollTimer!);
       pollTimer = undefined;
@@ -255,7 +293,7 @@ async function restoreState(): Promise<void> {
         : task.progress ?? "等待你的操作…";
     pollTask();
   } else if (task?.status === "done" && task.result) {
-    $("result").innerHTML = renderResult(task.result, hasOp);
+    showResult(task.result);
   } else if (task?.status === "error" && task.error) {
     $("status").innerHTML = `<span class="err">${esc(task.error)}</span>`;
   }
@@ -263,9 +301,32 @@ async function restoreState(): Promise<void> {
 
 async function init(): Promise<void> {
   await renderChecklist();
+  await loadLocks();
   wireImageInputs();
   $("analyzeBtn").addEventListener("click", triggerAnalyze);
   $("pasteSubmit").addEventListener("click", () => void submitPaste());
+  // 占用清单：chips 移除 + 清除全部 + 跨入口同步
+  $("locks").addEventListener("click", (e) => {
+    const rm = (e.target as HTMLElement).closest(".rmlock");
+    if (!rm) return;
+    const name = rm.getAttribute("data-name") ?? "";
+    void (async () => {
+      const { lockedOps: lo } = (await chrome.storage.local.get("lockedOps")) as { lockedOps?: LockedOps };
+      const merged: LockedOps = { ...(lo ?? {}) };
+      delete merged[name];
+      await chrome.storage.local.set({ lockedOps: merged });
+    })();
+  });
+  $("lockClear").addEventListener("click", (e) => {
+    e.preventDefault();
+    void chrome.storage.local.set({ lockedOps: {} });
+  });
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "local" && changes.lockedOps) {
+      lockedOps = (changes.lockedOps.newValue as LockedOps | undefined) ?? {};
+      renderLocks();
+    }
+  });
   $("openOptions").addEventListener("click", (e) => {
     e.preventDefault();
     chrome.runtime.openOptionsPage();

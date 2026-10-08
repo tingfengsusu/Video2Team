@@ -79,6 +79,10 @@ export interface Box {
   source: "excel" | "skland";
 }
 
+/** 占用清单（矢量突破类多关派遣活动）：被派遣干员 → 来源关卡标签。
+ *  派遣关锁定的干员在推图关不可用，推荐时按「不可用」处理。 */
+export type LockedOps = Record<string, string>;
+
 /** ③ 匹配推荐的输出：最终阵容中的一个槽位 */
 export interface RecommendedSlot {
   original: RosterSlot;
@@ -90,6 +94,7 @@ export interface RecommendedSlot {
   risk: "low" | "medium" | "high"; // 关键位替换 → high
   evidenceUrl: string; // 评论区溯源链接
   note: string; // 给用户看的说明（如「建议回评论区验证」）
+  lockedFrom?: string; // 原干员被派遣占用时的关卡标签（推图关需替换）
 }
 
 /** 单个视频（=单个关卡）的完整分析结果 */

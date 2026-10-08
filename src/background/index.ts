@@ -47,6 +47,14 @@ async function getBox(): Promise<Box> {
   return box;
 }
 
+/** 占用清单（派遣锁定）：被派遣干员在推图关不可用（矢量突破类活动） */
+async function getLockedOps(): Promise<Record<string, string>> {
+  const { lockedOps } = (await chrome.storage.local.get("lockedOps")) as {
+    lockedOps?: Record<string, string>;
+  };
+  return lockedOps ?? {};
+}
+
 /** 读取用户高级设置（候选上限 / 自动读取开关） */
 async function getAdvanced(): Promise<{
   caps: { comments?: number; danmaku?: number };
@@ -227,7 +235,7 @@ async function analyzeVideo(
     onUnknown,
   );
 
-  const recommendations = recommend(roster, substitutions, box);
+  const recommendations = recommend(roster, substitutions, box, await getLockedOps());
   const stats = {
     danmakuTotal: danmaku.length,
     commentCandidates: candidates.filter((c) => c.source !== "danmaku").length,

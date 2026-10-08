@@ -7,8 +7,8 @@
  *    storage.session.capturedImages 互通。
  */
 
-import type { Box, TaskState } from "../shared/types";
-import { esc, renderResult, type HasOp } from "../shared/render";
+import type { AnalysisOutput, Box, LockedOps, TaskState } from "../shared/types";
+import { esc, renderResult, renderLockedSection, type HasOp } from "../shared/render";
 import { shrinkImage } from "../shared/img";
 
 // ---------- 基础能力 ----------
@@ -159,6 +159,8 @@ const PANEL_HTML = `
 
     <button class="act" data-act="analyze" disabled>分析此关卡</button>
     <button class="act ghost" data-act="clear" style="display:none">清除全部截图</button>
+    <div class="lockhead hint" style="margin-top:2px">🔒 占用清单（派遣关锁定）<span id="lockCount"></span><a href="#" data-act="lockclear" class="hint" style="color:#23ade5;margin-left:6px">清除全部</a></div>
+    <div class="locks" style="margin:2px 0 4px"></div>
     <div id="status"></div>
     <div class="pastebox" style="display:none">
       <textarea class="pasteinput" placeholder="把 DeepSeek 的完整回复整段粘贴到这里（含 roster 与 substitutions 的 JSON）"></textarea>
@@ -254,6 +256,48 @@ function setWebUi(status: string | undefined): void {
   q<HTMLElement>(".pastebox").style.display = status === "web_paste" ? "block" : "none";
 }
 
+// ---------- 占用清单（派遣锁定，矢量突破类活动） ----------
+
+let lockedOps: LockedOps = {};
+
+async function loadLocks(): Promise<void> {
+  const { lockedOps: lo } = (await chrome.storage.local.get("lockedOps")) as { lockedOps?: LockedOps };
+  lockedOps = lo ?? {};
+  renderLocks();
+}
+
+function renderLocks(): void {
+  if (!shadow) return;
+  const el = shadow.querySelector(".locks");
+  if (!el) return;
+  el.innerHTML = renderLockedSection(lockedOps);
+  const count = shadow.querySelector("#lockCount");
+  if (count) {
+    const n = Object.keys(lockedOps).length;
+    count.textContent = n ? `（${n} 人）` : "";
+  }
+}
+
+/** 渲染结果 + 挂「加入占用清单」按钮（派遣关工作流：逐关分析后一键累加） */
+function showResult(result: AnalysisOutput): void {
+  q("#result").innerHTML = renderResult(result, hasOp, lockedOps);
+  const btn = document.createElement("button");
+  btn.className = "act ghost";
+  btn.textContent = "➕ 本关阵容加入占用清单";
+  btn.addEventListener("click", async () => {
+    const names = result.roster.slots.filter((s) => !s.support).map((s) => s.operator);
+    const { lockedOps: lo } = (await chrome.storage.local.get("lockedOps")) as { lockedOps?: LockedOps };
+    const merged: LockedOps = { ...(lo ?? {}) };
+    for (const n of names) merged[n] = result.stage;
+    await chrome.storage.local.set({ lockedOps: merged });
+    lockedOps = merged;
+    renderLocks();
+    btn.textContent = `已加入占用清单 ✓（${names.length} 人）`;
+    (btn as HTMLButtonElement).disabled = true;
+  });
+  q("#result").appendChild(btn);
+}
+
 function pollTask(): void {
   if (pollTimer) window.clearInterval(pollTimer);
   pollTimer = window.setInterval(async () => {
@@ -272,7 +316,7 @@ function pollTask(): void {
       pollTimer = undefined;
       setWebUi(undefined);
       q("#status").textContent = "";
-      q("#result").innerHTML = renderResult(task.result, hasOp);
+      showResult(task.result);
     } else if (task.status === "error") {
       window.clearInterval(pollTimer!);
       pollTimer = undefined;
@@ -321,6 +365,7 @@ async function openPanel(): Promise<void> {
   q(".panel").classList.add("open");
   // 先加载 box（local storage，内容脚本恒可访问）——决定红绿着色的 hasOp
   await loadBox();
+  await loadLocks();
   await renderReadiness();
   images = await readImages();
   renderThumbs();
@@ -338,7 +383,7 @@ async function openPanel(): Promise<void> {
       task.status === "running" ? "分析中…（约 20-60 秒）" : task.progress ?? "等待你的操作…";
     pollTask();
   } else if (task?.status === "done" && task.result) {
-    q("#result").innerHTML = renderResult(task.result, hasOp);
+    showResult(task.result);
   } else if (task?.status === "error" && task.error) {
     q("#status").innerHTML = `<span class="err">${esc(task.error)}</span>`;
   }
@@ -402,11 +447,31 @@ function mount(): void {
     reader.onload = () => addImage(reader.result as string);
     reader.readAsDataURL(blob);
   });
+  // 占用清单：chips 移除（事件委托）+ 清除全部
+  q(".locks").addEventListener("click", (e) => {
+    const rm = (e.target as HTMLElement).closest(".rmlock");
+    if (!rm) return;
+    const name = rm.getAttribute("data-name") ?? "";
+    void (async () => {
+      const { lockedOps: lo } = (await chrome.storage.local.get("lockedOps")) as { lockedOps?: LockedOps };
+      const merged: LockedOps = { ...(lo ?? {}) };
+      delete merged[name];
+      await chrome.storage.local.set({ lockedOps: merged });
+    })();
+  });
+  q('[data-act="lockclear"]').addEventListener("click", (e) => {
+    e.preventDefault();
+    void chrome.storage.local.set({ lockedOps: {} });
+  });
   // popup 侧改动截图时同步（互通）
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === "session" && changes[IMG_KEY] && panelOpen) {
       images = (changes[IMG_KEY].newValue as string[] | undefined) ?? [];
       renderThumbs();
+    }
+    if (area === "local" && changes.lockedOps) {
+      lockedOps = (changes.lockedOps.newValue as LockedOps | undefined) ?? {};
+      renderLocks();
     }
   });
 
