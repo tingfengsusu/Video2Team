@@ -137,6 +137,8 @@ export interface BiliMineStats {
   descsFetched: number; // 层级③触发的简介数
   /** 因不指向本关（合集大标题 / 其它关的分P）被丢弃的语料条数 */
   skippedEntries: number;
+  /** 因发布时间超出时间范围（上一期活动等）被丢弃的搜索结果条数 */
+  expiredSkipped: number;
   llmUsed: boolean; // 是否走了 LLM 精筛（false = 字典兜底）
 }
 
@@ -152,6 +154,12 @@ export interface MineOptions {
   maxPartsVideos?: number; // 层级②最多拉几个合集（默认 5）
   maxDescVideos?: number; // 层级③最多拉几个简介（默认 8）
   /**
+   * 只要最近 N 天发布的视频（默认 180；0 = 不限）。
+   * 实测脏数据：`VEC-SP12 最低练度`（504 天前 = 上一期活动）会被搜出来，但那一期的阵容/机制未必适用本期。
+   * ⚠️ B站搜索接口的 `pubtime_begin_s` 实测**不生效**（旧视频照样返回），因此以**本地 pubdate 过滤**为准。
+   */
+  maxAgeDays?: number;
+  /**
    * 层级②的分P 抓取门槛：标题层算出的不同干员数 **低于** 该值才拉分P（默认 3）。
    * 传 `Infinity` = 必拉（候选池召回优先时用：分P 标题是最有信息量的一层，
    * 实测「VEC-SP05 令」这种「关卡+干员」对全在分P里）。
@@ -164,6 +172,14 @@ export interface MineOptions {
    */
   stageHint?: { displayCode?: string; stageName?: string };
   ask?: AskFn | null; // LLM 调用器；不传则只用字典兜底
+}
+
+/** 发布时间是否在最近 maxAgeDays 天内（0 = 不限；pubdate 缺失/异常时不判过期，避免误杀） */
+export function withinMaxAge(pubdateSec: number, nowMs: number, maxAgeDays: number): boolean {
+  if (!maxAgeDays || maxAgeDays <= 0) return true;
+  const ts = Number(pubdateSec);
+  if (!Number.isFinite(ts) || ts <= 0) return true;
+  return nowMs / 1000 - ts <= maxAgeDays * 86400;
 }
 
 // ---------- 模式标签 ----------
@@ -361,11 +377,19 @@ export async function mineStage(
     partsFetched: 0,
     descsFetched: 0,
     skippedEntries: 0,
+    expiredSkipped: 0,
     llmUsed: false,
   };
 
   const keyword = displayCode.trim();
   if (!keyword) return { schemes: [], stats, failed: true };
+  const maxAgeDays = Math.max(0, Math.trunc(opts.maxAgeDays ?? 180));
+  const nowMs = Date.now();
+  const freshOnly = (it: SearchVideoItem): boolean => {
+    if (withinMaxAge(it.pubdate, nowMs, maxAgeDays)) return true;
+    stats.expiredSkipped += 1;
+    return false;
+  };
 
   // —— ① 主标题搜索 ——
   // 先按显示码搜；显示码几乎搜不到本关内容时再用关卡中文名补搜 1 页
@@ -377,12 +401,18 @@ export async function mineStage(
   const searchAndCollect = async (kw: string, pageCount: number): Promise<void> => {
     for (let page = 1; page <= pageCount; page += 1) {
       try {
-        const got = await searchVideos(kw, { page, pageSize: 20 });
+        const got = await searchVideos(kw, {
+          page,
+          pageSize: 20,
+          // 服务端筛选尽力而为（实测该参数目前不生效，本地 pubdate 过滤才是准的）
+          pubtimeBeginS: maxAgeDays > 0 ? Math.floor(nowMs / 1000) - maxAgeDays * 86400 : undefined,
+        });
         stats.pagesSearched += 1;
         searchOk = true;
         if (!got.length) break;
         for (const it of got) {
           if (seenBvid.has(it.bvid)) continue;
+          if (!freshOnly(it)) continue; // 上一期活动/旧攻略：按发布时间挡掉
           seenBvid.add(it.bvid);
           items.push(it);
         }

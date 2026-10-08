@@ -538,12 +538,14 @@ check(
 const noteStats = {
   biliScope: "all",
   biliPages: 2,
+  biliMaxAgeDays: 180,
   biliMined: 4,
   biliCached: 3,
   biliFailed: 1,
   biliHits: 9,
   biliShown: 6,
   biliSkipped: 5,
+  biliExpired: 7,
 };
 const note = v43.biliMiningNote(noteStats);
 check("结果区展示挖掘关数与命中条数", note.includes("B站挖掘：4 关 · 命中 9 条"), note);
@@ -551,6 +553,14 @@ check("标注缓存命中关数", note.includes("缓存 3 关"));
 check("标注搜索失败关数", note.includes("1 关搜索失败"));
 check("标注与 MAA 同阵容的去重条数", note.includes("3 条与 MAA 方案同阵容已去重"));
 check("标注被排除的合集/他关语料条数", note.includes("已排除 5 条合集/他关语料"));
+check("标注被排除的过期视频条数", note.includes("已排除 7 条180 天外的旧视频"), note);
+check(
+  "发布时间窗口判定（半年内 / 不限）",
+  v43.withinMaxAge(Date.now() / 1000 - 10 * 86400, Date.now(), 180) &&
+    !v43.withinMaxAge(Date.now() / 1000 - 504 * 86400, Date.now(), 180) &&
+    v43.withinMaxAge(Date.now() / 1000 - 504 * 86400, Date.now(), 0) &&
+    v43.withinMaxAge(0, Date.now(), 180),
+);
 check("关闭挖掘时不出现该行", v43.biliMiningNote({ ...noteStats, biliScope: "off" }) === "");
 check(
   "没有挖掘行为时不出现该行",
@@ -595,6 +605,42 @@ const poolHtml = v43.renderResult(
 );
 check("渲染含「另有 N 条方案未展示」提示", /另有 \d+ 条方案未展示/.test(poolHtml));
 check("MAA 与 B站 方案同屏可见", poolHtml.includes("MAA作业") && poolHtml.includes("bili:BV0"));
+
+console.log("\n== q4 结果可读性：总览块 + 分区标题 ==");
+check("总览块：本关用这套（含人数与干员）", guideHtml.includes("🎯 本关用这套（1 人）") && guideHtml.includes("凯尔希"));
+check("总览块：未勾选时提示去候选池勾选", guideHtml.includes("🚩 前置关（派遣占用）") && guideHtml.includes("⬜ 未选 → 在下方候选池勾选"));
+check("总览块：勾选后显示该关已选方案", pickedHtml.includes("✅") && pickedHtml.includes("凯尔希·能天使"));
+check(
+  "被占用干员在总览里也置灰",
+  /occupied[^<]*>凯尔希<\/span>/.test(pickedHtml.split("🚩 P1 派遣关攻略")[0] ?? ""),
+);
+check(
+  "总览块：冲突统计（替换/无解）",
+  (() => {
+    const withConflicts = v43.renderResult(
+      {
+        ...baseResult,
+        recommendations: [
+          { ...baseResult.recommendations[0], status: "substituted", finalOperator: "闪灵", note: "关键位替换" },
+          { ...baseResult.recommendations[0], original: { operator: "令" }, finalOperator: null, status: "unresolved" },
+        ],
+      },
+      hasAll,
+      {},
+      { stageKind: "target" },
+    );
+    return /已替换 1 处/.test(withConflicts) && /无解 <span class="miss">1<\/span> 处/.test(withConflicts);
+  })(),
+);
+check(
+  "分区标题：候选池带关数/套数",
+  guideHtml.includes("🚩 P1 派遣关攻略") && guideHtml.includes("1 关 2 套") && guideHtml.includes("按黄色格位置识别"),
+);
+check("分区标题：本关适配阵容", guideHtml.includes("🎯 本关适配阵容"));
+check(
+  "派遣关结果的总览用「本关阵容」措辞",
+  v43.renderResult(baseResult, hasAll, {}, { stageKind: "dispatch" }).includes("🎯 本关阵容"),
+);
 
 console.log(failures === 0 ? "\n✅ v4.3 修复清单验收自测全部通过" : `\n❌ ${failures} 项未通过`);
 process.exit(failures === 0 ? 0 : 1);

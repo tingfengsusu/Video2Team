@@ -24,6 +24,8 @@ export interface BuildDispatchGuidesOptions {
   mineBili?: boolean;
   biliScope?: BiliMineScope; // 默认 "all"
   biliPages?: number; // 每关搜索页数（默认 2，1-5）
+  /** 只要最近 N 天发布的视频（默认 180；0 = 不限）——挡掉上一期活动的旧攻略 */
+  biliMaxAgeDays?: number;
   maxBiliStages?: number; // 最多挖几关（默认 = 候选关数）
   thinThreshold?: number; // scope = "thin" 时的「方案不足」阈值（默认 2）
   maxPartsVideos?: number; // 每关拉几个合集的分P 标题（默认 3）
@@ -34,12 +36,14 @@ export interface BuildDispatchGuidesOptions {
 export interface DispatchGuidesStats {
   biliScope: BiliMineScope;
   biliPages: number;
+  biliMaxAgeDays: number;
   biliMined: number; // 实际产出结果的关数（含缓存命中）
   biliCached: number; // 其中由缓存直接命中的关数
   biliFailed: number; // 搜索失败（断网/风控）的关数
   biliHits: number; // 挖掘出的方案条数（跨源去重前）
   biliShown: number; // 合并去重后真正展示的 B站方案条数
   biliSkipped: number; // 因不指向本关（合集标题/其它关分P）被排除的语料条数
+  biliExpired: number; // 因超出时间范围（上一期活动等）被排除的搜索结果条数
 }
 
 export interface DispatchGuidesBuildResult {
@@ -129,8 +133,8 @@ async function writeCache(cache: Record<string, BiliCacheEntry>): Promise<void> 
   }
 }
 
-function cacheKeyOf(displayCode: string, pages: number, maxPartsVideos: number): string {
-  return `${displayCode.toUpperCase()}|p${pages}|v${maxPartsVideos}`;
+function cacheKeyOf(displayCode: string, pages: number, maxPartsVideos: number, maxAgeDays: number): string {
+  return `${displayCode.toUpperCase()}|p${pages}|v${maxPartsVideos}|age${maxAgeDays}`;
 }
 
 /** 清空 B站挖掘缓存（设置页「清空分析缓存」一并调用） */
@@ -156,19 +160,29 @@ export function biliMiningNote(stats: DispatchGuidesStats): string {
   const deduped = stats.biliHits - stats.biliShown;
   if (deduped > 0) tail.push(`${deduped} 条与 MAA 方案同阵容已去重`);
   if (stats.biliSkipped > 0) tail.push(`已排除 ${stats.biliSkipped} 条合集/他关语料`);
+  if (stats.biliExpired > 0) {
+    const window = stats.biliMaxAgeDays > 0 ? `${stats.biliMaxAgeDays} 天外的` : "过期";
+    tail.push(`已排除 ${stats.biliExpired} 条${window}旧视频`);
+  }
   return parts.filter(Boolean).join("") + (tail.length ? `；${tail.join("、")}` : "");
 }
 
-export function emptyGuidesStats(scope: BiliMineScope = "all", pages = 2): DispatchGuidesStats {
+export function emptyGuidesStats(
+  scope: BiliMineScope = "all",
+  pages = 2,
+  maxAgeDays = 180,
+): DispatchGuidesStats {
   return {
     biliScope: scope,
     biliPages: pages,
+    biliMaxAgeDays: maxAgeDays,
     biliMined: 0,
     biliCached: 0,
     biliFailed: 0,
     biliHits: 0,
     biliShown: 0,
     biliSkipped: 0,
+    biliExpired: 0,
   };
 }
 
@@ -185,7 +199,8 @@ export async function buildDispatchGuides(
   const scope: BiliMineScope =
     options.biliScope ?? (options.mineBili === false ? "off" : "all");
   const biliPages = Math.max(1, Math.min(5, Math.trunc(options.biliPages ?? 2)));
-  const stats = emptyGuidesStats(scope, biliPages);
+  const biliMaxAgeDays = Math.max(0, Math.trunc(options.biliMaxAgeDays ?? 180));
+  const stats = emptyGuidesStats(scope, biliPages, biliMaxAgeDays);
   if (selected.length === 0) return { pools: [], stats };
 
   const prefix = selected[0]?.stageId
@@ -227,7 +242,7 @@ export async function buildDispatchGuides(
     let cacheDirty = false;
     for (const target of targets) {
       const code = target.displayCode;
-      const key = cacheKeyOf(code, biliPages, maxPartsVideos);
+      const key = cacheKeyOf(code, biliPages, maxPartsVideos, biliMaxAgeDays);
       const hit = cache[key];
       if (hit && now - hit.ts < cacheTtlMs) {
         stats.biliMined += 1;
@@ -241,6 +256,7 @@ export async function buildDispatchGuides(
           pages: biliPages,
           maxPartsVideos,
           maxDescVideos,
+          maxAgeDays: biliMaxAgeDays, // 挡掉上一期活动的旧攻略
           partsThreshold: Number.POSITIVE_INFINITY, // 分P 一层的「关卡+干员」对信息量最高，必拉
           // 关卡归属：合集大标题/其它关的分P 不采纳（避免整合集干员并集当本关阵容）
           stageHint: { displayCode: target.displayCode, stageName: target.stageName },
@@ -252,6 +268,7 @@ export async function buildDispatchGuides(
           stats.biliMined += 1;
           stats.biliHits += result.schemes.length;
           stats.biliSkipped += result.stats.skippedEntries;
+          stats.biliExpired += result.stats.expiredSkipped;
           cache[key] = { ts: now, schemes: result.schemes };
           cacheDirty = true;
           if (result.schemes.length) biliByStage.set(code, result.schemes);

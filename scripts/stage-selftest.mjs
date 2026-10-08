@@ -363,7 +363,10 @@ const guideResult = {
   }],
 };
 const guideHtml = stage.renderResult(guideResult, () => false);
-check("结果展示 P1 派遣关攻略区", guideHtml.includes("P1 派遣关攻略（按黄色格位置识别）"));
+check(
+  "结果展示 P1 派遣关攻略区",
+  guideHtml.includes("P1 派遣关攻略") && guideHtml.includes("按黄色格位置识别"),
+);
 check("攻略区展示 SP 编号与 MAA 作业方案", guideHtml.includes("VEC-SP02") && guideHtml.includes("MAA作业"));
 check("攻略区展示 B站视频方案与外链", guideHtml.includes("B站视频") && guideHtml.includes("BV1TEST"));
 

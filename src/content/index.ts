@@ -118,7 +118,7 @@ const STYLE = `
 
   /* 页内面板 */
   .panel {
-    position: fixed; right: 14px; top: 70px; width: 380px; max-height: 82vh; overflow-y: auto;
+    position: fixed; right: 14px; top: 70px; width: min(92vw, 460px); max-height: 82vh; overflow-y: auto;
     background: #fff; border-radius: 12px; padding: 14px;
     box-shadow: 0 6px 24px rgba(0,0,0,.18); z-index: 2147483647; display: none;
   }
@@ -153,8 +153,9 @@ const STYLE = `
   .pasteinput { width: 100%; height: 84px; font-size: 12px; box-sizing: border-box;
                 margin-top: 4px; font-family: inherit; }
   .video-title { font-size: 12px; color: #555; margin: 6px 0; }
-  .stage { font-size: 14px; font-weight: bold; margin: 8px 0 4px; }
-  .slot { font-size: 13px; line-height: 1.5; padding: 4px 8px; border-radius: 4px; margin-bottom: 3px;
+  .stage { font-size: 15px; font-weight: bold; margin: 10px 0 4px; }
+  /* q4 可读性：槽位放大到 14px、放宽行高与间距，别让用户逐字抠 */
+  .slot { font-size: 14px; line-height: 1.65; padding: 6px 9px; border-radius: 5px; margin-bottom: 5px;
           background: #fafbfc; border-left: 3px solid #d0d7de; }
   .keep { border-left-color: #1a7f37; }
   .sub { border-left-color: #d29922; }

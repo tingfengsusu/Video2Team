@@ -68,12 +68,13 @@ async function getLockedOps(): Promise<Record<string, string>> {
   return lockedOps ?? {};
 }
 
-/** 读取用户高级设置（候选上限 / 自动读取开关 / 派遣关 B站挖掘范围与页数） */
+/** 读取用户高级设置（候选上限 / 自动读取开关 / 派遣关 B站挖掘范围·页数·时间窗） */
 async function getAdvanced(): Promise<{
   caps: { comments?: number; danmaku?: number };
   autoRead: boolean;
   biliScope: "all" | "thin" | "off";
   biliPages: number;
+  biliMaxAgeDays: number;
 }> {
   const { advanced } = (await chrome.storage.local.get("advanced")) as {
     advanced?: {
@@ -82,16 +83,20 @@ async function getAdvanced(): Promise<{
       webAutoRead?: boolean;
       biliScope?: "all" | "thin" | "off";
       biliPages?: number;
+      biliMaxAgeDays?: number;
     };
   };
   const scope = advanced?.biliScope;
   const pages = Number(advanced?.biliPages);
+  const maxAge = Number(advanced?.biliMaxAgeDays);
   return {
     caps: { comments: advanced?.commentCap, danmaku: advanced?.danmakuCap },
     autoRead: advanced?.webAutoRead !== false, // 默认开启自动读取
     // 默认全关挖掘（B站攻略基数大于 MAA，召回优先）；页数默认 2 页
     biliScope: scope === "thin" || scope === "off" ? scope : "all",
     biliPages: Number.isFinite(pages) ? Math.min(5, Math.max(1, Math.trunc(pages))) : 2,
+    // 默认只看半年内（挡掉上一期活动的旧攻略）；0 = 不限
+    biliMaxAgeDays: Number.isFinite(maxAge) ? Math.max(0, Math.trunc(maxAge)) : 180,
   };
 }
 
@@ -170,7 +175,7 @@ async function analyzeVideo(
     await resolveStageForAnalysis(sourceStage, meta.video.title, meta.video.desc)
   ).resolution;
   meta = { ...meta, stage: formatStageResolution(stageResolution, sourceStage) };
-  const { caps, autoRead, biliScope, biliPages } = await getAdvanced();
+  const { caps, autoRead, biliScope, biliPages, biliMaxAgeDays } = await getAdvanced();
 
   await setTask({ ...taskBase, status: "running", startedAt, stage: meta.stage, progress: "抓取弹幕/评论…" });
   const commentsPromise = fetchComments(meta.video.aid, 200).catch(() => []);
@@ -302,6 +307,7 @@ async function analyzeVideo(
       thinThreshold: 2,
       biliScope, // 默认全部候选关（高级设置可改「仅薄关 / 关闭」）
       biliPages, // 每关搜索页数（默认 2）
+      biliMaxAgeDays, // 只要最近 N 天（默认 180）：挡掉上一期活动的旧攻略
       maxPartsVideos: 3,
       maxDescVideos: 0, // 搜索结果自带简介，不再额外拉简介请求
     }).catch(() => ({ pools: [], stats: null }));

@@ -163,6 +163,62 @@ function renderScheme(
   );
 }
 
+/** 分区标题（q4：结果区一眼能分出「本关阵容 / 前置关候选池」） */
+function sectionHeading(text: string, sub = ""): string {
+  return (
+    `<div style="font-size:15px;font-weight:700;margin:14px 0 4px;padding-left:8px;border-left:4px solid #23ade5">` +
+    `${esc(text)}${sub ? `<span class="dim" style="font-weight:400;font-size:12px"> ${esc(sub)}</span>` : ""}</div>`
+  );
+}
+
+/**
+ * §10.6（q4）总览块：一屏看清三件事——
+ * ① 本关（主推关）最终用哪些干员（被占用的灰+删除线）；② 各前置关选了哪套方案（或还没选）；
+ * ③ 有几处替换/无解。放在结果最顶部，避免用户从长列表里自己拼。
+ */
+function overviewBlock(
+  dispatch: boolean,
+  out: AnalysisOutput,
+  hasOp: HasOp,
+  lockedOps: LockedOps,
+  picks: DispatchPicks,
+): string {
+  const lineup = dispatch
+    ? out.roster.slots.map((s) => s.operator)
+    : out.recommendations.map((slot) => slot.finalOperator ?? slot.original.operator);
+  const names = [...new Set(lineup)].filter(Boolean);
+  const lineupHtml = names.length
+    ? names.slice(0, 14).map((n) => nameSpan(n, hasOp, lockedOps)).join("、") +
+      (names.length > 14 ? ` <span class="dim">等 ${names.length} 人</span>` : "")
+    : `<span class="dim">（未识别到阵容）</span>`;
+  const substituted = out.recommendations.filter((s) => s.status === "substituted").length;
+  const unresolved = out.recommendations.filter((s) => s.status === "unresolved").length;
+
+  const pools = out.dispatchGuides ?? [];
+  const guideLines = pools.map((pool) => {
+    const pick = picks[pool.displayCode.toUpperCase()];
+    const chosen = pick
+      ? `✅ ${pick.ops.map((n) => esc(n)).join("·")}`
+      : `<span class="dim">⬜ 未选 → 在下方候选池勾选</span>`;
+    return (
+      `<div style="font-size:12px;line-height:1.6"><b>${esc(pool.displayCode)}</b>` +
+      `<span class="dim">（${esc(pool.stageName || "关卡名待核实")}）</span> ${chosen}</div>`
+    );
+  });
+
+  return (
+    `<div style="background:#f7fbfe;border:1px solid #cfe6f5;border-radius:6px;padding:8px 10px;margin:8px 0">` +
+    `<div style="font-size:13px;line-height:1.7"><b>${dispatch ? "🎯 本关阵容" : "🎯 本关用这套"}（${names.length} 人）</b>：${lineupHtml}</div>` +
+    (substituted || unresolved
+      ? `<div class="hint">${substituted ? `已替换 ${substituted} 处` : ""}${substituted && unresolved ? "，" : ""}${unresolved ? `无解 <span class="miss">${unresolved}</span> 处` : ""}</div>`
+      : "") +
+    (guideLines.length
+      ? `<div style="margin-top:4px;font-size:13px"><b>🚩 前置关（派遣占用）</b></div>` + guideLines.join("")
+      : "") +
+    `</div>`
+  );
+}
+
 /**
  * 每关展示哪几条方案：**按来源配额**取（默认 MAA 3 条 + B站 3 条，总 6 条）。
  * 只按顺序截断会让 MAA 排满窗口、把 B站全挤掉（用户实测「清一色 MAA作业」的直接原因之一）；
@@ -197,9 +253,11 @@ export function renderDispatchGuides(
 ): string {
   const picks = opts.picks ?? {};
   if (pools.length === 0 && !opts.note) return "";
-  const heading =
-    `<div style="font-size:13px;font-weight:700;margin:8px 0 4px">` +
-    `P1 派遣关攻略（按黄色格位置识别）</div>`;
+  const totalSchemes = pools.reduce((n, pool) => n + pool.schemes.length, 0);
+  const heading = sectionHeading(
+    "🚩 P1 派遣关攻略",
+    `按黄色格位置识别 · ${pools.length} 关 ${totalSchemes} 套（勾选＝本关采用）`,
+  );
   const blocks = pools
     .map((pool: MergedStagePool) => {
       const { shown: schemes, hidden } = pickVisibleSchemes(pool.schemes);
@@ -277,8 +335,10 @@ export function renderResult(
     `<div class="hint">${stageHint}</div>` +
     switchLine +
     resolutionNote +
+    overviewBlock(dispatch, out, hasOp, lockedOps, options.picks ?? {}) +
     emptyLocksHint +
     dispatchGuides +
+    sectionHeading("🎯 本关适配阵容", `${out.recommendations.length} 个槽位`) +
     `<div class="hint">实战替代建议：${out.substitutions.length} 条｜${statsLine}名字颜色：<span class="own">绿=你有</span>／<span class="miss">红=你没有</span>${Object.keys(lockedOps).length ? "｜🔒=已派遣（灰+删除线）" : ""}</div>` +
     out.recommendations.map((s2) => renderSlot(s2, hasOp, lockedOps)).join("") +
     (s?.unknownNames && s.unknownNames.length

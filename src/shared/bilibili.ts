@@ -240,15 +240,22 @@ export interface SearchVideoItem {
 /** 视频搜索（wbi 签名；search_type=video）。失败抛错，由调用方降级。 */
 export async function searchVideos(
   keyword: string,
-  opts: { page?: number; pageSize?: number } = {},
+  opts: { page?: number; pageSize?: number; pubtimeBeginS?: number; pubtimeEndS?: number } = {},
 ): Promise<SearchVideoItem[]> {
   const page = Math.max(1, Math.trunc(opts.page ?? 1));
   const pageSize = Math.min(50, Math.max(1, Math.trunc(opts.pageSize ?? 20)));
-  const j = await getJson(
-    "https://api.bilibili.com/x/web-interface/wbi/search/type",
-    { search_type: "video", keyword, page, page_size: pageSize },
-    { signed: true },
-  );
+  const params: Record<string, string | number> = {
+    search_type: "video",
+    keyword,
+    page,
+    page_size: pageSize,
+  };
+  // 搜索接口自带「发布时间」筛选：挡掉往期活动的旧攻略（本地还会再按 pubdate 兜底过滤一次）
+  if (opts.pubtimeBeginS && opts.pubtimeBeginS > 0) params.pubtime_begin_s = Math.trunc(opts.pubtimeBeginS);
+  if (opts.pubtimeEndS && opts.pubtimeEndS > 0) params.pubtime_end_s = Math.trunc(opts.pubtimeEndS);
+  const j = await getJson("https://api.bilibili.com/x/web-interface/wbi/search/type", params, {
+    signed: true,
+  });
   const result: any[] = Array.isArray(j.data?.result) ? j.data.result : [];
   return result
     .filter((r) => r?.bvid && r?.type === "video")

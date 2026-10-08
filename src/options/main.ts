@@ -261,6 +261,7 @@ async function initAdvancedSection(): Promise<void> {
       webAutoRead?: boolean;
       biliScope?: string;
       biliPages?: number;
+      biliMaxAgeDays?: number;
     };
   };
   const { resultCache } = (await chrome.storage.local.get(RESULT_CACHE_KEY)) as {
@@ -272,6 +273,7 @@ async function initAdvancedSection(): Promise<void> {
   ($("biliScope") as HTMLSelectElement).value =
     advanced?.biliScope === "thin" || advanced?.biliScope === "off" ? advanced.biliScope : "all";
   ($("biliPages") as HTMLInputElement).value = String(advanced?.biliPages ?? 2);
+  ($("biliMaxAgeDays") as HTMLSelectElement).value = String(advanced?.biliMaxAgeDays ?? 180);
   const cacheCount = Object.keys(resultCache ?? {}).length;
   $("cacheStatus").textContent =
     cacheCount > 0 ? `当前缓存 ${cacheCount} 条（最多 30 条 / 7 天）` : "当前无分析缓存";
@@ -282,6 +284,7 @@ async function initAdvancedSection(): Promise<void> {
       return Number.isFinite(v) ? Math.min(300, Math.max(10, v)) : def;
     };
     const pages = parseInt(($("biliPages") as HTMLInputElement).value || "2", 10);
+    const ageDays = parseInt(($("biliMaxAgeDays") as HTMLSelectElement).value || "180", 10);
     await chrome.storage.local.set({
       advanced: {
         commentCap: clamp("capComments", 60),
@@ -289,6 +292,7 @@ async function initAdvancedSection(): Promise<void> {
         webAutoRead: ($("webAutoRead") as HTMLInputElement).checked,
         biliScope: ($("biliScope") as HTMLSelectElement).value,
         biliPages: Number.isFinite(pages) ? Math.min(5, Math.max(1, pages)) : 2,
+        biliMaxAgeDays: Number.isFinite(ageDays) && ageDays > 0 ? ageDays : 0,
       },
     });
     const el = $("advStatus");
