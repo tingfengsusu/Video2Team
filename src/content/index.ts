@@ -10,6 +10,11 @@
 import type { AnalysisOutput, Box, LockedOps, TaskState } from "../shared/types";
 import { esc, renderResult, renderLockedSection, type HasOp } from "../shared/render";
 import { shrinkImage } from "../shared/img";
+import {
+  getCachedResult,
+  normalizePage,
+  type ResultCacheEntry,
+} from "../shared/resultCache";
 
 // ---------- 基础能力 ----------
 
@@ -65,6 +70,17 @@ let images: string[] = [];
 /** 默认按「没有」处理（更保守，不会误报拥有）；openPanel 时从 localStorage box 加载真实判断 */
 let hasOp: HasOp = () => false;
 let pollTimer: number | undefined;
+
+function taskMatchesCurrent(task: TaskState): boolean {
+  const { bvid, page } = parseContext();
+  return !!bvid && task.bvid === bvid && normalizePage(task.page) === normalizePage(page);
+}
+
+function formatCacheTime(ts: number): string {
+  const d = new Date(ts);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 const STYLE = `
   :host { all: initial; }
@@ -298,14 +314,51 @@ function showResult(result: AnalysisOutput): void {
   q("#result").appendChild(btn);
 }
 
-function pollTask(): void {
+function showCachedResult(entry: ResultCacheEntry): void {
+  showResult(entry.result);
+  q("#status").innerHTML =
+    `<span class="hint">上次分析：${formatCacheTime(entry.ts)} ｜ </span>` +
+    `<a href="#" data-act="reanalyze" class="link">重新分析</a>`;
+  q('[data-act="reanalyze"]').addEventListener("click", (e) => {
+    e.preventDefault();
+    q("#status").textContent = "";
+    void triggerAnalyze();
+  });
+}
+
+function showEmptyState(): void {
+  q("#result").innerHTML = "";
+  q("#status").innerHTML =
+    `<span class="hint">当前分P尚无分析结果。请暂停在编队画面，抓帧或粘贴截图后点击「分析此关卡」。</span>`;
+}
+
+let pollStartedAt = 0;
+let sawMatchingTask = false;
+
+function pollTask(waitForNewTask = false): void {
   if (pollTimer) window.clearInterval(pollTimer);
+  pollStartedAt = Date.now();
+  sawMatchingTask = !waitForNewTask;
   pollTimer = window.setInterval(async () => {
     const resp = (await chrome.runtime.sendMessage({ type: "GET_TASK" }).catch(() => null)) as
       | { task: TaskState | null }
       | null;
     const task = resp?.task;
-    if (!task) return;
+    if (!task || !taskMatchesCurrent(task)) {
+      // 当前页刚发起任务时给后台一点写入 task 的时间，避免误命中旧缓存。
+      if (!sawMatchingTask && Date.now() - pollStartedAt < 5000) return;
+      const { bvid, page } = parseContext();
+      if (!bvid) return;
+      const cached = await getCachedResult(bvid, page);
+      if (cached) {
+        window.clearInterval(pollTimer!);
+        pollTimer = undefined;
+        setWebUi(undefined);
+        showCachedResult(cached);
+      }
+      return;
+    }
+    sawMatchingTask = true;
     setWebUi(task.status);
     if (task.status === "running" && task.progress) {
       q("#status").textContent = `${task.progress}（约 20-60 秒）`;
@@ -349,6 +402,7 @@ async function submitPaste(): Promise<void> {
 async function triggerAnalyze(): Promise<void> {
   const { bvid, page } = parseContext();
   if (!bvid || images.length === 0) return;
+  q("#result").innerHTML = "";
   const dataUrls = await Promise.all(images.map(shrinkImage));
   void chrome.runtime.sendMessage({
     type: "ANALYZE_VIDEO",
@@ -357,7 +411,7 @@ async function triggerAnalyze(): Promise<void> {
     imageDataUrls: dataUrls,
   });
   q("#status").textContent = "分析中：识别画面阵容 → 挖掘弹幕/评论区 → 匹配你的 box…（约 20-60 秒，面板可收起稍后回来看）";
-  pollTask();
+  pollTask(true);
 }
 
 async function openPanel(): Promise<void> {
@@ -374,18 +428,21 @@ async function openPanel(): Promise<void> {
     | { task: TaskState | null }
     | null;
   const task = resp?.task;
-  setWebUi(task?.status);
-  if (
-    (task?.status === "running" || task?.status === "web_paste") &&
-    Date.now() - task.startedAt < 1_800_000
-  ) {
+  const matches = !!task && taskMatchesCurrent(task);
+  setWebUi(matches ? task.status : undefined);
+  if (matches && (task.status === "running" || task.status === "web_paste") && Date.now() - task.startedAt < 1_800_000) {
     q("#status").textContent =
       task.status === "running" ? "分析中…（约 20-60 秒）" : task.progress ?? "等待你的操作…";
     pollTask();
-  } else if (task?.status === "done" && task.result) {
+  } else if (matches && task.status === "done" && task.result) {
     showResult(task.result);
-  } else if (task?.status === "error" && task.error) {
+  } else if (matches && task.status === "error" && task.error) {
     q("#status").innerHTML = `<span class="err">${esc(task.error)}</span>`;
+  } else {
+    const { bvid, page } = parseContext();
+    const cached = bvid ? await getCachedResult(bvid, page) : null;
+    if (cached) showCachedResult(cached);
+    else showEmptyState();
   }
 }
 

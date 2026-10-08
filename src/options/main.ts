@@ -13,6 +13,7 @@ import {
   userAliasCount,
   type PendingEntry,
 } from "../shared/aliases";
+import { clearResultCache, RESULT_CACHE_KEY, type ResultCache } from "../shared/resultCache";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -243,9 +244,15 @@ async function initAdvancedSection(): Promise<void> {
   const { advanced } = (await chrome.storage.local.get("advanced")) as {
     advanced?: { commentCap?: number; danmakuCap?: number; webAutoRead?: boolean };
   };
+  const { resultCache } = (await chrome.storage.local.get(RESULT_CACHE_KEY)) as {
+    resultCache?: ResultCache;
+  };
   ($("capComments") as HTMLInputElement).value = String(advanced?.commentCap ?? 60);
   ($("capDanmaku") as HTMLInputElement).value = String(advanced?.danmakuCap ?? 60);
   ($("webAutoRead") as HTMLInputElement).checked = advanced?.webAutoRead !== false; // 默认开
+  const cacheCount = Object.keys(resultCache ?? {}).length;
+  $("cacheStatus").textContent =
+    cacheCount > 0 ? `当前缓存 ${cacheCount} 条（最多 30 条 / 7 天）` : "当前无分析缓存";
 
   $("saveAdvanced").addEventListener("click", async () => {
     const clamp = (id: string, def: number) => {
@@ -262,6 +269,12 @@ async function initAdvancedSection(): Promise<void> {
     const el = $("advStatus");
     el.textContent = "已保存 ✓";
     setTimeout(() => (el.textContent = ""), 2000);
+  });
+
+  $("clearCache").addEventListener("click", async () => {
+    if (!window.confirm("确定清空全部分析结果缓存吗？")) return;
+    await clearResultCache();
+    $("cacheStatus").textContent = "已清空分析缓存";
   });
 }
 

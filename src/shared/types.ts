@@ -122,6 +122,8 @@ export interface TaskState {
   // web_paste = 网页版模式：提示词已注入 DeepSeek 网页端，等待用户发送并回贴最终回复
   status: "running" | "web_paste" | "done" | "error";
   startedAt: number;
+  bvid: string;
+  page: number; // 独立视频统一为 0
   stage?: string;
   progress?: string; // 当前阶段文案
   result?: AnalysisOutput;

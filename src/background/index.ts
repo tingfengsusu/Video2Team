@@ -24,6 +24,7 @@ import {
   stopWebWatch,
   parseJsonLoose,
 } from "../shared/llm";
+import { normalizePage, putCachedResult } from "../shared/resultCache";
 import type { AnalysisOutput, Box, Roster, Substitution, TaskState } from "../shared/types";
 
 const TASK_KEY = "task";
@@ -134,13 +135,14 @@ async function analyzeVideo(
   imageDataUrls: string[],
 ): Promise<AnalysisOutput> {
   const startedAt = Date.now();
+  const taskBase = { bvid, page: normalizePage(page) };
   const box = await getBox();
   const opDB = await OperatorDB.load();
   await loadAliases(); // 别名三层：内置 + 在线 + 本地积累
   const meta = await locateStage(bvid, page);
   const { caps, autoRead } = await getAdvanced();
 
-  await setTask({ status: "running", startedAt, stage: meta.stage, progress: "抓取弹幕/评论…" });
+  await setTask({ ...taskBase, status: "running", startedAt, stage: meta.stage, progress: "抓取弹幕/评论…" });
   const commentsPromise = fetchComments(meta.video.aid, 200).catch(() => []);
   const danmakuPromise = meta.cid ? fetchDanmaku(meta.cid).catch(() => []) : Promise.resolve([]);
   const comments = await commentsPromise;
@@ -161,9 +163,16 @@ async function analyzeVideo(
   let finalText: string;
 
   if (cfg?.mode === "web") {
-    await setTask({ status: "running", startedAt, stage: meta.stage, progress: "正在打开 DeepSeek 网页版并注入提示词…" });
+    await setTask({
+      ...taskBase,
+      status: "running",
+      startedAt,
+      stage: meta.stage,
+      progress: "正在打开 DeepSeek 网页版并注入提示词…",
+    });
     const { tabId, created } = await injectWebPrompt(combined);
     await setTask({
+      ...taskBase,
       status: "web_paste",
       startedAt,
       stage: meta.stage,
@@ -178,6 +187,7 @@ async function analyzeVideo(
       // 45 秒仍无结果 → 明示提示（自动读取可能未检测到回复），引导手动粘贴
       const hint = setTimeout(() => {
         void setTask({
+          ...taskBase,
           status: "web_paste",
           startedAt,
           stage: meta.stage,
@@ -209,11 +219,23 @@ async function analyzeVideo(
       clearPendingWaits();
     }
   } else {
-    await setTask({ status: "running", startedAt, stage: meta.stage, progress: "AI 分析中（识别阵容 + 挖掘建议，单次调用）…" });
+    await setTask({
+      ...taskBase,
+      status: "running",
+      startedAt,
+      stage: meta.stage,
+      progress: "AI 分析中（识别阵容 + 挖掘建议，单次调用）…",
+    });
     finalText = await callLLM(combined);
   }
 
-  await setTask({ status: "running", startedAt, stage: meta.stage, progress: "解析回复并匹配你的 box…" });
+  await setTask({
+    ...taskBase,
+    status: "running",
+    startedAt,
+    stage: meta.stage,
+    progress: "解析回复并匹配你的 box…",
+  });
   const parsed = parseJsonLoose<{ roster?: unknown; substitutions?: unknown }>(finalText);
   if (!parsed.roster || typeof parsed.roster !== "object") {
     throw new Error("回复里缺少 roster 字段：请确认模型输出的是完整 JSON（含 roster 与 substitutions）");
@@ -247,14 +269,18 @@ async function analyzeVideo(
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === "ANALYZE_VIDEO") {
-    void setTask({ status: "running", startedAt: Date.now() });
-    analyzeVideo(msg.bvid, msg.page, msg.imageDataUrls)
+    const bvid = String(msg.bvid ?? "");
+    const requestedPage = msg.page == null || msg.page === "" ? undefined : Number(msg.page);
+    const page = normalizePage(requestedPage);
+    void setTask({ status: "running", startedAt: Date.now(), bvid, page });
+    analyzeVideo(bvid, requestedPage, msg.imageDataUrls)
       .then(async (result) => {
-        await setTask({ status: "done", startedAt: Date.now(), result });
+        await putCachedResult(result, page);
+        await setTask({ status: "done", startedAt: Date.now(), bvid, page, result });
         sendResponse({ ok: true, result });
       })
       .catch(async (err: Error) => {
-        await setTask({ status: "error", startedAt: Date.now(), error: err.message });
+        await setTask({ status: "error", startedAt: Date.now(), bvid, page, error: err.message });
         sendResponse({ ok: false, error: err.message });
       });
     return true; // async sendResponse

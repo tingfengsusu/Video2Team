@@ -7,6 +7,11 @@
 import type { AnalysisOutput, Box, LockedOps, TaskState } from "../shared/types";
 import { esc, renderResult, renderLockedSection, type HasOp } from "../shared/render";
 import { shrinkImage } from "../shared/img";
+import {
+  getCachedResult,
+  normalizePage,
+  type ResultCacheEntry,
+} from "../shared/resultCache";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -24,6 +29,20 @@ let pollTimer: number | undefined;
 let hasOp: HasOp = () => false;
 let llmReady = false;
 let lockedOps: LockedOps = {};
+
+function taskMatchesCurrent(task: TaskState): boolean {
+  return (
+    !!currentCtx.bvid &&
+    task.bvid === currentCtx.bvid &&
+    normalizePage(task.page) === normalizePage(currentCtx.page)
+  );
+}
+
+function formatCacheTime(ts: number): string {
+  const d = new Date(ts);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 async function getPageContext(): Promise<PageContext> {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -207,15 +226,51 @@ function showResult(result: AnalysisOutput): void {
   $("result").appendChild(btn);
 }
 
+function showCachedResult(entry: ResultCacheEntry): void {
+  showResult(entry.result);
+  $("status").innerHTML =
+    `<span class="hint">上次分析：${formatCacheTime(entry.ts)} ｜ </span>` +
+    `<a href="#" id="reanalyze" class="settings">重新分析</a>`;
+  $("reanalyze").addEventListener("click", (e) => {
+    e.preventDefault();
+    $("status").textContent = "";
+    triggerAnalyze();
+  });
+}
+
+function showEmptyState(): void {
+  $("result").innerHTML = "";
+  $("status").innerHTML =
+    `<span class="hint">当前分P尚无分析结果。请暂停在编队画面，抓帧或粘贴截图后点击「分析此关卡」。</span>`;
+}
+
 /** 轮询后台任务状态（popup 关闭重开也能恢复） */
-function pollTask(): void {
+let pollStartedAt = 0;
+let sawMatchingTask = false;
+
+function pollTask(waitForNewTask = false): void {
   if (pollTimer) window.clearInterval(pollTimer);
+  pollStartedAt = Date.now();
+  sawMatchingTask = !waitForNewTask;
   pollTimer = window.setInterval(async () => {
     const resp = (await chrome.runtime.sendMessage({ type: "GET_TASK" }).catch(() => null)) as
       | { task: TaskState | null }
       | null;
     const task = resp?.task;
-    if (!task) return;
+    if (!task || !taskMatchesCurrent(task)) {
+      // 当前页刚发起任务时给后台一点写入 task 的时间，避免误命中旧缓存。
+      if (!sawMatchingTask && Date.now() - pollStartedAt < 5000) return;
+      if (!currentCtx.bvid) return;
+      const cached = await getCachedResult(currentCtx.bvid, currentCtx.page);
+      if (cached) {
+        window.clearInterval(pollTimer!);
+        pollTimer = undefined;
+        setWebUi(undefined);
+        showCachedResult(cached);
+      }
+      return;
+    }
+    sawMatchingTask = true;
     setWebUi(task.status);
     if (task.status === "running" && task.progress) {
       $("status").textContent = `${task.progress}（约 20-60 秒）`;
@@ -259,6 +314,7 @@ async function submitPaste(): Promise<void> {
 function triggerAnalyze(): void {
   if (!currentCtx.bvid || capturedImages.length === 0) return;
   void (async () => {
+    $("result").innerHTML = "";
     const dataUrls = await Promise.all(capturedImages.map(shrinkImage));
     // fire-and-forget：结果经 storage.session 轮询获取（popup 关闭不丢）
     void chrome.runtime.sendMessage({
@@ -268,7 +324,7 @@ function triggerAnalyze(): void {
       imageDataUrls: dataUrls,
     });
     $("status").textContent = "分析中：识别画面阵容 → 挖掘弹幕/评论区 → 匹配你的 box…（约 20-60 秒，可切走稍后回来看）";
-    pollTask();
+    pollTask(true);
   })();
 }
 
@@ -282,20 +338,24 @@ async function restoreState(): Promise<void> {
     | { task: TaskState | null }
     | null;
   const task = resp?.task;
-  setWebUi(task?.status);
-  if (
-    (task?.status === "running" || task?.status === "web_paste") &&
-    Date.now() - task.startedAt < 1_800_000
-  ) {
+  const matches = !!task && taskMatchesCurrent(task);
+  setWebUi(matches ? task.status : undefined);
+  if (matches && (task.status === "running" || task.status === "web_paste") && Date.now() - task.startedAt < 1_800_000) {
     $("status").textContent =
       task.status === "running"
         ? "分析中：识别画面阵容 → 挖掘弹幕/评论区 → 匹配你的 box…（约 20-60 秒）"
         : task.progress ?? "等待你的操作…";
     pollTask();
-  } else if (task?.status === "done" && task.result) {
+  } else if (matches && task.status === "done" && task.result) {
     showResult(task.result);
-  } else if (task?.status === "error" && task.error) {
+  } else if (matches && task.status === "error" && task.error) {
     $("status").innerHTML = `<span class="err">${esc(task.error)}</span>`;
+  } else if (currentCtx.bvid) {
+    const cached = await getCachedResult(currentCtx.bvid, currentCtx.page);
+    if (cached) showCachedResult(cached);
+    else showEmptyState();
+  } else {
+    showEmptyState();
   }
 }
 
