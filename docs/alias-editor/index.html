@@ -1,0 +1,1449 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Video2Team 别名纠错集编辑器：搜索、增删改、歧义检测，并一键复制 JSON 到 GitHub 提 PR。"
+    />
+    <link rel="icon" href="data:," />
+    <title>Video2Team · 别名纠错集编辑器</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #17212b;
+        --muted: #66717c;
+        --paper: #f7f1e5;
+        --panel: rgba(255, 253, 248, 0.94);
+        --line: #d9d0c2;
+        --line-strong: #b9ad9c;
+        --blue: #0f7280;
+        --blue-dark: #07545f;
+        --coral: #e95638;
+        --amber: #c47a16;
+        --green: #2e7d58;
+        --danger: #b52d32;
+        --shadow: 0 20px 60px rgba(52, 43, 28, 0.13);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        min-height: 100%;
+        background: var(--paper);
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        color: var(--ink);
+        font-family: "Aptos Display", "Noto Sans SC", "Source Han Sans SC", "Microsoft YaHei", sans-serif;
+        background:
+          radial-gradient(circle at 12% 8%, rgba(233, 86, 56, 0.16), transparent 25rem),
+          radial-gradient(circle at 88% 3%, rgba(15, 114, 128, 0.18), transparent 30rem),
+          linear-gradient(rgba(23, 33, 43, 0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(23, 33, 43, 0.035) 1px, transparent 1px),
+          var(--paper);
+        background-size: auto, auto, 28px 28px, 28px 28px, auto;
+      }
+
+      button,
+      input,
+      select,
+      textarea {
+        font: inherit;
+      }
+
+      button,
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 40px;
+        gap: 7px;
+        padding: 8px 14px;
+        border: 1px solid transparent;
+        border-radius: 10px;
+        background: var(--ink);
+        color: #fff;
+        font-weight: 700;
+        text-decoration: none;
+        cursor: pointer;
+        transition:
+          transform 0.16s ease,
+          box-shadow 0.16s ease,
+          background 0.16s ease;
+      }
+
+      button:hover,
+      .button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 7px 18px rgba(23, 33, 43, 0.16);
+      }
+
+      button:focus-visible,
+      .button:focus-visible,
+      input:focus-visible,
+      select:focus-visible,
+      textarea:focus-visible {
+        outline: 3px solid rgba(15, 114, 128, 0.25);
+        outline-offset: 2px;
+      }
+
+      button.primary,
+      .button.primary {
+        background: var(--blue);
+      }
+
+      button.danger {
+        background: #fff2f1;
+        color: var(--danger);
+        border-color: #f0c8c5;
+      }
+
+      button.ghost,
+      .button.ghost {
+        background: rgba(255, 255, 255, 0.62);
+        color: var(--ink);
+        border-color: var(--line);
+      }
+
+      button.small {
+        min-height: 32px;
+        padding: 5px 9px;
+        border-radius: 8px;
+        font-size: 12px;
+      }
+
+      button:disabled {
+        opacity: 0.52;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+
+      .app-shell {
+        width: min(1400px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 26px 0 54px;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        margin-bottom: 18px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        font-weight: 900;
+        letter-spacing: -0.02em;
+      }
+
+      .brand-mark {
+        display: grid;
+        width: 42px;
+        height: 42px;
+        place-items: center;
+        border: 1px solid rgba(23, 33, 43, 0.15);
+        border-radius: 13px;
+        background: linear-gradient(145deg, #fff8ec, #f1dfc1);
+        box-shadow: 0 7px 18px rgba(52, 43, 28, 0.12);
+        font-size: 20px;
+      }
+
+      .top-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+
+      .hero {
+        position: relative;
+        overflow: hidden;
+        display: grid;
+        grid-template-columns: minmax(0, 1.4fr) minmax(270px, 0.6fr);
+        gap: 26px;
+        padding: 32px;
+        border: 1px solid rgba(23, 33, 43, 0.1);
+        border-radius: 24px;
+        background:
+          linear-gradient(128deg, rgba(255, 253, 248, 0.96), rgba(250, 241, 225, 0.88)),
+          var(--panel);
+        box-shadow: var(--shadow);
+        animation: rise 0.48s ease both;
+      }
+
+      .hero::after {
+        position: absolute;
+        right: -70px;
+        bottom: -95px;
+        width: 280px;
+        height: 280px;
+        border: 38px solid rgba(15, 114, 128, 0.08);
+        border-radius: 50%;
+        content: "";
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 10px;
+        color: var(--coral);
+        font-size: 12px;
+        font-weight: 900;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        max-width: 780px;
+        margin: 0;
+        font-size: clamp(34px, 5vw, 66px);
+        line-height: 1.02;
+        letter-spacing: -0.055em;
+      }
+
+      .hero p {
+        max-width: 760px;
+        margin: 17px 0 0;
+        color: #46515c;
+        font-size: 15px;
+        line-height: 1.8;
+      }
+
+      .hero-side {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 12px;
+      }
+
+      .status-card {
+        padding: 17px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.66);
+      }
+
+      .status-label {
+        margin-bottom: 7px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+
+      .status-line {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        font-weight: 800;
+      }
+
+      .dot {
+        width: 10px;
+        height: 10px;
+        flex: 0 0 auto;
+        border-radius: 50%;
+        background: var(--amber);
+        box-shadow: 0 0 0 4px rgba(196, 122, 22, 0.12);
+      }
+
+      .dot.ok {
+        background: var(--green);
+        box-shadow: 0 0 0 4px rgba(46, 125, 88, 0.13);
+      }
+
+      .dot.bad {
+        background: var(--danger);
+        box-shadow: 0 0 0 4px rgba(181, 45, 50, 0.12);
+      }
+
+      .source-note {
+        margin-top: 7px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.55;
+        word-break: break-word;
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        margin: 16px 0;
+      }
+
+      .stat {
+        padding: 16px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: rgba(255, 253, 248, 0.74);
+        backdrop-filter: blur(8px);
+        animation: rise 0.48s ease both;
+      }
+
+      .stat:nth-child(2) {
+        animation-delay: 0.05s;
+      }
+
+      .stat:nth-child(3) {
+        animation-delay: 0.1s;
+      }
+
+      .stat:nth-child(4) {
+        animation-delay: 0.15s;
+      }
+
+      .stat strong {
+        display: block;
+        font-size: 29px;
+        line-height: 1;
+        letter-spacing: -0.04em;
+      }
+
+      .stat span {
+        display: block;
+        margin-top: 7px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .workspace {
+        overflow: hidden;
+        border: 1px solid rgba(23, 33, 43, 0.12);
+        border-radius: 22px;
+        background: var(--panel);
+        box-shadow: var(--shadow);
+        animation: rise 0.55s 0.08s ease both;
+      }
+
+      .toolbar {
+        display: grid;
+        grid-template-columns: minmax(220px, 1fr) 190px auto;
+        gap: 10px;
+        padding: 16px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(246, 239, 226, 0.72);
+      }
+
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+
+      .field label {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+      }
+
+      input,
+      select,
+      textarea {
+        width: 100%;
+        border: 1px solid var(--line-strong);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.88);
+        color: var(--ink);
+      }
+
+      input,
+      select {
+        min-height: 42px;
+        padding: 8px 11px;
+      }
+
+      textarea {
+        min-height: 220px;
+        padding: 12px;
+        resize: vertical;
+        font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+        font-size: 12px;
+        line-height: 1.6;
+      }
+
+      .toolbar-actions {
+        display: flex;
+        align-items: flex-end;
+        gap: 8px;
+      }
+
+      .notice {
+        display: none;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 11px 16px;
+        border-bottom: 1px solid #efc7c4;
+        background: #fff2f1;
+        color: #882126;
+        font-size: 13px;
+      }
+
+      .notice.show {
+        display: flex;
+      }
+
+      .table-wrap {
+        overflow: auto;
+        max-height: min(64vh, 760px);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+      }
+
+      thead {
+        position: sticky;
+        z-index: 2;
+        top: 0;
+        background: #f4ecdf;
+      }
+
+      th {
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--line-strong);
+        color: #59636d;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-align: left;
+        text-transform: uppercase;
+      }
+
+      th:nth-child(1) {
+        width: 30%;
+      }
+
+      th:nth-child(2) {
+        width: 34%;
+      }
+
+      th:nth-child(3) {
+        width: 26%;
+      }
+
+      th:nth-child(4) {
+        width: 70px;
+      }
+
+      td {
+        padding: 9px 14px;
+        border-bottom: 1px solid #ece4d9;
+        vertical-align: middle;
+      }
+
+      tbody tr {
+        transition: background 0.14s ease;
+      }
+
+      tbody tr:hover {
+        background: #fffcf5;
+      }
+
+      tr.conflict {
+        background: #fff2f1;
+      }
+
+      tr.conflict:hover {
+        background: #ffeae8;
+      }
+
+      tr.incomplete {
+        background: #fff9e9;
+      }
+
+      tr.hidden {
+        display: none;
+      }
+
+      .cell-input {
+        min-height: 36px;
+        border-color: transparent;
+        background: transparent;
+      }
+
+      .cell-input:hover {
+        border-color: var(--line);
+        background: #fff;
+      }
+
+      .cell-input:focus {
+        border-color: var(--blue);
+        background: #fff;
+      }
+
+      .cell-note {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.45;
+        overflow-wrap: anywhere;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 7px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 800;
+        line-height: 1.2;
+      }
+
+      .badge.ok {
+        background: #eaf5ee;
+        color: var(--green);
+      }
+
+      .badge.conflict {
+        background: #ffe1de;
+        color: var(--danger);
+      }
+
+      .badge.incomplete {
+        background: #fff0ca;
+        color: #8d5a08;
+      }
+
+      .row-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 6px;
+      }
+
+      .empty {
+        padding: 58px 20px;
+        color: var(--muted);
+        text-align: center;
+      }
+
+      .table-foot {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 12px 16px;
+        border-top: 1px solid var(--line);
+        background: rgba(246, 239, 226, 0.6);
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .workflow {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 16px;
+      }
+
+      .workflow article {
+        padding: 17px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: rgba(255, 253, 248, 0.66);
+      }
+
+      .workflow b {
+        display: block;
+        margin-bottom: 7px;
+      }
+
+      .workflow p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.7;
+      }
+
+      .modal-backdrop {
+        position: fixed;
+        z-index: 50;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        background: rgba(23, 33, 43, 0.46);
+        backdrop-filter: blur(5px);
+      }
+
+      .modal-backdrop.open {
+        display: flex;
+      }
+
+      .modal {
+        width: min(680px, 100%);
+        max-height: calc(100vh - 40px);
+        overflow: auto;
+        padding: 22px;
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        background: #fffdf8;
+        box-shadow: 0 26px 90px rgba(23, 33, 43, 0.28);
+      }
+
+      .modal h2 {
+        margin: 0 0 6px;
+        font-size: 22px;
+      }
+
+      .modal p {
+        margin: 0 0 14px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.65;
+      }
+
+      .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .toast {
+        position: fixed;
+        z-index: 80;
+        right: 22px;
+        bottom: 22px;
+        max-width: min(420px, calc(100% - 44px));
+        padding: 12px 15px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 12px;
+        background: rgba(23, 33, 43, 0.94);
+        color: #fff;
+        box-shadow: 0 16px 44px rgba(23, 33, 43, 0.25);
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(12px);
+        transition:
+          opacity 0.2s ease,
+          transform 0.2s ease;
+      }
+
+      .toast.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      @keyframes rise {
+        from {
+          opacity: 0;
+          transform: translateY(12px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @media (max-width: 900px) {
+        .hero {
+          grid-template-columns: 1fr;
+        }
+
+        .stats {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .toolbar {
+          grid-template-columns: 1fr 1fr;
+        }
+
+        .toolbar-actions {
+          grid-column: 1 / -1;
+        }
+
+        th:nth-child(1),
+        th:nth-child(2) {
+          width: 36%;
+        }
+      }
+
+      @media (max-width: 680px) {
+        .app-shell {
+          width: min(100% - 20px, 1400px);
+          padding-top: 14px;
+        }
+
+        .topbar {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .top-actions {
+          width: 100%;
+          justify-content: flex-start;
+        }
+
+        .hero {
+          padding: 24px 19px;
+          border-radius: 18px;
+        }
+
+        .stats {
+          gap: 8px;
+        }
+
+        .stat {
+          padding: 13px;
+        }
+
+        .toolbar {
+          grid-template-columns: 1fr;
+        }
+
+        .toolbar-actions {
+          grid-column: auto;
+          flex-wrap: wrap;
+        }
+
+        .table-wrap {
+          overflow: visible;
+          max-height: none;
+        }
+
+        table,
+        tbody,
+        tr,
+        td {
+          display: block;
+          width: 100%;
+        }
+
+        thead {
+          display: none;
+        }
+
+        tbody tr {
+          padding: 11px;
+          border-bottom: 8px solid #efe6d9;
+        }
+
+        td {
+          display: grid;
+          grid-template-columns: 78px minmax(0, 1fr);
+          align-items: center;
+          padding: 5px 0;
+          border: 0;
+        }
+
+        td::before {
+          color: var(--muted);
+          content: attr(data-label);
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: 0.06em;
+        }
+
+        .row-actions {
+          justify-content: flex-start;
+        }
+
+        .workflow {
+          grid-template-columns: 1fr;
+        }
+
+        .table-foot {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          scroll-behavior: auto !important;
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">V2T</span>
+          <span>别名纠错集编辑器</span>
+        </div>
+        <nav class="top-actions" aria-label="数据操作">
+          <button id="loadRemote" class="ghost" type="button">↻ 重新载入仓库数据</button>
+          <button id="importPending" class="ghost" type="button">↧ 导入错题本</button>
+          <a
+            class="button ghost"
+            href="https://github.com/tingfengsusu/Video2Team/blob/main/data/aliases.json"
+            target="_blank"
+            rel="noopener"
+            >查看当前 JSON</a
+          >
+        </nav>
+      </header>
+
+      <section class="hero">
+        <div>
+          <div class="eyebrow"><span>COMMUNITY DATASET</span><span>·</span><span>零后端</span></div>
+          <h1>让每个昵称，都指向正确的那位干员。</h1>
+          <p>
+            搜索、修改、补齐昵称对照，自动检出同一昵称映射到多名干员的歧义。编辑完成后复制 JSON，
+            粘贴到 GitHub 编辑页即可提 PR。所有操作只发生在你的浏览器里。
+          </p>
+        </div>
+        <div class="hero-side">
+          <div class="status-card">
+            <div class="status-label">当前数据源</div>
+            <div class="status-line"><span id="sourceDot" class="dot"></span><span id="sourceText">正在载入…</span></div>
+            <div id="sourceNote" class="source-note">优先读取仓库 data/aliases.json，失败时回退到 jsDelivr / raw GitHub。</div>
+          </div>
+          <div class="status-card">
+            <div class="status-label">提交出口</div>
+            <div class="status-line">GitHub PR</div>
+            <div class="source-note">复制 JSON 后，GitHub 编辑页会自动打开并在你粘贴后形成提交。</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="stats" aria-label="数据概览">
+        <div class="stat"><strong id="statTotal">0</strong><span>别名条数</span></div>
+        <div class="stat"><strong id="statOperators">0</strong><span>覆盖干员</span></div>
+        <div class="stat"><strong id="statConflicts">0</strong><span>歧义冲突</span></div>
+        <div class="stat"><strong id="statDirty">—</strong><span>本地修改状态</span></div>
+      </section>
+
+      <section class="workspace">
+        <div class="toolbar">
+          <div class="field">
+            <label for="searchInput">搜索昵称或干员全名</label>
+            <input id="searchInput" type="search" placeholder="例如：杰哥、安洁莉娜、42" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label for="sortSelect">排序</label>
+            <select id="sortSelect">
+              <option value="nick-asc">昵称 A→Z</option>
+              <option value="nick-desc">昵称 Z→A</option>
+              <option value="operator-asc">干员 A→Z</option>
+              <option value="conflict-first">冲突优先</option>
+              <option value="incomplete-first">待补全优先</option>
+            </select>
+          </div>
+          <div class="toolbar-actions">
+            <button id="addAlias" class="primary" type="button">＋ 新增别名</button>
+            <button id="copyJson" class="ghost" type="button">复制 JSON</button>
+            <button id="openGithub" class="primary" type="button">复制 JSON 并打开 GitHub 编辑页</button>
+          </div>
+        </div>
+
+        <div id="conflictNotice" class="notice" role="alert">
+          <span id="conflictText"></span>
+          <button id="showConflicts" class="small" type="button">只看冲突</button>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">昵称 / 黑话</th>
+                <th scope="col">正确干员全名</th>
+                <th scope="col">状态</th>
+                <th scope="col"><span class="sr-only">操作</span></th>
+              </tr>
+            </thead>
+            <tbody id="aliasTable"></tbody>
+          </table>
+          <div id="emptyState" class="empty" hidden>没有匹配的别名条目。</div>
+        </div>
+
+        <div class="table-foot">
+          <span id="visibleCount">显示 0 条</span>
+          <span>歧义检测规则与插件 <code>invertUpstream</code> 一致：同一昵称指向多个干员时拒绝导出。</span>
+        </div>
+      </section>
+
+      <section class="workflow" aria-label="提交步骤">
+        <article>
+          <b>1 · 导入与修正</b>
+          <p>从插件设置页导出错题本，再粘贴到这里；也可直接编辑仓库读取到的完整别名表。</p>
+        </article>
+        <article>
+          <b>2 · 清除歧义</b>
+          <p>红色行会列出冲突目标。把昵称改成更具体的写法，或让重复昵称统一指向同一名干员。</p>
+        </article>
+        <article>
+          <b>3 · 复制并提 PR</b>
+          <p>点「复制 JSON 并打开 GitHub 编辑页」，粘贴覆盖原 JSON，填写说明后提交 Pull Request。</p>
+        </article>
+      </section>
+    </main>
+
+    <div id="importModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="importTitle">
+      <div class="modal">
+        <h2 id="importTitle">导入错题本</h2>
+        <p>
+          支持插件「导出错题本」的 JSON、原始 <code>corrections_pending</code> 对象，或
+          <code>{"昵称":"干员全名"}</code> 对照对象。待确认条目会先进入表格，干员全名留空供你填写。
+        </p>
+        <textarea
+          id="importText"
+          spellcheck="false"
+          placeholder='例如：{"corrections_pending":{"新黑话":{"name":"新黑话","count":3,"sample":"..."}}}'
+        ></textarea>
+        <div id="importStatus" class="source-note" aria-live="polite"></div>
+        <div class="modal-actions">
+          <button id="cancelImport" class="ghost" type="button">取消</button>
+          <button id="applyImport" class="primary" type="button">导入到表格</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="outputModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="outputTitle">
+      <div class="modal">
+        <h2 id="outputTitle">手动复制 JSON</h2>
+        <p>浏览器拒绝了自动复制。请全选下方内容复制，再打开 GitHub 编辑页覆盖粘贴。</p>
+        <textarea id="outputText" spellcheck="false" readonly></textarea>
+        <div class="modal-actions">
+          <button id="closeOutput" class="ghost" type="button">关闭</button>
+          <button id="selectOutput" class="primary" type="button">全选</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <datalist id="operatorNames"></datalist>
+
+    <script>
+      (() => {
+        "use strict";
+
+        const REPO = "tingfengsusu/Video2Team";
+        const BRANCH = "main";
+        const GITHUB_EDIT_URL = `https://github.com/${REPO}/edit/${BRANCH}/data/aliases.json`;
+        const LOCAL_DATA_URL = new URL("../../data/aliases.json", location.href).href;
+        const REMOTE_DATA_URLS = [
+          `https://cdn.jsdelivr.net/gh/${REPO}@${BRANCH}/data/aliases.json`,
+          `https://raw.githubusercontent.com/${REPO}/${BRANCH}/data/aliases.json`,
+        ];
+
+        const DEFAULT_META = {
+          _comment:
+            "纠错集：昵称/黑话 → 干员全名 对照表。用途：① miner/roster 的 LLM prompt 注入参照 ② 校验层别名还原。",
+          _source: "Video2Team 社区别名纠错集（由 GitHub Pages 编辑器维护）",
+        };
+
+        const $ = (id) => document.getElementById(id);
+        const state = {
+          rows: [],
+          meta: { ...DEFAULT_META },
+          query: "",
+          sort: "nick-asc",
+          dirty: false,
+          nextId: 1,
+          toastTimer: 0,
+        };
+
+        function escapeHtml(value) {
+          return String(value ?? "").replace(
+            /[&<>"']/g,
+            (char) =>
+              ({
+                "&": "&amp;",
+                "<": "&lt;",
+                ">": "&gt;",
+                '"': "&quot;",
+                "'": "&#39;",
+              })[char],
+          );
+        }
+
+        function makeRow(nickname = "", operator = "", note = "") {
+          return {
+            id: state.nextId++,
+            nickname: String(nickname ?? ""),
+            operator: String(operator ?? ""),
+            note: String(note ?? ""),
+          };
+        }
+
+        function normalizeNickname(value) {
+          return String(value ?? "").trim();
+        }
+
+        function conflictMap(rows = state.rows) {
+          const map = new Map();
+          for (const row of rows) {
+            const nickname = normalizeNickname(row.nickname);
+            const operator = String(row.operator ?? "").trim();
+            if (!nickname || !operator) continue;
+            if (!map.has(nickname)) map.set(nickname, new Set());
+            map.get(nickname).add(operator);
+          }
+          return map;
+        }
+
+        function rowConflict(row, conflicts = conflictMap()) {
+          const targets = conflicts.get(normalizeNickname(row.nickname));
+          return targets && targets.size > 1 ? [...targets] : [];
+        }
+
+        function unresolvedRows() {
+          return state.rows.filter((row) => !normalizeNickname(row.nickname) || !String(row.operator).trim());
+        }
+
+        function conflictingRows() {
+          const conflicts = conflictMap();
+          return state.rows.filter((row) => rowConflict(row, conflicts).length > 0);
+        }
+
+        function visibleRows() {
+          const query = state.query.trim().toLocaleLowerCase();
+          const conflicts = conflictMap();
+          const rows = state.rows.filter((row) => {
+            if (!query) return true;
+            return (
+              row.nickname.toLocaleLowerCase().includes(query) ||
+              row.operator.toLocaleLowerCase().includes(query)
+            );
+          });
+
+          const compare = (a, b, field) =>
+            String(a[field] ?? "").localeCompare(String(b[field] ?? ""), "zh-CN", {
+              numeric: true,
+              sensitivity: "base",
+            });
+
+          return rows.sort((a, b) => {
+            if (state.sort === "nick-desc") return compare(b, a, "nickname");
+            if (state.sort === "operator-asc") return compare(a, b, "operator") || compare(a, b, "nickname");
+            if (state.sort === "conflict-first") {
+              return (
+                Number(rowConflict(b, conflicts).length > 0) - Number(rowConflict(a, conflicts).length > 0) ||
+                compare(a, b, "nickname")
+              );
+            }
+            if (state.sort === "incomplete-first") {
+              const aMissing = !normalizeNickname(a.nickname) || !String(a.operator).trim();
+              const bMissing = !normalizeNickname(b.nickname) || !String(b.operator).trim();
+              return Number(bMissing) - Number(aMissing) || compare(a, b, "nickname");
+            }
+            return compare(a, b, "nickname");
+          });
+        }
+
+        function renderTable() {
+          const tbody = $("aliasTable");
+          const rows = visibleRows();
+          const conflicts = conflictMap();
+
+          tbody.innerHTML = rows
+            .map((row) => {
+              const targets = rowConflict(row, conflicts);
+              const missing = !normalizeNickname(row.nickname) || !String(row.operator).trim();
+              const classes = [targets.length ? "conflict" : "", missing ? "incomplete" : ""].filter(Boolean).join(" ");
+              let badge = '<span class="badge ok">通过</span>';
+              if (targets.length) {
+                badge = `<span class="badge conflict">歧义 · ${escapeHtml(targets.join(" / "))}</span>`;
+              } else if (missing) {
+                badge = '<span class="badge incomplete">待补全</span>';
+              }
+              return `
+                <tr class="${classes}" data-id="${row.id}">
+                  <td data-label="昵称">
+                    <input class="cell-input" data-field="nickname" value="${escapeHtml(row.nickname)}"
+                      aria-label="昵称" placeholder="昵称 / 黑话" autocomplete="off" />
+                    ${row.note ? `<div class="cell-note">${escapeHtml(row.note)}</div>` : ""}
+                  </td>
+                  <td data-label="干员">
+                    <input class="cell-input" data-field="operator" value="${escapeHtml(row.operator)}"
+                      list="operatorNames" aria-label="正确干员全名" placeholder="正确干员全名" autocomplete="off" />
+                  </td>
+                  <td data-label="状态">${badge}</td>
+                  <td data-label="操作">
+                    <div class="row-actions">
+                      <button class="danger small" data-action="delete" type="button" title="删除此条">删除</button>
+                    </div>
+                  </td>
+                </tr>`;
+            })
+            .join("");
+
+          $("emptyState").hidden = rows.length > 0;
+          $("visibleCount").textContent = `显示 ${rows.length} / ${state.rows.length} 条`;
+          refreshDerivedUi();
+        }
+
+        function refreshDerivedUi() {
+          const conflicts = conflictMap();
+          const conflictRows = conflictingRows();
+          const unresolved = unresolvedRows();
+          const operators = new Set(
+            state.rows.map((row) => String(row.operator ?? "").trim()).filter(Boolean),
+          );
+
+          for (const tr of document.querySelectorAll("#aliasTable tr[data-id]")) {
+            const row = state.rows.find((item) => String(item.id) === tr.dataset.id);
+            if (!row) continue;
+            const targets = rowConflict(row, conflicts);
+            const missing = !normalizeNickname(row.nickname) || !String(row.operator).trim();
+            tr.classList.toggle("conflict", targets.length > 0);
+            tr.classList.toggle("incomplete", !targets.length && missing);
+            const badge = tr.querySelector("td:nth-child(3) .badge");
+            if (badge) {
+              badge.className = `badge ${targets.length ? "conflict" : missing ? "incomplete" : "ok"}`;
+              badge.textContent = targets.length
+                ? `歧义 · ${targets.join(" / ")}`
+                : missing
+                  ? "待补全"
+                  : "通过";
+            }
+          }
+
+          $("statTotal").textContent = String(state.rows.length);
+          $("statOperators").textContent = String(operators.size);
+          $("statConflicts").textContent = String(conflictRows.length);
+          $("statDirty").textContent = state.dirty ? "有修改" : "已同步";
+
+          const notice = $("conflictNotice");
+          notice.classList.toggle("show", conflictRows.length > 0 || unresolved.length > 0);
+          if (conflictRows.length > 0) {
+            $("conflictText").textContent = `发现 ${conflictRows.length} 条歧义记录；导出前必须让同一昵称只指向一个干员。`;
+            $("showConflicts").hidden = false;
+          } else if (unresolved.length > 0) {
+            $("conflictText").textContent = `还有 ${unresolved.length} 条待补全记录；填写昵称与干员全名后才能导出。`;
+            $("showConflicts").hidden = true;
+          } else {
+            $("conflictText").textContent = "";
+          }
+        }
+
+        function setRowsFromAliases(aliases) {
+          state.nextId = 1;
+          state.rows = Object.entries(aliases ?? {}).map(([nickname, operator]) =>
+            makeRow(nickname, operator),
+          );
+          state.dirty = false;
+          renderTable();
+        }
+
+        function parseAliasDocument(data) {
+          if (!data || typeof data !== "object") throw new Error("JSON 顶层必须是对象");
+          if (data.aliases && typeof data.aliases === "object" && !Array.isArray(data.aliases)) {
+            state.meta = {
+              ...(data._comment ? { _comment: data._comment } : {}),
+              ...(data._source ? { _source: data._source } : {}),
+            };
+            return data.aliases;
+          }
+          return data;
+        }
+
+        function sourceLabel(url) {
+          if (url === LOCAL_DATA_URL || url.startsWith(location.origin)) return "仓库快照";
+          if (url.includes("cdn.jsdelivr.net")) return "jsDelivr";
+          if (url.includes("raw.githubusercontent.com")) return "GitHub raw";
+          return "远程数据";
+        }
+
+        async function fetchAliases(url) {
+          const response = await fetch(url, { cache: "no-store" });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const data = await response.json();
+          return parseAliasDocument(data);
+        }
+
+        async function loadRemote(force = true) {
+          if (force && state.dirty && !window.confirm("重新载入会丢弃当前未复制的修改，继续吗？")) return;
+          $("sourceDot").className = "dot";
+          $("sourceText").textContent = "正在载入…";
+          $("sourceNote").textContent = "优先读取仓库 data/aliases.json，失败时回退到 jsDelivr / raw GitHub。";
+
+          const extra = new URLSearchParams(location.search).get("data");
+          const urls = [...(extra ? [extra] : []), LOCAL_DATA_URL, ...REMOTE_DATA_URLS];
+          let lastError = "";
+          for (const url of urls) {
+            try {
+              const aliases = await fetchAliases(url);
+              setRowsFromAliases(aliases);
+              $("sourceDot").className = "dot ok";
+              $("sourceText").textContent = sourceLabel(url);
+              $("sourceNote").textContent = url;
+              showToast(`已载入 ${Object.keys(aliases).length} 条别名`);
+              return;
+            } catch (error) {
+              lastError = error instanceof Error ? error.message : String(error);
+            }
+          }
+
+          $("sourceDot").className = "dot bad";
+          $("sourceText").textContent = "载入失败";
+          $("sourceNote").textContent = `${lastError}。仍可手动新增条目，或在网络恢复后重试。`;
+          if (state.rows.length === 0) renderTable();
+        }
+
+        async function loadOperatorNames() {
+          const urls = [
+            new URL("../../data/operators.json", location.href).href,
+            `https://cdn.jsdelivr.net/gh/${REPO}@${BRANCH}/data/operators.json`,
+            `https://raw.githubusercontent.com/${REPO}/${BRANCH}/data/operators.json`,
+          ];
+          for (const url of urls) {
+            try {
+              const response = await fetch(url, { cache: "force-cache" });
+              if (!response.ok) continue;
+              const data = await response.json();
+              const names = Object.values(data)
+                .map((entry) => (entry && typeof entry === "object" ? entry.name : ""))
+                .filter(Boolean)
+                .sort((a, b) => String(a).localeCompare(String(b), "zh-CN"));
+              $("operatorNames").innerHTML = names
+                .map((name) => `<option value="${escapeHtml(name)}"></option>`)
+                .join("");
+              return;
+            } catch {
+              // 继续尝试下一数据源；补全失败不影响手动填写。
+            }
+          }
+        }
+
+        function buildJson() {
+          const aliases = {};
+          for (const row of state.rows) {
+            aliases[normalizeNickname(row.nickname)] = String(row.operator ?? "").trim();
+          }
+          const data = {};
+          if (state.meta._comment) data._comment = state.meta._comment;
+          if (state.meta._source) data._source = state.meta._source;
+          data.aliases = aliases;
+          return JSON.stringify(data, null, 1) + "\n";
+        }
+
+        function validateForExport() {
+          const unresolved = unresolvedRows();
+          if (unresolved.length) {
+            showToast(`还有 ${unresolved.length} 条记录缺少昵称或干员全名`);
+            state.sort = "incomplete-first";
+            $("sortSelect").value = state.sort;
+            renderTable();
+            return false;
+          }
+          const conflicts = conflictingRows();
+          if (conflicts.length) {
+            showToast(`有 ${conflicts.length} 条昵称存在歧义，请先解决`);
+            state.sort = "conflict-first";
+            $("sortSelect").value = state.sort;
+            renderTable();
+            return false;
+          }
+          return true;
+        }
+
+        function showManualJson(json) {
+          $("outputText").value = json;
+          $("outputModal").classList.add("open");
+          $("outputText").focus();
+        }
+
+        async function copyJson(openGithub) {
+          if (!validateForExport()) return;
+          const json = buildJson();
+          try {
+            await navigator.clipboard.writeText(json);
+            state.dirty = false;
+            refreshDerivedUi();
+            showToast(openGithub ? "JSON 已复制，正在打开 GitHub 编辑页" : "JSON 已复制到剪贴板");
+          } catch {
+            showManualJson(json);
+          }
+          if (openGithub) window.open(GITHUB_EDIT_URL, "_blank", "noopener");
+        }
+
+        function collectImportEntries(data) {
+          let source = data;
+          if (source && typeof source === "object" && !Array.isArray(source)) {
+            source =
+              source.corrections_pending ??
+              source.pending ??
+              source.entries ??
+              source.aliases ??
+              source;
+          }
+
+          const output = [];
+          if (Array.isArray(source)) {
+            for (const item of source) {
+              if (!item || typeof item !== "object") continue;
+              output.push({
+                nickname: item.name ?? item.nickname ?? item.alias ?? item.key ?? "",
+                operator: item.operator ?? item.fullName ?? item.correct ?? item.value ?? "",
+                note: item.sample
+                  ? `${item.count ? `出现 ${item.count} 次｜` : ""}样例：${item.sample}`
+                  : "",
+              });
+            }
+            return output;
+          }
+
+          if (!source || typeof source !== "object") return output;
+          for (const [key, value] of Object.entries(source)) {
+            if (typeof value === "string") {
+              output.push({ nickname: key, operator: value, note: "" });
+            } else if (value && typeof value === "object") {
+              output.push({
+                nickname: value.name ?? value.nickname ?? key,
+                operator: value.operator ?? value.fullName ?? value.correct ?? "",
+                note: value.sample
+                  ? `${value.count ? `出现 ${value.count} 次｜` : ""}样例：${value.sample}`
+                  : "",
+              });
+            }
+          }
+          return output;
+        }
+
+        function applyImport() {
+          const text = $("importText").value.trim();
+          if (!text) {
+            $("importStatus").textContent = "请先粘贴 JSON 内容";
+            return;
+          }
+          try {
+            const entries = collectImportEntries(JSON.parse(text));
+            if (!entries.length) throw new Error("没有解析到可导入的条目");
+
+            const existing = new Set(
+              state.rows.map((row) => `${normalizeNickname(row.nickname)}\u0000${String(row.operator).trim()}`),
+            );
+            let added = 0;
+            for (const entry of entries) {
+              const nickname = String(entry.nickname ?? "").trim();
+              const operator = String(entry.operator ?? "").trim();
+              if (!nickname) continue;
+              const key = `${nickname}\u0000${operator}`;
+              if (existing.has(key)) continue;
+              existing.add(key);
+              state.rows.push(makeRow(nickname, operator, entry.note));
+              added += 1;
+            }
+
+            state.dirty = added > 0;
+            renderTable();
+            $("importModal").classList.remove("open");
+            $("importText").value = "";
+            $("importStatus").textContent = "";
+            showToast(added ? `已导入 ${added} 条记录` : "没有新增记录（可能已存在）");
+          } catch (error) {
+            $("importStatus").textContent = error instanceof Error ? error.message : String(error);
+          }
+        }
+
+        function showToast(message) {
+          const toast = $("toast");
+          toast.textContent = message;
+          toast.classList.add("show");
+          window.clearTimeout(state.toastTimer);
+          state.toastTimer = window.setTimeout(() => toast.classList.remove("show"), 2600);
+        }
+
+        function openImportModal() {
+          $("importModal").classList.add("open");
+          $("importStatus").textContent = "";
+          $("importText").focus();
+        }
+
+        function wireEvents() {
+          $("searchInput").addEventListener("input", (event) => {
+            state.query = event.target.value;
+            renderTable();
+          });
+          $("sortSelect").addEventListener("change", (event) => {
+            state.sort = event.target.value;
+            renderTable();
+          });
+          $("addAlias").addEventListener("click", () => {
+            state.rows.unshift(makeRow());
+            state.dirty = true;
+            state.query = "";
+            $("searchInput").value = "";
+            renderTable();
+            const first = document.querySelector("#aliasTable tr:first-child input");
+            if (first) first.focus();
+          });
+          $("aliasTable").addEventListener("input", (event) => {
+            const input = event.target.closest("input[data-field]");
+            if (!input) return;
+            const tr = input.closest("tr[data-id]");
+            const row = state.rows.find((item) => String(item.id) === tr.dataset.id);
+            if (!row) return;
+            row[input.dataset.field] = input.value;
+            state.dirty = true;
+            refreshDerivedUi();
+          });
+          $("aliasTable").addEventListener("change", () => renderTable());
+          $("aliasTable").addEventListener("click", (event) => {
+            const button = event.target.closest("button[data-action]");
+            if (!button || button.dataset.action !== "delete") return;
+            const tr = button.closest("tr[data-id]");
+            state.rows = state.rows.filter((row) => String(row.id) !== tr.dataset.id);
+            state.dirty = true;
+            renderTable();
+          });
+          $("loadRemote").addEventListener("click", () => loadRemote(true));
+          $("importPending").addEventListener("click", openImportModal);
+          $("cancelImport").addEventListener("click", () => $("importModal").classList.remove("open"));
+          $("applyImport").addEventListener("click", applyImport);
+          $("copyJson").addEventListener("click", () => copyJson(false));
+          $("openGithub").addEventListener("click", () => copyJson(true));
+          $("showConflicts").addEventListener("click", () => {
+            state.sort = "conflict-first";
+            $("sortSelect").value = state.sort;
+            renderTable();
+          });
+          $("selectOutput").addEventListener("click", () => {
+            $("outputText").select();
+          });
+          $("closeOutput").addEventListener("click", () => $("outputModal").classList.remove("open"));
+          document.addEventListener("click", (event) => {
+            if (event.target.classList.contains("modal-backdrop")) event.target.classList.remove("open");
+          });
+          document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") {
+              document.querySelectorAll(".modal-backdrop.open").forEach((item) => item.classList.remove("open"));
+            }
+          });
+          window.addEventListener("beforeunload", (event) => {
+            if (!state.dirty) return;
+            event.preventDefault();
+            event.returnValue = "";
+          });
+        }
+
+        async function init() {
+          wireEvents();
+          renderTable();
+          await Promise.all([loadRemote(false), loadOperatorNames()]);
+        }
+
+        init();
+      })();
+    </script>
+  </body>
+</html>

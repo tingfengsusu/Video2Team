@@ -372,6 +372,20 @@ async function initAliasSection(): Promise<void> {
       .join("\n");
   }
 
+  async function buildPendingExport(): Promise<string> {
+    const entries = await getPending();
+    return JSON.stringify(
+      {
+        source: "Video2Team",
+        kind: "corrections_pending",
+        exportedAt: new Date().toISOString(),
+        corrections_pending: Object.fromEntries(entries.map((entry) => [entry.name, entry])),
+      },
+      null,
+      2,
+    );
+  }
+
   $("submitCommunity").addEventListener("click", async () => {
     const body = await buildSubmission();
     if (!body) {
@@ -403,6 +417,20 @@ async function initAliasSection(): Promise<void> {
       $("submitStatus").textContent = "已复制，可粘贴到 Issue / 帖子 / 群里";
     } catch {
       $("submitStatus").textContent = "复制失败，请手动选中文本";
+    }
+  });
+
+  $("exportPending").addEventListener("click", async () => {
+    const pending = await getPending();
+    if (pending.length === 0) {
+      $("submitStatus").textContent = "错题本为空，无需导出";
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(await buildPendingExport());
+      $("submitStatus").textContent = `已导出 ${pending.length} 条待确认称呼，可粘贴到别名编辑器`;
+    } catch {
+      $("submitStatus").textContent = "复制失败；请打开在线别名编辑器后手动录入";
     }
   });
 
