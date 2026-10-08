@@ -25,6 +25,7 @@ import {
   parseJsonLoose,
 } from "../shared/llm";
 import { normalizePage, putCachedResult } from "../shared/resultCache";
+import { buildDispatchPool, listDispatchStages, queryCopilots, resolveEventPrefix } from "../shared/maa";
 import type { AnalysisOutput, Box, Roster, Substitution, TaskState } from "../shared/types";
 
 const TASK_KEY = "task";
@@ -304,6 +305,39 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     // content script 无法直接调 openOptionsPage，经后台转发
     chrome.runtime.openOptionsPage();
     sendResponse({ ok: true });
+    return true;
+  }
+  // ---------- §2 MAA 作业站（prts.maa.plus）数据源 ----------
+  if (msg?.type === "MAA_RESOLVE_EVENT") {
+    void (async () => {
+      const prefix = await resolveEventPrefix(String(msg.displayCode ?? ""), {
+        eventName: msg.eventName ? String(msg.eventName) : undefined,
+      });
+      const stages = prefix ? await listDispatchStages(prefix) : [];
+      sendResponse({ ok: true, prefix, stages });
+    })().catch((err: Error) => sendResponse({ ok: false, error: err.message }));
+    return true;
+  }
+  if (msg?.type === "MAA_QUERY") {
+    void (async () => {
+      const res = await queryCopilots(String(msg.levelKeyword ?? ""), {
+        page: msg.page,
+        limit: msg.limit,
+        orderBy: msg.orderBy,
+        desc: msg.desc,
+      });
+      sendResponse({ ok: true, ...res });
+    })().catch((err: Error) => sendResponse({ ok: false, error: err.message }));
+    return true;
+  }
+  if (msg?.type === "MAA_DISPATCH_POOL") {
+    void (async () => {
+      const pools = await buildDispatchPool(String(msg.prefix ?? ""), {
+        perStageLimit: msg.perStageLimit,
+        maxPages: msg.maxPages,
+      });
+      sendResponse({ ok: true, pools });
+    })().catch((err: Error) => sendResponse({ ok: false, error: err.message }));
     return true;
   }
 });

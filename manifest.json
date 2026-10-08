@@ -19,6 +19,7 @@
     "https://ark.cn-beijing.volces.com/*",
     "https://api.openai.com/*",
     "https://openrouter.ai/*",
+    "https://prts.maa.plus/*",
     "http://localhost/*",
     "http://127.0.0.1/*",
     "https://cdn.jsdelivr.net/*",

@@ -14,6 +14,7 @@ import {
   type PendingEntry,
 } from "../shared/aliases";
 import { clearResultCache, RESULT_CACHE_KEY, type ResultCache } from "../shared/resultCache";
+import { clearLevelDbCache } from "../shared/maa";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -274,6 +275,7 @@ async function initAdvancedSection(): Promise<void> {
   $("clearCache").addEventListener("click", async () => {
     if (!window.confirm("确定清空全部分析结果缓存吗？")) return;
     await clearResultCache();
+    await clearLevelDbCache().catch(() => {});
     $("cacheStatus").textContent = "已清空分析缓存";
   });
 }
