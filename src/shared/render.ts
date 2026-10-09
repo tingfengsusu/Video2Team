@@ -111,7 +111,7 @@ export interface ResultRenderOptions {
   colorBySource?: boolean;
   /** 是否输出渲染层的分区标题（大窗口页用卡片标题时置 false） */
   showGuidesHeading?: boolean;
-  /** 每关识别依据（P1 网格位置 / 格内名称），让「识别错了」可见可纠 */
+  /** 每关识别依据（特别战线网格位置 / 格内名称），让「识别错了」可见可纠 */
   guideEvidence?: Record<string, string>;
   /** 用户手动排除的关卡显示码 */
   excludedStages?: string[];
@@ -177,6 +177,8 @@ function renderScheme(
     `title="勾选＝本关使用这套方案：其干员计入占用清单（同关自动换选），其它结果立即置灰；取消勾选立即恢复">`;
   return (
     `<div class="schemerow" data-pick-row="1" ` +
+    `data-ops="${esc(scheme.operators.join("、"))}" ` +
+    `data-search="${esc([scheme.sourceLabel, scheme.mode, scheme.title, scheme.author, scheme.operators.join("")].filter(Boolean).join(" "))}" ` +
     `style="font-size:12px;line-height:1.65;margin-top:3px;display:flex;gap:5px;align-items:baseline;cursor:pointer" ` +
     `title="${esc(tip)}">` +
     `<span style="flex:none">${box}</span>` +
@@ -317,7 +319,7 @@ export function renderDispatchGuides(
     opts.showHeading === false
       ? ""
       : sectionHeading(
-          "🚩 P1 派遣关攻略",
+          "🚩 特别战线候选池",
           `按黄色格位置识别 · ${visiblePools.length} 关 ${totalSchemes} 套（勾选＝本关采用；点整行也能勾选）`,
         );
   const blocks = visiblePools
@@ -357,13 +359,14 @@ export function renderDispatchGuides(
       const pickLine = picked
         ? `<span style="color:#1a7f37">✅ ${picked.ops.map((n) => esc(n)).join("·")}</span>`
         : `<span class="dim">⬜ 未选</span>`;
-      // 识别依据（P1 网格第几格 / 格内名称 / 是否需核实）：让「识别错了」一眼可见
+      // 识别依据（网格第几格 / 格内名称 / 是否需核实）：让「识别错了」一眼可见
       const evidence = opts.evidence?.[pool.displayCode.toUpperCase()] ?? "";
       const evidenceLine = evidence
         ? `<div class="hint" style="margin-top:1px">识别依据：${esc(evidence)}</div>`
         : "";
       return (
-        `<div style="padding:6px 8px;margin:4px 0;background:#fffdf6;border:1px solid #eadfbd;border-radius:5px">` +
+        `<div class="stagepool" data-stage="${esc(pool.displayCode)}" data-picked="${picked ? "1" : "0"}" ` +
+        `style="padding:6px 8px;margin:4px 0;background:#fffdf6;border:1px solid #eadfbd;border-radius:5px">` +
         `<div style="font-size:12px">` +
         `<b><a href="${esc(maaLevelUrl())}" target="_blank" rel="noreferrer" style="color:#0969da;text-decoration:none" ` +
         `title="在 MAA 作业站（prts.plus）看该关作业：打开后点「关卡」筛选 ${esc(pool.displayCode)}，或把显示码/通名粘进搜索框">` +

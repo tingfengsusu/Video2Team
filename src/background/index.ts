@@ -301,12 +301,12 @@ async function analyzeVideo(
   stageResolution = visionResolution.resolution;
   meta = { ...meta, stage: visionResolution.displayStage };
   const dispatchCandidates = visionResolution.dispatchCandidates;
-  // 识别依据：把「模型看到的是第几格 / 格内读到什么」摊开给用户看；
+  // 识别依据：把「模型看到的是第几格 / 格内读到什么」摊开给用户看（截图顺序不固定，故不写"P1"）；
   // 识别不准时可用结果区的「不是这关」一键排除（render.ts 的 skip-stage / restore-stage）
   const dispatchGuideEvidence: Record<string, string> = {};
   for (const c of dispatchCandidates) {
     const parts: string[] = [];
-    if (c.gridPosition) parts.push(`P1 网格第 ${c.gridPosition} 格`);
+    if (c.gridPosition) parts.push(`特别战线网格第 ${c.gridPosition} 格`);
     if (c.gridName) parts.push(`格内读到「${c.gridName}」`);
     if (c.needsVerification) parts.push("与位置推算不一致，需核实");
     dispatchGuideEvidence[c.displayCode.toUpperCase()] =

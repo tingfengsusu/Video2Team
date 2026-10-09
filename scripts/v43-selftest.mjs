@@ -207,8 +207,8 @@ const pickedHtml = v43.renderResult(baseResult, hasAll, picked1.lockedOps, {
   stageKind: "target",
   picks: picked1.picks,
 });
-/** 只取候选池区块（「P1 派遣关攻略」→「实战替代建议」之间），避免把下方推荐结果算进来 */
-const poolSection = (html) => (html.split("P1 派遣关攻略")[1] ?? "").split("实战替代建议")[0] ?? "";
+/** 只取候选池区块（「特别战线候选池」→「实战替代建议」之间），避免把下方推荐结果算进来 */
+const poolSection = (html) => (html.split("🚩 特别战线候选池")[1] ?? "").split("实战替代建议")[0] ?? "";
 check("已勾选方案显示 checked", /data-scheme="maa:105144" checked/.test(pickedHtml));
 check("结果区被占干员变灰+删除线", pickedHtml.includes('class="occupied"') && pickedHtml.includes("text-decoration:line-through"));
 check("被占干员带 🔒 徽章", /occupied[^<]*>[^<]*<\/span><span class="lockbadge"[^>]*>🔒/.test(pickedHtml));
@@ -751,6 +751,10 @@ console.log("\n== 候选池交互（第五轮）：整行可点选 / 悬浮详�
 const rowHtml = v43.renderResult(baseResult, hasAll, {}, { stageKind: "target", hideUnavailable: false });
 check("方案行可整行点选", rowHtml.includes('data-pick-row="1"'));
 check(
+  "方案行带 data-ops（勾选兜底依赖它）",
+  rowHtml.includes('data-ops="凯尔希" ') || /data-ops="[^"]+"/.test(rowHtml),
+);
+check(
   "标题/作者/合集移入悬浮提示（行内不再刷屏）",
   /title="MAA作业[^"]*标题：凯尔希单核/.test(rowHtml) && !rowHtml.includes("｜ 凯尔希单核"),
 );
@@ -793,8 +797,8 @@ check(
   })(),
 );
 check(
-  "分区标题：候选池带关数/套数",
-  guideHtml.includes("🚩 P1 派遣关攻略") && guideHtml.includes("1 关 2 套") && guideHtml.includes("按黄色格位置识别"),
+  "分区标题：候选池带关数/套数（不再自称 P1）",
+  guideHtml.includes("🚩 特别战线候选池") && guideHtml.includes("1 关 2 套") && guideHtml.includes("按黄色格位置识别") && !guideHtml.includes("P1 派遣关攻略"),
 );
 check("分区标题：本关适配阵容", guideHtml.includes("🎯 本关适配阵容"));
 check(
