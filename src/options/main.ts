@@ -28,6 +28,7 @@ import {
 import { FEEDBACK_MID, REPO_ISSUES_URL } from "../shared/constants";
 import { dismissAnnouncement, readAnnouncement, type AnnouncementItem } from "../shared/announcement";
 import { checkForUpdate, ignoreVersion } from "../shared/versionCheck";
+import { DEV_SOURCE_KEY } from "../shared/remoteFile";
 import type { TaskState } from "../shared/types";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -659,8 +660,36 @@ async function initVersionSection(): Promise<void> {
   });
 }
 
+/** 「立即检查更新」+ 调试来源（把仓库文件指到本地，便于测试更新/公告流程） */
+function initVersionControls(): void {
+  const input = document.getElementById("devRemoteBase") as HTMLInputElement | null;
+  const btn = document.getElementById("checkUpdateBtn");
+  if (input) {
+    void chrome.storage.local.get(DEV_SOURCE_KEY).then((v) => {
+      input.value = String((v as { [k: string]: string | undefined })[DEV_SOURCE_KEY] ?? "");
+    });
+    input.addEventListener("change", () => {
+      const val = input.value.trim();
+      void chrome.storage.local.set({ [DEV_SOURCE_KEY]: val }).then(() => void initVersionSection());
+    });
+  }
+  btn?.addEventListener("click", () => {
+    void checkForUpdate({ force: true }).then((res) => {
+      const box = document.getElementById("versionBox");
+      if (!box) return;
+      const head = res.hasUpdate && res.info
+        ? `<b style="color:#d29922">发现新版 v${escapeAttr(res.info.version)}</b>（已重新拉取）`
+        : `已是最新（远端 v${escapeAttr(res.latest ?? "读取失败")} · 已重新拉取）`;
+      void initVersionSection().then(() => {
+        box.insertAdjacentHTML("afterbegin", head + "<br>");
+      });
+    });
+  });
+}
+
 async function init(): Promise<void> {
   await initVersionSection();
+  initVersionControls();
   await initAnnouncementSection();
   await initLlmSection();
   await initBoxSection();
