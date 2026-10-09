@@ -35,6 +35,7 @@ await esbuild.build({
       export * from "../src/shared/miner.ts";
       export * from "../src/shared/constants.ts";
       export * from "../src/shared/gridPicker.ts";
+      export * from "../src/shared/announcement.ts";
       export * from "../src/shared/stageRecode.ts";
     `,
     resolveDir: join(root, "scripts"),
@@ -1195,6 +1196,63 @@ check("分区标题：本关适配阵容", guideHtml.includes("🎯 本关适配
 check(
   "派遣关结果的总览用「本关阵容」措辞",
   v43.renderResult(baseResult, hasAll, {}, { stageKind: "dispatch" }).includes("🎯 本关阵容"),
+);
+
+console.log("\n== 第十五轮 q1-q3：大窗口跟随/补给关可取消/公告 ==");
+check(
+  "dropStagePools 会拿掉指定关（依赖关系保留，措辞改口）",
+  (() => {
+    const sp11 = { ...guidePool, displayCode: "VEC-SP11", stageId: "act3break_sp11", stageName: "影院出口" };
+    const sp12 = { ...guidePool, displayCode: "VEC-SP12", stageId: "act3break_sp12", stageName: "四号站台" };
+    const res = {
+      ...baseResult,
+      dispatchGuides: [sp11, sp12],
+      dispatchStageChain: { "VEC-SP12": "VEC-SP11" },
+    };
+    const dropped = v43.dropStagePools(res, ["VEC-SP11"]);
+    const html = v43.renderResult(dropped, hasAll, {}, { stageKind: "target" });
+    return (
+      dropped.dispatchGuides.map((p) => p.displayCode).join(",") === "VEC-SP12" &&
+      dropped.dispatchStageChain?.["VEC-SP12"] === "VEC-SP11" &&
+      /不在候选池里/.test(html)
+    );
+  })(),
+);
+check(
+  "浮层按钮写成「应用」（可能查回、也可能移除）",
+  (() => {
+    const html = v43.renderResult(baseResult, hasAll, {}, {
+      stageKind: "target",
+      stageOptions: [{ displayCode: "VEC-SP05", stageName: "难以相交" }],
+    });
+    return /data-act="apply-grid"[^>]*>应用<\/button>/.test(html);
+  })(),
+);
+check(
+  "公告解析：只认 id+title 齐全的条目，level 默认 info",
+  (() => {
+    const items = v43.parseAnnouncement({
+      items: [
+        { id: "a", title: "标题A", body: "内容", level: "warn" },
+        { id: "", title: "没有 id → 丢掉" },
+        { id: "b", body: "没有标题 → 丢掉" },
+      ],
+    });
+    return items.length === 1 && items[0].id === "a" && items[0].level === "warn";
+  })(),
+);
+check(
+  "未读过滤：点过「知道了」的条目不再返回",
+  v43
+    .pickUnread(
+      [
+        { id: "a", title: "A", body: "" },
+        { id: "b", title: "B", body: "" },
+      ],
+      ["a"],
+    )
+    .map((i) => i.id)
+    .join(",") === "b",
 );
 
 console.log(failures === 0 ? "\n✅ v4.3 修复清单验收自测全部通过" : `\n❌ ${failures} 项未通过`);

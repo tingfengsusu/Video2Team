@@ -28,7 +28,7 @@ import {
   putCachedResult,
   type ResultCacheEntry,
 } from "../shared/resultCache";
-import { clearStageSkip, patchStagePools, queryStagePools } from "../shared/stageRecode";
+import { clearStageSkip, dropStagePools, excludeStages, patchStagePools, queryStagePools } from "../shared/stageRecode";
 import { wireHoverDetails } from "../shared/hoverDetails";
 import { wireGridPicker } from "../shared/gridPicker";
 import { wireShowHidden } from "../shared/toggles";
@@ -352,23 +352,40 @@ async function onPickChange(input: HTMLInputElement): Promise<void> {
  * 手动补关：结果区「＋ 补一个关…」/「选择补给关…」（第十一轮 q3）——后台现查这些关的 MAA/B站 方案
  * 并并入当前结果（后台会带上关卡链前置关），写入结果缓存（刷新后仍保留，无需重新分析）。
  */
-async function applyStageCodes(codes: readonly string[]): Promise<void> {
+async function applyStageCodes(
+  codes: readonly string[],
+  remove: readonly string[] = [],
+): Promise<void> {
   if (!currentResult) return;
   const list = codes.map((c) => String(c ?? "").trim().toUpperCase()).filter(Boolean);
-  if (!list.length) return;
+  const dropList = remove.map((c) => String(c ?? "").trim().toUpperCase()).filter(Boolean);
+  if (!list.length && !dropList.length) return;
   const page = currentCtx.page;
-  const label = list.join("、");
-  $("status").textContent = `正在查询 ${label} 的候选方案（MAA + B站，约 3-10 秒）…`;
-  const pools = await queryStagePools(list);
-  if (!pools.length) {
-    $("status").innerHTML = `<span class="err">查询 ${label} 失败（无网络或该关暂无数据），可稍后重试</span>`;
-    return;
+  const key = stageSkipKey();
+  let next = currentResult;
+  if (list.length) {
+    $("status").textContent = `正在查询 ${list.join("、")} 的候选方案（MAA + B站，约 3-10 秒）…`;
+    const pools = await queryStagePools(list);
+    if (!pools.length && !dropList.length) {
+      $("status").innerHTML = `<span class="err">查询 ${list.join("、")} 失败（无网络或该关暂无数据），可稍后重试</span>`;
+      return;
+    }
+    if (pools.length) {
+      next = patchStagePools(next, pools);
+      for (const code of list) await clearStageSkip(key, code);
+    }
   }
-  const next = patchStagePools(currentResult, pools);
+  if (dropList.length) {
+    // 网格选关里取消勾选 = 这一关识别错了：写「不是这关」排除记录 + 从结果里拿掉（第十五轮 q2）
+    await excludeStages(key, dropList);
+    next = dropStagePools(next, dropList);
+  }
   currentResult = next;
   await putCachedResult(next, page);
-  for (const code of list) await clearStageSkip(stageSkipKey(), code);
-  $("status").textContent = `已更新 ${pools.map((p) => p.displayCode).join("、")} 的候选方案（共 ${pools.length} 关）`;
+  $("status").textContent =
+    [list.length ? `查回 ${list.join("、")}` : "", dropList.length ? `移除 ${dropList.join("、")}` : ""]
+      .filter(Boolean)
+      .join("；") + " 完成";
   showResult(next);
 }
 
@@ -559,7 +576,7 @@ async function init(): Promise<void> {
   });
   wireRowClick($("result")); // 点整行 = 勾选该方案
   wireHoverDetails($("result")); // 候选池折叠块：悬浮即展开（第十轮 q3）
-  wireGridPicker($("result"), (codes) => void applyStageCodes(codes)); // 选择补给关（第十一轮 q3）
+  wireGridPicker($("result"), (sel) => void applyStageCodes(sel.add, sel.remove)); // 选择补给关（第十一轮 q3／第十五轮 q2 可取消）
   wireShowHidden($("result")); // 「点开查看」缺干员被隐藏的方案（第十三轮 q1）
   // 「＋ 补一个关…」：手动补漏识别的派遣关（change 委托）
   $("result").addEventListener("change", (e: Event) => {

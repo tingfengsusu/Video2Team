@@ -52,14 +52,34 @@ const TASK_KEY = "task";
 // 大窗口关闭后清掉记录，下次点「⤢ 大窗口」才能重新开
 chrome.windows.onRemoved.addListener((windowId) => {
   void chrome.storage.session
-    .get("bigWindowId")
+    .get(["bigWindowId", "bigWindowSourceTabId"])
     .then((v) => {
-      if ((v as { bigWindowId?: number }).bigWindowId === windowId) {
-        return chrome.storage.session.remove("bigWindowId");
-      }
-      return undefined;
+      const { bigWindowId, bigWindowSourceTabId } = v as {
+        bigWindowId?: number;
+        bigWindowSourceTabId?: number;
+      };
+      if (bigWindowId !== windowId) return undefined;
+      return chrome.storage.session
+        .remove(["bigWindowId", "bigWindowSourceTabId"])
+        .catch(() => {}) as Promise<undefined>;
     })
     .catch(() => {});
+});
+
+// 第十五轮 q1：大窗口的"宿主"标签页（B站页面）关掉时，大窗口也一起关掉
+// （用户实测：视频页关了，悬浮的大窗口还留在屏幕上）
+chrome.tabs.onRemoved.addListener((tabId) => {
+  void (async () => {
+    const { bigWindowSourceTabId, bigWindowId } = (await chrome.storage.session.get([
+      "bigWindowSourceTabId",
+      "bigWindowId",
+    ])) as { bigWindowSourceTabId?: number; bigWindowId?: number };
+    if (typeof bigWindowSourceTabId !== "number" || bigWindowSourceTabId !== tabId) return;
+    if (typeof bigWindowId === "number") {
+      await chrome.windows.remove(bigWindowId).catch(() => {});
+    }
+    await chrome.storage.session.remove(["bigWindowId", "bigWindowSourceTabId"]).catch(() => {});
+  })();
 });
 
 // session storage 默认只对可信上下文（扩展页面/后台）开放，
@@ -469,7 +489,7 @@ async function analyzeVideo(
   };
 }
 
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg?.type === "ANALYZE_VIDEO") {
     const bvid = String(msg.bvid ?? "");
     const requestedPage = msg.page == null || msg.page === "" ? undefined : Number(msg.page);
@@ -536,6 +556,10 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         const alive = await chrome.windows.get(bigWindowId).catch(() => null);
         if (alive) {
           await chrome.windows.update(bigWindowId, { focused: true, drawAttention: true }).catch(() => {});
+          // 记住"宿主"标签页：它被关掉时大窗口也跟着关（第十五轮 q1）
+          if (sender?.tab?.id != null) {
+            await chrome.storage.session.set({ bigWindowSourceTabId: sender.tab.id }).catch(() => {});
+          }
           sendResponse({ ok: true, reused: true });
           return;
         }
@@ -547,7 +571,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         height: Math.min(1060, Math.max(720, Math.round((msg.height as number) || 980))),
       });
       if (created?.id != null) {
-        await chrome.storage.session.set({ bigWindowId: created.id }).catch(() => {});
+        await chrome.storage.session
+          .set({ bigWindowId: created.id, bigWindowSourceTabId: sender?.tab?.id ?? undefined })
+          .catch(() => {});
       }
       sendResponse({ ok: true });
     })().catch((err: Error) => sendResponse({ ok: false, error: err.message }));

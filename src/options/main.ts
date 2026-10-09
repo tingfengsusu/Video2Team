@@ -26,6 +26,7 @@ import {
   type FeedbackSignature,
 } from "../shared/feedback";
 import { FEEDBACK_MID, REPO_ISSUES_URL } from "../shared/constants";
+import { dismissAnnouncement, readAnnouncement, type AnnouncementItem } from "../shared/announcement";
 import type { TaskState } from "../shared/types";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -587,7 +588,45 @@ async function handleOptionsFocus(): Promise<void> {
   }
 }
 
+/** 公告：启动时读仓库里的 docs/announcement.json（缓存 6h；拉不到就静默） */
+async function initAnnouncementSection(): Promise<void> {
+  const box = document.getElementById("announce");
+  const list = document.getElementById("announceList");
+  if (!box || !list) return;
+  let items: AnnouncementItem[] = [];
+  try {
+    items = (await readAnnouncement()).items;
+  } catch {
+    return;
+  }
+  if (!items.length) return;
+  box.hidden = false;
+  list.innerHTML = items
+    .map(
+      (it) =>
+        `<div class="announce-item" data-id="${escapeAttr(it.id)}" style="margin: 6px 0; padding: 8px 10px; ` +
+        `border-left: 3px solid ${it.level === "warn" ? "#d29922" : "#23ade5"}; background: #fafbfc; border-radius: 5px">` +
+        `<b>${escapeAttr(it.title)}</b>` +
+        `<span class="hint" style="margin-left: 6px">${escapeAttr(it.date ?? "")}</span>` +
+        `<div class="hint" style="margin-top: 2px">${escapeAttr(it.body)}</div>` +
+        `<a href="#" class="announce-dismiss hint" data-id="${escapeAttr(it.id)}" style="color:#23ade5">知道了</a>` +
+        `</div>`,
+    )
+    .join("");
+  list.addEventListener("click", (e) => {
+    const a = (e.target as HTMLElement | null)?.closest<HTMLAnchorElement>(".announce-dismiss");
+    if (!a) return;
+    e.preventDefault();
+    const id = a.getAttribute("data-id") ?? "";
+    void dismissAnnouncement([id]).then(() => {
+      a.closest<HTMLElement>(".announce-item")?.remove();
+      if (!list.querySelector(".announce-item")) box.hidden = true;
+    });
+  });
+}
+
 async function init(): Promise<void> {
+  await initAnnouncementSection();
   await initLlmSection();
   await initBoxSection();
   await initAdvancedSection();

@@ -31,8 +31,9 @@ import {
   putCachedResult,
   type ResultCacheEntry,
 } from "../shared/resultCache";
-import { clearStageSkip, patchStagePools, queryStagePools } from "../shared/stageRecode";
+import { clearStageSkip, dropStagePools, excludeStages, patchStagePools, queryStagePools } from "../shared/stageRecode";
 import { wireHoverDetails } from "../shared/hoverDetails";
+import { dismissAnnouncement, readAnnouncement, type AnnouncementItem } from "../shared/announcement";
 import { wireGridPicker } from "../shared/gridPicker";
 import { wireShowHidden } from "../shared/toggles";
 
@@ -142,6 +143,13 @@ const STYLE = `
            border-radius: 12px 12px 0 0; box-shadow: 0 2px 6px rgba(0,0,0,.06); }
   .phead h1 { font-size: 15px; margin: 0; }
   .tagline { font-size: 11px; color: #888; margin-bottom: 8px; }
+  /* 公告条：琥珀左边条，点「知道了」后不再出现 */
+  .announce { display: flex; align-items: flex-start; gap: 6px; font-size: 12px; line-height: 1.6;
+              background: #fffdf6; border: 1px solid #eadfbd; border-left: 3px solid #d29922;
+              border-radius: 6px; padding: 6px 8px; margin-bottom: 8px; color: #555; }
+  .announce[hidden] { display: none; }
+  .announce b { color: #333; }
+  .announce a { color: #23ade5; text-decoration: none; cursor: pointer; margin-left: auto; white-space: nowrap; }
   .close { border: none; background: #f0f3f5; border-radius: 6px; padding: 2px 10px;
            font-size: 14px; cursor: pointer; color: #666; }
   .close:hover { background: #e2e8ed; }
@@ -227,6 +235,8 @@ const PANEL_HTML = `
       <button class="close" title="收起">✕</button>
     </div>
     <div class="tagline">把大佬的作业，改成你抄得动的作业</div>
+    <!-- 公告（第十五轮 q3）：从仓库读，没读过才显示 -->
+    <div class="announce" id="announceBar" hidden></div>
     <div class="readiness hint" style="margin-bottom:6px"></div>
     <button class="settings" data-act="settings" title="设置 API Key / 导入练度表">⚙ 设置</button>
 
@@ -472,23 +482,40 @@ async function onPickChange(input: HTMLInputElement): Promise<void> {
  * 手动补关：结果区「＋ 补一个关…」/「选择补给关…」（第十一轮 q3）——后台现查这些关的 MAA/B站 方案
  * 并并入当前结果（后台会带上关卡链前置关），写入结果缓存（刷新后仍保留，无需重新分析）。
  */
-async function applyStageCodes(codes: readonly string[]): Promise<void> {
+async function applyStageCodes(
+  codes: readonly string[],
+  remove: readonly string[] = [],
+): Promise<void> {
   if (!currentResult) return;
   const list = codes.map((c) => String(c ?? "").trim().toUpperCase()).filter(Boolean);
-  if (!list.length) return;
+  const dropList = remove.map((c) => String(c ?? "").trim().toUpperCase()).filter(Boolean);
+  if (!list.length && !dropList.length) return;
   const { bvid, page } = parseContext();
-  const label = list.join("、");
-  q("#status").textContent = `正在查询 ${label} 的候选方案（MAA + B站，约 3-10 秒）…`;
-  const pools = await queryStagePools(list);
-  if (!pools.length) {
-    q("#status").innerHTML = `<span class="err">查询 ${label} 失败（无网络或该关暂无数据），可稍后重试</span>`;
-    return;
+  const key = stageSkipKey(bvid ?? "", page);
+  let next = currentResult;
+  if (list.length) {
+    q("#status").textContent = `正在查询 ${list.join("、")} 的候选方案（MAA + B站，约 3-10 秒）…`;
+    const pools = await queryStagePools(list);
+    if (!pools.length && !dropList.length) {
+      q("#status").innerHTML = `<span class="err">查询 ${list.join("、")} 失败（无网络或该关暂无数据），可稍后重试</span>`;
+      return;
+    }
+    if (pools.length) {
+      next = patchStagePools(next, pools);
+      for (const code of list) await clearStageSkip(key, code);
+    }
   }
-  const next = patchStagePools(currentResult, pools);
+  if (dropList.length) {
+    // 网格选关里取消勾选 = 这一关识别错了：写「不是这关」排除记录 + 从结果里拿掉（第十五轮 q2）
+    await excludeStages(key, dropList);
+    next = dropStagePools(next, dropList);
+  }
   currentResult = next;
   await putCachedResult(next, page);
-  for (const code of list) await clearStageSkip(stageSkipKey(bvid ?? "", page), code);
-  q("#status").textContent = `已更新 ${pools.map((p) => p.displayCode).join("、")} 的候选方案（共 ${pools.length} 关）`;
+  q("#status").textContent =
+    [list.length ? `查回 ${list.join("、")}` : "", dropList.length ? `移除 ${dropList.join("、")}` : ""]
+      .filter(Boolean)
+      .join("；") + " 完成";
   showResult(next);
 }
 
@@ -625,6 +652,7 @@ async function openPanel(): Promise<void> {
   await renderReadiness();
   images = await readImages();
   renderThumbs();
+  void renderAnnouncement();
   // 恢复后台任务状态
   const resp = (await chrome.runtime.sendMessage({ type: "GET_TASK" }).catch(() => null)) as
     | { task: TaskState | null }
@@ -646,6 +674,33 @@ async function openPanel(): Promise<void> {
     if (cached) showCachedResult(cached);
     else showEmptyState();
   }
+}
+
+/** 公告条（第十五轮 q3）：仓库 docs/announcement.json，没点过「知道了」才显示 */
+async function renderAnnouncement(): Promise<void> {
+  const bar = q<HTMLElement>("#announceBar");
+  if (!bar) return;
+  let unread: AnnouncementItem[] = [];
+  try {
+    unread = (await readAnnouncement()).unread;
+  } catch {
+    return;
+  }
+  if (!unread.length) {
+    bar.hidden = true;
+    bar.innerHTML = "";
+    return;
+  }
+  const first = unread[0]!;
+  const more = unread.length > 1 ? `（还有 ${unread.length - 1} 条，设置页看全部）` : "";
+  bar.hidden = false;
+  bar.innerHTML =
+    `<span>📢 <b>${esc(first.title)}</b>${esc(more)}<br><span class="hint">${esc(first.body)}</span></span>` +
+    `<a href="#" data-act="announce-read" title="不再提示（可在设置页重新看到全部）">知道了</a>`;
+  bar.querySelector<HTMLAnchorElement>('[data-act="announce-read"]')?.addEventListener("click", (e) => {
+    e.preventDefault();
+    void dismissAnnouncement([first.id]).then(() => void renderAnnouncement());
+  });
 }
 
 function closePanel(): void {
@@ -746,7 +801,7 @@ function wireRowClick(container: HTMLElement): void {
   });
   wireRowClick(q<HTMLElement>("#result")); // 点整行 = 勾选该方案
   wireHoverDetails(q<HTMLElement>("#result")); // 候选池折叠块：悬浮即展开（第十轮 q3）
-  wireGridPicker(q<HTMLElement>("#result"), (codes) => void applyStageCodes(codes)); // 选择补给关（第十一轮 q3）
+  wireGridPicker(q<HTMLElement>("#result"), (sel) => void applyStageCodes(sel.add, sel.remove)); // 选择补给关（第十一轮 q3／第十五轮 q2 可取消）
   wireShowHidden(q<HTMLElement>("#result")); // 「点开查看」缺干员被隐藏的方案（第十三轮 q1）
   // 「＋ 补一个关…」：手动补漏识别的派遣关（change 委托）
   q("#result").addEventListener("change", (e: Event) => {
