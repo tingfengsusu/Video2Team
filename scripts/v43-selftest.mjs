@@ -36,6 +36,8 @@ await esbuild.build({
       export * from "../src/shared/constants.ts";
       export * from "../src/shared/gridPicker.ts";
       export * from "../src/shared/announcement.ts";
+      export * from "../src/shared/versionCheck.ts";
+      export * from "../src/shared/remoteFile.ts";
       export * from "../src/shared/stageRecode.ts";
     `,
     resolveDir: join(root, "scripts"),
@@ -1254,6 +1256,51 @@ check(
     .map((i) => i.id)
     .join(",") === "b",
 );
+
+console.log("\n== 第十五轮 q4（方案 3）：更新检查 ==");
+check(
+  "版本比较：0.2.1 > 0.2.0、0.3 == 0.3.0、0.10 > 0.9",
+  v43.compareVersions("0.2.1", "0.2.0") === 1 &&
+    v43.compareVersions("0.3", "0.3.0") === 0 &&
+    v43.compareVersions("0.10", "0.9") === 1 &&
+    v43.compareVersions("1.0", "1.0.1") === -1,
+);
+check(
+  "version.json 校验：版本号不合规就丢掉，notes/steps 清洗成字符串数组",
+  (() => {
+    const bad = v43.parseVersionFile({ version: "v0.2" });
+    const ok = v43.parseVersionFile({ version: "0.2.2", notes: ["a", ""], steps: ["s1"] });
+    return bad === null && ok && ok.version === "0.2.2" && ok.notes.length === 1 && ok.steps[0] === "s1";
+  })(),
+);
+{
+  const store = {};
+  const realChrome = globalThis.chrome;
+  const realFetch = globalThis.fetch;
+  globalThis.chrome = {
+    runtime: { getManifest: () => ({ version: "0.2.1" }) },
+    storage: {
+      local: {
+        get: async (k) => (typeof k === "string" ? { [k]: store[k] } : { ...store }),
+        set: async (obj) => Object.assign(store, obj),
+      },
+    },
+  };
+  globalThis.fetch = async () => ({
+    ok: true,
+    json: async () => ({ version: "0.2.2", notes: ["新东西"], steps: ["npm run selfupdate"] }),
+  });
+  try {
+    const up = await v43.checkForUpdate();
+    check("远端更高 → 提示更新", up.hasUpdate === true && up.latest === "0.2.2", String(up.latest));
+    await v43.ignoreVersion("0.2.2");
+    const ignored = await v43.checkForUpdate();
+    check("点过「忽略」后同一版本不再提示", ignored.hasUpdate === false);
+  } finally {
+    globalThis.chrome = realChrome;
+    globalThis.fetch = realFetch;
+  }
+}
 
 console.log(failures === 0 ? "\n✅ v4.3 修复清单验收自测全部通过" : `\n❌ ${failures} 项未通过`);
 process.exit(failures === 0 ? 0 : 1);
