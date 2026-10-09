@@ -38,6 +38,7 @@ await esbuild.build({
       export * from "../src/shared/announcement.ts";
       export * from "../src/shared/versionCheck.ts";
       export * from "../src/shared/remoteFile.ts";
+      export * from "../src/shared/recommender.ts";
       export * from "../src/shared/stageRecode.ts";
     `,
     resolveDir: join(root, "scripts"),
@@ -1233,6 +1234,35 @@ check(
     const html = v43.renderResult(rosterKai, hasAll, {}, { stageKind: "target" });
     // 候选池那一行只打标签（建议统一显示在本关槽位上）
     return /class="own-tag"[^>]*>本关也用</.test(html) && !/本关也要用：/.test(html);
+  })(),
+);
+check(
+  "「你有、保留」的槽位现在也带着该干员的实战替代建议（以前被丢掉）",
+  (() => {
+    const roster = { stage: "VEC-C", videoId: "BV1", page: 1, source: "screenshot", slots: [{ operator: "凯尔希", isKey: true }] };
+    const box = { operators: { 凯尔希: { name: "凯尔希" } }, source: "excel" };
+    const subs = [
+      { removed: "凯尔希", replacement: "闪灵", stage: "VEC-C", evidence: "闪灵可以替凯尔希", source: "danmaku", kind: "operator_swap", likes: 9, verified: true },
+      { removed: "凯尔希", replacement: "夜莺", stage: "VEC-C", evidence: "夜莺也能顶", source: "comment", kind: "operator_swap", likes: 3, verified: true },
+    ];
+    const out = v43.recommend(roster, subs, box);
+    return out[0].status === "keep" && out[0].alternatives.length === 2;
+  })(),
+);
+check(
+  "被占用时最多列 2 条建议（带来源）",
+  (() => {
+    const mk = (rep, src, likes) => ({
+      removed: "凯尔希", replacement: rep, stage: "VEC-C", evidence: "可以替", source: src,
+      kind: "operator_swap", likes, verified: true,
+    });
+    const slot = {
+      original: { operator: "凯尔希", isKey: true }, finalOperator: "凯尔希", status: "keep",
+      via: null, alternatives: [mk("闪灵", "danmaku", 9), mk("夜莺", "comment", 3), mk("苏苏洛", "comment", 1)],
+      risk: "low", evidenceUrl: "", note: "",
+    };
+    const html = v43.renderSlot(slot, hasAll, { 凯尔希: "VEC-SP02（心中热火）" }, { ownStageCode: "VEC-C" });
+    return /可换成 <b>闪灵<\/b>.*／.*<b>夜莺<\/b>/.test(html) && !html.includes("苏苏洛");
   })(),
 );
 check(

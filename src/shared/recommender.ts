@@ -27,6 +27,12 @@ export function recommend(
   return roster.slots.map((slot) => {
     const op = slot.operator;
     const opLockedFrom = lockedFrom(op);
+    // 这位干员的实战替代建议（弹幕/评论挖出来的）。
+    // 注意：**"你有、能用"的干员也要算**——一旦它被别的关占用，就需要现成的替代方案；
+    // 以前 keep 分支把 alternatives 置空，导致"已有的干员"的建议在界面上看不到（用户实测反馈）。
+    const sorted = substitutions
+      .filter((s) => s.removed === op && s.verified)
+      .sort((a, b) => b.likes - a.likes);
 
     // 1. 可用 → 保留
     if (canUse(op)) {
@@ -35,7 +41,7 @@ export function recommend(
         finalOperator: op,
         status: "keep",
         via: null,
-        alternatives: [],
+        alternatives: sorted,
         risk: "low",
         evidenceUrl: "",
         note: "",
@@ -43,9 +49,6 @@ export function recommend(
     }
 
     // 2. 需要替换：优先未被派遣的替代者，其次已派遣者（带冲突提示）
-    const sorted = substitutions
-      .filter((s) => s.removed === op && s.verified)
-      .sort((a, b) => b.likes - a.likes);
     const best = sorted.find((s) => canUse(s.replacement)) ?? sorted.find((s) => owned(s.replacement));
     if (best) {
       const repLockedFrom = lockedOps[best.replacement];
