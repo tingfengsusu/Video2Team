@@ -1,40 +1,84 @@
 /**
- * 网格选关（第十一轮 q3）：像游戏里的「特别战线」那样，按**序号网格**点选派遣关——
+ * 网格选关（第十一轮 q3 新增，第十二轮 p1 更新）：像游戏里的「特别战线」那样按**序号网格**选关——
  * 序号 = 从上到下、从左到右（灰格/白格同样占号），与识别依据用的是同一套编号。
  *
- * 用法（三个界面共用）：渲染层输出 `.gridpicker` 浮层与 `[data-act="open-grid"]` 按钮，
- * 这里只做交互：
- * - 点「▦ 按网格选关」打开；「取消」/ 点浮层背景 / Esc 关闭；
- * - 格子支持**单击**与**长按**（≥400ms，触屏/防误触）两种切换方式；
- * - 「查询并加入候选池」把选中的显示码交给 onApply（已在候选池里的格子是禁用的，避免重复查询）。
+ * 交互：
+ * - 点「按网格选关」打开；「取消」/ 点浮层背景 / Esc 关闭；
+ * - **单击**切换一格；**按住拖动**连续点选（滑过哪些格就选哪些，拖过已选的还能整段取消）；
+ * - 已在候选池的格子默认勾着（`data-in-pool`），可以取消勾选，但**应用时不会重复查询**；
+ * - 「查询并加入候选池」只把"新选中且不在池里"的关交给 onApply；
+ * - 长按/拖动不会变成选中文字（pointerdown preventDefault + 浮层内拦 contextmenu + CSS user-select:none）。
  */
-const LONG_PRESS_MS = 400;
-
-export function wireGridPicker(root: HTMLElement | Document, onApply: (codes: string[]) => void): void {
-  const doc = root instanceof Document ? root : root.ownerDocument;
-
-  const pickersIn = (): HTMLElement[] =>
-    root instanceof Document
-      ? [...root.querySelectorAll<HTMLElement>(".gridpicker")]
-      : [...root.querySelectorAll<HTMLElement>(".gridpicker")];
+export function wireGridPicker(root: HTMLElement, onApply: (codes: string[]) => void): void {
+  const doc = root.ownerDocument;
+  const pickersIn = (): HTMLElement[] => [...root.querySelectorAll<HTMLElement>(".gridpicker")];
+  const cellOf = (t: EventTarget | null): HTMLElement | null =>
+    (t as HTMLElement | null)?.closest?.(".gp-cell") ?? null;
+  const pickerOf = (el: HTMLElement | null): HTMLElement | null =>
+    el?.closest<HTMLElement>(".gridpicker") ?? null;
 
   const sync = (picker: HTMLElement): void => {
-    const cells = [...picker.querySelectorAll<HTMLButtonElement>(".gp-cell")];
+    const cells = [...picker.querySelectorAll<HTMLElement>(".gp-cell")];
     const on = cells.filter((c) => c.classList.contains("on"));
+    const fresh = on.filter((c) => c.dataset.inPool !== "1");
     const count = picker.querySelector<HTMLElement>(".gp-count b");
     if (count) count.textContent = String(on.length);
+    const extra = picker.querySelector<HTMLElement>(".gp-new");
+    if (extra) {
+      extra.textContent = fresh.length
+        ? `（其中 ${fresh.length} 关将查询）`
+        : on.length
+          ? "（都已在候选池）"
+          : "";
+    }
     const apply = picker.querySelector<HTMLButtonElement>('[data-act="apply-grid"]');
-    if (apply) apply.disabled = on.length === 0;
+    if (apply) apply.disabled = fresh.length === 0;
   };
 
-  const toggle = (cell: HTMLElement): void => {
-    if (cell.hasAttribute("disabled")) return;
-    cell.classList.toggle("on");
-    const picker = cell.closest<HTMLElement>(".gridpicker");
+  // 按住拖动 = 连续点选：pointerdown 定方向（该格原来开着就整段取消，否则整段选中），
+  // pointermove 用 elementFromPoint 找当前滑过的格子（触屏没有 pointerover）。
+  let dragMode: "on" | "off" | null = null;
+  let lastCell: HTMLElement | null = null;
+  const paint = (cell: HTMLElement, mode: "on" | "off"): void => {
+    cell.classList.toggle("on", mode === "on");
+    const picker = pickerOf(cell);
     if (picker) sync(picker);
   };
+  const endDrag = (): void => {
+    dragMode = null;
+    lastCell = null;
+  };
 
-  root.addEventListener("click", (e) => {
+  root.addEventListener("pointerdown", (e: PointerEvent) => {
+    const cell = cellOf(e.target);
+    if (!cell) return;
+    e.preventDefault(); // 阻止选字/原生拖拽；不影响后续的 keydown 与链接
+    dragMode = cell.classList.contains("on") ? "off" : "on";
+    lastCell = cell;
+    paint(cell, dragMode);
+  });
+  root.addEventListener("pointermove", (e: PointerEvent) => {
+    if (!dragMode) return;
+    e.preventDefault();
+    const cell = cellOf(doc.elementFromPoint(e.clientX, e.clientY));
+    if (!cell || cell === lastCell) return;
+    lastCell = cell;
+    paint(cell, dragMode);
+  });
+  for (const evt of ["pointerup", "pointercancel", "pointerleave"]) root.addEventListener(evt, endDrag);
+
+  // 键盘可达：Tab 到格子后回车/空格切换
+  root.addEventListener("keydown", (e: KeyboardEvent) => {
+    const cell = cellOf(e.target);
+    if (!cell) return;
+    if (e.key !== "Enter" && e.key !== " ") return;
+    e.preventDefault();
+    cell.classList.toggle("on");
+    const picker = pickerOf(cell);
+    if (picker) sync(picker);
+  });
+
+  root.addEventListener("click", (e: MouseEvent) => {
     const t = e.target as HTMLElement | null;
     if (!t) return;
     if (t.closest('[data-act="open-grid"]')) {
@@ -52,7 +96,7 @@ export function wireGridPicker(root: HTMLElement | Document, onApply: (codes: st
       return;
     }
     if (t.closest('[data-act="apply-grid"]')) {
-      const codes = [...picker.querySelectorAll<HTMLElement>(".gp-cell.on:not([disabled])")].map(
+      const codes = [...picker.querySelectorAll<HTMLElement>(".gp-cell.on:not([data-in-pool])")].map(
         (c) => c.dataset.code ?? "",
       );
       const list = [...new Set(codes.filter(Boolean))];
@@ -61,43 +105,14 @@ export function wireGridPicker(root: HTMLElement | Document, onApply: (codes: st
       onApply(list);
       return;
     }
-    const cell = t.closest<HTMLElement>(".gp-cell");
-    if (!cell) return;
-    if (cell.dataset.longPressed) {
-      delete cell.dataset.longPressed; // 这一次 click 是长按的收尾，别再切一次
-      return;
-    }
-    toggle(cell);
+    // 格子本身：切换已经在 pointerdown 里做过，这里不再切（避免一次点击切两下）
   });
 
-  // 长按 = 另一种选中方式（触屏没有 hover；也避免误触单击）。
-  // ⚠️ 实测坑（第十一轮 q2）：不拦默认行为时长按会变成**选中文字/复制**，所以这里
-  // preventDefault()（阻止选字，但不影响后续 click），并在浮层内禁掉右键/长按菜单。
-  let timer: number | undefined;
-  const clearTimer = (): void => {
-    if (timer != null) {
-      window.clearTimeout(timer);
-      timer = undefined;
-    }
-  };
-  root.addEventListener("pointerdown", (e) => {
-    const cell = (e.target as HTMLElement | null)?.closest<HTMLElement>(".gp-cell");
-    if (!cell || cell.hasAttribute("disabled")) return;
-    e.preventDefault();
-    clearTimer();
-    timer = window.setTimeout(() => {
-      cell.dataset.longPressed = "1";
-      toggle(cell);
-    }, LONG_PRESS_MS);
-  });
-  root.addEventListener("contextmenu", (e) => {
+  root.addEventListener("contextmenu", (e: MouseEvent) => {
     if ((e.target as HTMLElement | null)?.closest(".gridpicker")) e.preventDefault();
   });
-  for (const evt of ["pointerup", "pointercancel", "pointerleave"]) {
-    root.addEventListener(evt, clearTimer);
-  }
 
-  doc.addEventListener("keydown", (e) => {
+  doc.addEventListener("keydown", (e: KeyboardEvent) => {
     if (e.key !== "Escape") return;
     for (const picker of pickersIn()) if (!picker.hidden) picker.hidden = true;
   });

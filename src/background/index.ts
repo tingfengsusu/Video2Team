@@ -190,10 +190,18 @@ async function analyzeVideo(
   const box = await getBox();
   const opDB = await OperatorDB.load();
   await loadAliases(); // 别名三层：内置 + 在线 + 本地积累
+  // 关卡名与干员名撞车的护栏（第十二轮实测：「0-9」的关名是「临光」，而「临光」也是干员名、
+  // 还是「耀骑士临光」的子串——简介/评论里一提干员，整关就被解析成「0-9（临光）」）；
+  // 只在"简介/评论"这类弱文本里启用，标题里出现仍然算数
+  const opNames = opDB.names();
+  const nameMatchOpts = {
+    isOperatorLike: (name: string) =>
+      opDB.exists(name) || opNames.some((n) => n !== name && n.includes(name)),
+  };
   let meta = await locateStage(bvid, page);
   const sourceStage = meta.stage;
   let stageResolution = (
-    await resolveStageForAnalysis(sourceStage, meta.video.title, meta.video.desc)
+    await resolveStageForAnalysis(sourceStage, meta.video.title, meta.video.desc, undefined, nameMatchOpts)
   ).resolution;
   meta = { ...meta, stage: formatStageResolution(stageResolution, sourceStage) };
   const { caps, autoRead, biliScope, biliPages, biliMaxAgeDays } = await getAdvanced();
@@ -305,6 +313,7 @@ async function analyzeVideo(
     meta.video.title,
     meta.video.desc,
     parsed.stageResolution,
+    nameMatchOpts,
   );
   stageResolution = visionResolution.resolution;
   meta = { ...meta, stage: visionResolution.displayStage };

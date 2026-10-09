@@ -111,12 +111,28 @@ export function matchRegisteredCode(text: string, levels: readonly MaaLevel[]): 
     .sort(newerLevel)[0];
 }
 
-/** 文本中出现 MAA 关卡通名时反查关卡；优先较新活动。 */
-export function matchRegisteredName(text: string, levels: readonly MaaLevel[]): MaaLevel | undefined {
+/** 通名匹配的可选护栏（见 matchRegisteredName / resolveStageFromText） */
+export interface NameMatchOptions {
+  /**
+   * 这个名字是否"像干员名"（字典里有它，或它是某个干员名的子串）。
+   * 实测坑（第十二轮）：关卡「0-9」的通名是「临光」，而「临光」既是干员名、又是「耀骑士临光」的子串——
+   * 攻略简介/评论里一提到干员，整关就被解析成「0-9（临光）」。
+   */
+  isOperatorLike?: (name: string) => boolean;
+}
+
+/** 文本中出现 MAA 关卡通名时反查关卡；优先较新活动。
+ *  opts.isOperatorLike 命中且命中的是**简介/评论**这类弱文本时，调用方应把它当噪声跳过。 */
+export function matchRegisteredName(
+  text: string,
+  levels: readonly MaaLevel[],
+  opts: NameMatchOptions = {},
+): MaaLevel | undefined {
   const normalized = normalizeText(text);
   if (!normalized) return undefined;
+  const skip = opts.isOperatorLike;
   return [...levels]
-    .filter((l) => l.name.length >= 2 && normalized.includes(l.name))
+    .filter((l) => l.name.length >= 2 && normalized.includes(l.name) && !(skip && skip(l.name)))
     .sort((a, b) => newerLevel(a, b) || b.name.length - a.name.length)[0];
 }
 
@@ -149,6 +165,7 @@ export function resolveStageFromText(
   videoTitle: string,
   extraText: string,
   levels: readonly MaaLevel[],
+  opts: NameMatchOptions = {},
 ): StageResolution {
   const text = [stage, videoTitle, extraText].filter(Boolean).join("\n");
   const code = extractDisplayCode(text);
@@ -159,7 +176,11 @@ export function resolveStageFromText(
       : { source: "text_code", displayCode: code };
   }
 
-  const named = matchRegisteredName(text, levels);
+  // 通名匹配：标题（分P标题/视频标题）里出现就算数；**简介/评论**里的命中要排除"像干员名"的关卡名，
+  // 否则攻略简介里的干员列表会把关卡解析带跑（实测：「0-9（临光）」）
+  const titleText = [stage, videoTitle].filter(Boolean).join("\n");
+  const named =
+    matchRegisteredName(titleText, levels) ?? matchRegisteredName(text, levels, opts);
   if (named) return resolutionFromLevel(named, "level_name");
   return { source: "unknown" };
 }
@@ -459,8 +480,9 @@ export function resolveStageWithVision(
   extraText: string,
   vision: StageVisionHints | undefined,
   levels: readonly MaaLevel[],
+  opts: NameMatchOptions = {},
 ): StageResolution {
-  const textResolution = resolveStageFromText(stage, videoTitle, extraText, levels);
+  const textResolution = resolveStageFromText(stage, videoTitle, extraText, levels, opts);
   if (textResolution.source !== "unknown") return textResolution;
 
   const hintedCode = extractDisplayCode(vision?.explicitCode ?? "");
@@ -588,6 +610,7 @@ export async function resolveStageForAnalysis(
   videoTitle: string,
   extraText: string,
   vision?: StageVisionHints,
+  opts: NameMatchOptions = {},
 ): Promise<{
   resolution: StageResolution;
   displayStage: string;
@@ -595,7 +618,7 @@ export async function resolveStageForAnalysis(
   dispatchGridNote?: string;
 }> {
   const levels = await getLevelDb().catch(() => []);
-  const resolution = resolveStageWithVision(stage, videoTitle, extraText, vision, levels);
+  const resolution = resolveStageWithVision(stage, videoTitle, extraText, vision, levels, opts);
   const grid = resolveDispatchGridFromVision(
     stage,
     videoTitle,

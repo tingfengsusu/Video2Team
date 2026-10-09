@@ -92,7 +92,6 @@ function render(): void {
   $("stageName").textContent = current.stage;
   const sections = renderResultSections(current, hasOp, lockedOps, {
     stageKind: kind.kind,
-    allowDispatchSwitch: kind.kind === "unknown" && !ambiguous,
     ambiguousDispatch: ambiguous,
     picks,
     hideUnavailable,
@@ -109,10 +108,14 @@ function render(): void {
   const totalSchemes = pools.reduce((n, p) => n + p.schemes.length, 0);
   $("poolCount").textContent = `${pools.length} 关 · ${totalSchemes} 套`;
   $("slotCount").textContent = `${current.recommendations.length} 槽位`;
-  $("col-pool").innerHTML =
-    sections.guides || `<div class="hint">本次没有识别到前置关（未检测到特别战线网格）。</div>`;
+  // 第十二轮 p3：没有派遣关时（普通关）隐藏候选池面板并改**单栏居中**，不留一张空卡片
+  const hasPoolSection = !!sections.guides;
+  document.querySelector(".grid")?.classList.toggle("single", !hasPoolSection);
+  const poolPanel = document.getElementById("col-pool")?.closest<HTMLElement>(".panel");
+  if (poolPanel) poolPanel.hidden = !hasPoolSection;
+  $("col-pool").innerHTML = sections.guides;
   const ctx = document.getElementById("context");
-  if (ctx) ctx.innerHTML = sections.intro; // 视频标题 / 关卡类型提示 / 「其实是派遣关」切换链接
+  if (ctx) ctx.innerHTML = sections.intro; // 视频标题 / 关卡类型提示
   $("col-main").innerHTML = sections.slots; // 右栏只留阵容：总览/占用清单与候选池重复（用户反馈）
   applyFilters();
   renderLocks();

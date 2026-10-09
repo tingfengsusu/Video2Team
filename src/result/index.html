@@ -79,6 +79,9 @@
       .grid { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(300px, 1fr); gap: 16px; align-items: start; }
       @media (max-width: 980px) { .grid { grid-template-columns: minmax(0, 1fr); } .side { position: static !important; } }
       .side { position: sticky; top: 66px; display: flex; flex-direction: column; gap: 16px; }
+      /* 没有派遣关（普通关）：单栏居中显示，别留一张空候选池卡片（第十二轮 p3） */
+      .grid.single { grid-template-columns: minmax(0, 1fr); max-width: 900px; margin: 0 auto; }
+      .grid.single .side { position: static; }
       .panel { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
       .panel + .panel { margin-top: 16px; }
       .panel-head {
