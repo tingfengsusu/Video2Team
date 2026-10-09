@@ -31,8 +31,9 @@ import {
   putCachedResult,
   type ResultCacheEntry,
 } from "../shared/resultCache";
-import { clearStageSkip, patchStagePool, queryStagePool } from "../shared/stageRecode";
+import { clearStageSkip, patchStagePools, queryStagePools } from "../shared/stageRecode";
 import { wireHoverDetails } from "../shared/hoverDetails";
+import { wireGridPicker } from "../shared/gridPicker";
 
 // ---------- 基础能力 ----------
 
@@ -186,6 +187,29 @@ const STYLE = `
   }
   .stage-select:hover { border-color: #23ade5; }
   .stage-select:focus-visible { outline: none; border-color: #23ade5; box-shadow: 0 0 0 3px rgba(35,173,229,.25); }
+  .stage-select[disabled] { opacity: .5; cursor: not-allowed; }
+  /* 网格选关（第十一轮 q3）：像游戏里的特别战线那样按序号点选 */
+  .gridpicker { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center;
+                justify-content: center; background: rgba(15,23,42,.38); }
+  .gridpicker[hidden] { display: none; }
+  .gp-card { background: #fff; border-radius: 10px; padding: 12px 14px; max-width: min(92vw, 430px);
+             box-shadow: 0 12px 40px rgba(0,0,0,.28); }
+  .gp-title { font-size: 14px; font-weight: 700; }
+  .gp-sub { display: block; font-size: 11px; font-weight: 400; color: #888; margin-top: 2px; }
+  .gp-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin: 10px 0; }
+  .gp-cell { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 2px;
+             border: 1px solid #d0d7de; border-radius: 8px; background: #fff; color: #333; cursor: pointer;
+             font: inherit; transition: border-color .2s, background .2s, box-shadow .2s; }
+  .gp-cell:hover:not([disabled]) { border-color: #23ade5; background: #f6fbff; }
+  .gp-cell:focus-visible { outline: none; border-color: #23ade5; box-shadow: 0 0 0 3px rgba(35,173,229,.25); }
+  .gp-cell b { font-size: 13px; color: #0969da; line-height: 1.2; }
+  .gp-cell span { font-size: 11px; line-height: 1.2; }
+  .gp-cell i { font-size: 10px; font-style: normal; color: #888; line-height: 1.2; }
+  .gp-cell.on { border-color: #d97706; background: #fff7e6; box-shadow: inset 0 0 0 1px #fcd34d; }
+  .gp-cell.in-pool { opacity: .55; cursor: default; background: #f6f8fa; }
+  .gp-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .gp-actions { display: inline-flex; gap: 6px; }
+  .gp-count b { color: #0969da; }
   .pickbox { cursor: pointer; margin: 2px 0 0; }
   .quote { color: #999; }
   .dim { color: #888; font-size: 12px; }
@@ -452,34 +476,34 @@ async function onPickChange(input: HTMLInputElement): Promise<void> {
 }
 
 /**
- * 手动纠正识别：结果区「＋ 补一个关…」——后台现查该关的 MAA/B站 方案并追加进当前结果，
- * 同时写入结果缓存（刷新后仍保留，无需重新分析）。
- * act="recode-stage"（整关替换）为兼容保留：当前 UI 已不再提供「改成…」入口。
+ * 手动补关：结果区「＋ 补一个关…」/ 网格选关（第十一轮 q3）——后台现查这些关的 MAA/B站 方案
+ * 并并入当前结果（后台会带上关卡链前置关），写入结果缓存（刷新后仍保留，无需重新分析）。
  */
-async function onStageRecode(sel: HTMLSelectElement): Promise<void> {
+async function applyStageCodes(codes: readonly string[]): Promise<void> {
   if (!currentResult) return;
-  const act = sel.getAttribute("data-act");
-  const code = sel.value.trim().toUpperCase();
-  if (!act || !code) return;
-  const from = act === "recode-stage" ? sel.getAttribute("data-from") : null;
+  const list = codes.map((c) => String(c ?? "").trim().toUpperCase()).filter(Boolean);
+  if (!list.length) return;
   const { bvid, page } = parseContext();
-  sel.disabled = true;
-  q("#status").textContent = `正在查询 ${code} 的候选方案（MAA + B站，约 3-10 秒）…`;
-  const pool = await queryStagePool(code);
-  if (!pool) {
-    q("#status").innerHTML = `<span class="err">查询 ${code} 失败（无网络或该关暂无数据），可稍后重试</span>`;
-    sel.disabled = false;
-    sel.value = "";
+  const label = list.join("、");
+  q("#status").textContent = `正在查询 ${label} 的候选方案（MAA + B站，约 3-10 秒）…`;
+  const pools = await queryStagePools(list);
+  if (!pools.length) {
+    q("#status").innerHTML = `<span class="err">查询 ${label} 失败（无网络或该关暂无数据），可稍后重试</span>`;
     return;
   }
-  const next = patchStagePool(currentResult, from, pool);
+  const next = patchStagePools(currentResult, pools);
   currentResult = next;
   await putCachedResult(next, page);
-  await clearStageSkip(stageSkipKey(bvid ?? "", page), code);
-  sel.value = "";
-  sel.disabled = false;
-  q("#status").textContent = `已更新 ${code} 的候选方案（${pool.schemes.length} 套）`;
+  for (const code of list) await clearStageSkip(stageSkipKey(bvid ?? "", page), code);
+  q("#status").textContent = `已更新 ${pools.map((p) => p.displayCode).join("、")} 的候选方案（共 ${pools.length} 关）`;
   showResult(next);
+}
+
+async function onStageRecode(sel: HTMLSelectElement): Promise<void> {
+  const code = sel.value.trim().toUpperCase();
+  if (!code) return;
+  sel.value = "";
+  await applyStageCodes([code]);
 }
 
 function showCachedResult(entry: ResultCacheEntry): void {
@@ -714,6 +738,7 @@ function wireRowClick(container: HTMLElement): void {
   });
   wireRowClick(q<HTMLElement>("#result")); // 点整行 = 勾选该方案
   wireHoverDetails(q<HTMLElement>("#result")); // 候选池折叠块：悬浮即展开（第十轮 q3）
+  wireGridPicker(q<HTMLElement>("#result"), (codes) => void applyStageCodes(codes)); // 网格选关（第十一轮 q3）
   // 「＋ 补一个关…」：手动补漏识别的派遣关（change 委托）
   q("#result").addEventListener("change", (e: Event) => {
     const sel = (e.target as HTMLElement | null)?.closest?.("select[data-act]") as HTMLSelectElement | null;

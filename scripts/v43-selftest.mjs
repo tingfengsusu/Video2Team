@@ -33,6 +33,8 @@ await esbuild.build({
       export * from "../src/shared/operatorDB.ts";
       export * from "../src/shared/roster.ts";
       export * from "../src/shared/miner.ts";
+      export * from "../src/shared/constants.ts";
+      export * from "../src/shared/gridPicker.ts";
     `,
     resolveDir: join(root, "scripts"),
     sourcefile: "v43-selftest-entry.ts",
@@ -243,8 +245,14 @@ check(
     return /<b><a href="https:\/\/prts\.plus\/"[^>]*>VEC-SP02<\/a><\/b>/.test(html) && !/打开已选方案/.test(html);
   })(),
 );
-check("候选池折叠块带 data-hover（悬浮即展开）", pickedHtml.includes('<details data-hover="1"'));
-check("未选的关默认展开（不需要悬浮）", guideHtml.includes('<details data-hover="1" open>'));
+check(
+  "悬浮展开只给已选关（默认收起 → 悬浮即展开）",
+  pickedHtml.includes('<details data-hover="1">') && !/<details data-hover="1" open>/.test(pickedHtml),
+);
+check(
+  "未选的关默认展开、不带悬浮（鼠标进出不开合，第十一轮 q2）",
+  guideHtml.includes("<details open>") && !/details data-hover/.test(poolSection(guideHtml)),
+);
 
 const sharedLocked = { 能天使: "VEC-SP05（校验关卡五）", 银灰: "VEC-SP05（校验关卡五）" };
 const crossed = v43.renderResult(baseResult, hasAll, sharedLocked, { stageKind: "target" });
@@ -866,6 +874,63 @@ check(
   v43.matchOperators("麒麟R夜刀、夜刀 双人 VEC-SP10", db).join("、"),
 );
 
+console.log("\n== 第十一轮 q3/q4：网格选关 + 关卡链 ==");
+check(
+  "关卡链配置：SP10→SP09、SP12→SP11，且不重复加已在列表里的",
+  v43.chainPrereqs(["VEC-SP10"]).join(",") === "VEC-SP09" &&
+    v43.chainPrereqs(["VEC-SP12"]).join(",") === "VEC-SP11" &&
+    v43.chainPrereqs(["VEC-SP09", "VEC-SP10"]).length === 0 &&
+    v43.chainPrereqs(["VEC-SP05"]).length === 0,
+);
+{
+  const sp10 = { ...guidePool, displayCode: "VEC-SP10", stageId: "act3break_sp10", stageName: "后院死局" };
+  const sp09 = { ...guidePool, displayCode: "VEC-SP09", stageId: "act3break_sp09", stageName: "调度中心" };
+  const chainHtml = v43.renderResult(
+    { ...baseResult, dispatchGuides: [sp09, sp10], dispatchStageChain: { "VEC-SP10": "VEC-SP09" } },
+    hasAll,
+    {},
+    { stageKind: "target" },
+  );
+  check(
+    "结果页写出「关卡链：本关需要先打 …（已自动加入候选池）」",
+    /关卡链：本关需要先打 <b>VEC-SP09<\/b>/.test(chainHtml),
+    chainHtml.match(/关卡链：[^<]*<b>[^<]*/)?.[0],
+  );
+  check(
+    "前置关一侧写出「谁需要先打本关」",
+    /关卡链：<b>VEC-SP10<\/b> 需要先打本关/.test(chainHtml),
+    chainHtml.match(/关卡链：<b>[^<]*/)?.[0],
+  );
+}
+{
+  const gridHtml = v43.renderResult(baseResult, hasAll, {}, {
+    stageKind: "target",
+    stageOptions: [
+      { displayCode: "VEC-SP02", stageName: "心中热火" }, // 已在候选池 → 禁用
+      { displayCode: "VEC-SP05", stageName: "难以相交" },
+      { displayCode: "VEC-SP09", stageName: "调度中心" },
+    ],
+  });
+  check(
+    "候选池底部有「按网格选关…」按钮",
+    gridHtml.includes('data-act="open-grid"') && gridHtml.includes("按网格选关…"),
+  );
+  check(
+    "浮层按序号渲染格子（含 1/3 号）",
+    gridHtml.includes('class="gridpicker"') && gridHtml.includes("<b>1</b>") && gridHtml.includes("<b>3</b>"),
+  );
+  check("已在候选池的格子禁用（避免重复查询）", /class="gp-cell in-pool"[^>]*disabled/.test(gridHtml));
+  check(
+    "应用按钮默认禁用 + 计数从 0 起",
+    /data-act="apply-grid" disabled/.test(gridHtml) && gridHtml.includes("已选 <b>0</b> 关"),
+  );
+  const noOptionsHtml = v43.renderResult(baseResult, hasAll, {}, { stageKind: "target" });
+  check(
+    "拿不到派遣关清单时不渲染浮层/按钮",
+    !noOptionsHtml.includes("gridpicker") && !noOptionsHtml.includes("open-grid"),
+  );
+}
+
 /** 最小 input 桩：resolvePickFromRow 只用 getAttribute / closest */
 const fakeInput = (attrs, rowAttrs) => ({
   getAttribute: (k) => attrs[k] ?? null,
@@ -939,7 +1004,8 @@ const monoHtml = v43.renderResult(baseResult, hasAll, {}, { stageKind: "target",
 check("关闭配色开关后统一蓝色", !monoHtml.includes("#e0559b") && monoHtml.includes("#0969da"));
 check(
   "未选关默认展开、已选关默认收起（<details>）",
-  /<details data-hover="1" open>/.test(rowHtml) &&
+  rowHtml.includes("<details open>") &&
+    !/details data-hover/.test(rowHtml) &&
     pickedHtml.includes('<details data-hover="1">') &&
     !/<details data-hover="1" open>/.test(pickedHtml),
 );

@@ -56,6 +56,13 @@ const pool2 = {
     bili({ displayCode: "VEC-SP07", stageName: "荒废矿道", operators: ["机械师"], opers: [{ name: "机械师" }], url: "https://www.bilibili.com/video/BV1yy", bvid: "BV1yy", title: "机械师单刷" }),
   ],
 };
+// 第三关是「关卡链」的后置关：本关需要先打 VEC-SP09（第十一轮 q4 的复现点）
+const pool3 = {
+  displayCode: "VEC-SP10", stageId: "act3break_sp10", stageName: "后院死局", counts: { maa: 3, bili: 2 },
+  schemes: [
+    scheme({ copilotId: 11, displayCode: "VEC-SP10", stageName: "后院死局", operators: ["麒麟R夜刀"], opers: [{ name: "麒麟R夜刀", skill: 3 }], mode: "单人", title: "麒麟R夜刀 单人 VEC-SP10" }),
+  ],
+};
 const result = {
   roster: { stage: "VEC-C", videoId: "BV1TEST", page: 2, source: "screenshot", slots: [{ operator: "凯尔希", isKey: true }, { operator: "克洛丝" }] },
   substitutions: [],
@@ -65,14 +72,20 @@ const result = {
   ],
   videoTitle: "【全力以赴】VEC-C 大窗口夹具",
   stage: "VEC-C（全力以赴）", bvid: "BV1TEST", stageCode: "VEC-C",
-  dispatchGuides: [pool, pool2],
+  dispatchGuides: [pool, pool2, pool3],
+  dispatchStageChain: { "VEC-SP10": "VEC-SP09" },
   dispatchGuideEvidence: {
     "VEC-SP02": "特别战线网格第 5 格 → VEC-SP02，格内文字「催化装备」",
     "VEC-SP07": "特别战线网格第 7 格 → VEC-SP07，格内文字「缴械装备」",
+    "VEC-SP10": "特别战线网格第 10 格 → VEC-SP10，格内文字「净血装备」",
   },
+  // 「＋ 补一个关…」下拉：只列候选池里还没出现的关；「按网格选关…」浮层用同一份清单
   dispatchStageOptions: [
     { displayCode: "VEC-SP01", stageName: "重力危机" },
     { displayCode: "VEC-SP02", stageName: "心中热火" },
+    { displayCode: "VEC-SP07", stageName: "荒废矿道" },
+    { displayCode: "VEC-SP09", stageName: "调度中心" },
+    { displayCode: "VEC-SP10", stageName: "后院死局" },
     { displayCode: "VEC-SP12", stageName: "四号站台" },
   ],
   stats: { danmakuTotal: 320, commentCandidates: 42, danmakuCandidates: 18 },
@@ -84,7 +97,7 @@ const stub = `
   window.addEventListener("error", (e) => window.__errors.push("error: " + e.message + " @" + e.lineno));
   window.addEventListener("unhandledrejection", (e) => window.__errors.push("rejection: " + (e.reason && e.reason.message ? e.reason.message : String(e.reason))));
   const localStore = {
-    box: { operators: { 凯尔希: { name: "凯尔希" }, 黑: { name: "黑" }, 机械师: { name: "机械师" }, 克洛丝: { name: "克洛丝" } }, source: "excel" },
+    box: { operators: { 凯尔希: { name: "凯尔希" }, 黑: { name: "黑" }, 机械师: { name: "机械师" }, 克洛丝: { name: "克洛丝" }, 麒麟R夜刀: { name: "麒麟R夜刀" } }, source: "excel" },
     advanced: { hideUnavailableSchemes: true, schemeRows: 12, colorBySource: true },
     lockedOps: {},
     dispatchPicks: {},
@@ -109,21 +122,22 @@ const stub = `
       getManifest: () => ({ version: "0.0.0-fixture" }),
       getURL: (p) => "/" + p,
       sendMessage: async (msg) => {
+        // 「＋ 补一个关…」/「按网格选关…」：夹具里直接返回假方案，便于离线验证「现查并写回」
         if (msg && msg.type === "DISPATCH_QUERY_STAGE") {
-          const code = String(msg.displayCode).toUpperCase();
-          return {
-            ok: true,
-            pool: {
-              displayCode: code, stageId: "act3break_fixture", stageName: "夹具关",
-              counts: { maa: 2, bili: 1 },
-              schemes: [{
-                source: "maa", sourceLabel: "MAA作业", displayCode: code, stageName: "夹具关",
-                operators: ["凯尔希"], opers: [{ name: "凯尔希", skill: 3 }], mode: "单人",
-                title: "夹具方案", details: "", author: "fixture", url: "", bvid: "",
-                views: 0, hotScore: 0,
-              }],
-            },
-          };
+          const codes = (Array.isArray(msg.displayCodes) ? msg.displayCodes : [msg.displayCode])
+            .map((c) => String(c ?? "").toUpperCase())
+            .filter(Boolean);
+          const pools = codes.map((code) => ({
+            displayCode: code, stageId: "act3break_fixture", stageName: "夹具关",
+            counts: { maa: 2, bili: 1 },
+            schemes: [{
+              source: "maa", sourceLabel: "MAA作业", displayCode: code, stageName: "夹具关",
+              operators: ["凯尔希"], opers: [{ name: "凯尔希", skill: 3 }], mode: "单人",
+              title: "夹具方案", details: "", author: "fixture", url: "", bvid: "",
+              views: 0, hotScore: 0,
+            }],
+          }));
+          return { ok: true, pools, pool: pools[0] ?? null };
         }
         return { ok: true };
       },

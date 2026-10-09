@@ -136,6 +136,30 @@
       }
       .stage-select:hover { border-color: var(--secondary); }
       .stage-select:focus-visible { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px rgba(30,64,175,.18); }
+      .stage-select[disabled] { opacity: .5; cursor: not-allowed; }
+      /* ---- 网格选关（第十一轮 q3）：像游戏里的特别战线那样按序号点选 ---- */
+      .gridpicker { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center;
+                    justify-content: center; background: rgba(15,23,42,.38); }
+      .gridpicker[hidden] { display: none; }
+      .gp-card { background: var(--card); border-radius: var(--radius-lg); padding: 14px 16px;
+                 max-width: min(92vw, 460px); box-shadow: 0 12px 40px rgba(0,0,0,.28); }
+      .gp-title { font-size: 14px; font-weight: 700; color: var(--primary); }
+      .gp-sub { display: block; font-size: 12px; font-weight: 400; color: var(--muted-fg); margin-top: 2px; }
+      .gp-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin: 10px 0; }
+      .gp-cell { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 7px 2px;
+                 border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--card);
+                 color: var(--fg); cursor: pointer; font: inherit;
+                 transition: border-color var(--speed), background var(--speed), box-shadow var(--speed); }
+      .gp-cell:hover:not([disabled]) { border-color: var(--secondary); background: #f5f9ff; }
+      .gp-cell:focus-visible { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px rgba(30,64,175,.18); }
+      .gp-cell b { font-size: 14px; color: var(--primary); line-height: 1.2; }
+      .gp-cell span { font-size: 12px; line-height: 1.2; }
+      .gp-cell i { font-size: 11px; font-style: normal; color: var(--muted-fg); line-height: 1.2; }
+      .gp-cell.on { border-color: var(--accent); background: #fffbeb; box-shadow: inset 0 0 0 1px #fcd34d; }
+      .gp-cell.in-pool { opacity: .55; cursor: default; background: #f1f5f9; }
+      .gp-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+      .gp-actions { display: inline-flex; gap: 6px; }
+      .gp-count b { color: var(--primary); }
       .pickbox { cursor: pointer; margin: 2px 0 0; accent-color: var(--primary); }
       .schemerow { transition: background var(--speed); }
       .schemerow:hover { background: #eff6ff; border-radius: var(--radius-sm); }

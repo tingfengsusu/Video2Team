@@ -7,36 +7,56 @@
  */
 import type { AnalysisOutput } from "./types";
 import type { MergedStagePool } from "./dispatchPool";
+import { chainMapFor } from "./constants";
 
 export const STAGE_SKIPS_KEY = "dispatchStageSkips";
 
 /** 按显示码现查一关的候选池（后台 MAA + B站；失败返回 null） */
-export async function queryStagePool(displayCode: string): Promise<MergedStagePool | null> {
+export async function queryStagePools(
+  displayCodes: readonly string[],
+): Promise<MergedStagePool[]> {
+  const codes = displayCodes.map((c) => String(c ?? "").trim().toUpperCase()).filter(Boolean);
+  if (!codes.length) return [];
   try {
     const resp = (await chrome.runtime.sendMessage({
       type: "DISPATCH_QUERY_STAGE",
-      displayCode,
-    })) as { ok?: boolean; pool?: MergedStagePool | null } | undefined;
-    return resp?.ok && resp.pool ? resp.pool : null;
+      displayCodes: codes,
+    })) as
+      | { ok?: boolean; pools?: MergedStagePool[]; pool?: MergedStagePool | null }
+      | undefined;
+    if (!resp?.ok) return [];
+    const pools = resp.pools ?? (resp.pool ? [resp.pool] : []);
+    return pools.filter((p): p is MergedStagePool => !!p);
   } catch {
-    return null;
+    return [];
   }
 }
 
-/** 把候选池替换（from 为空则追加）进结果，返回新结果对象（不改原对象） */
-export function patchStagePool(
-  result: AnalysisOutput,
-  from: string | null,
-  pool: MergedStagePool,
-): AnalysisOutput {
+/** 按显示码现查一关的候选池（等价于 queryStagePools 的第一个） */
+export async function queryStagePool(displayCode: string): Promise<MergedStagePool | null> {
+  const pools = await queryStagePools([displayCode]);
+  return pools[0] ?? null;
+}
+
+/** 把候选池并入结果：同显示码的替换（刷新），否则追加（不改原对象） */
+export function patchStagePool(result: AnalysisOutput, pool: MergedStagePool): AnalysisOutput {
   const guides = [...(result.dispatchGuides ?? [])];
-  const fromCode = (from ?? "").toUpperCase();
-  const i = fromCode
-    ? guides.findIndex((p) => p.displayCode.toUpperCase() === fromCode)
-    : -1;
+  const code = pool.displayCode.toUpperCase();
+  const i = guides.findIndex((p) => p.displayCode.toUpperCase() === code);
   if (i >= 0) guides[i] = pool;
   else guides.push(pool);
   return { ...result, dispatchGuides: guides };
+}
+
+/** 把多关候选池并入结果，并同步「关卡链」说明（第十一轮 q4：手动补关也要带上链条） */
+export function patchStagePools(
+  result: AnalysisOutput,
+  pools: readonly MergedStagePool[],
+): AnalysisOutput {
+  let next = pools.reduce<AnalysisOutput>((acc, pool) => patchStagePool(acc, pool), result);
+  const chain = chainMapFor((next.dispatchGuides ?? []).map((p) => p.displayCode));
+  next = { ...next, dispatchStageChain: chain };
+  return next;
 }
 
 /** 取消某关的「不是这关」排除记录（改/补关后应能正常显示） */

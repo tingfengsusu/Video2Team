@@ -172,6 +172,8 @@ export interface AnalysisOutput extends StageResult {
   dispatchGuideEvidence?: Record<string, string>;
   /** 本活动全部派遣关（显示码 + 关名）：供结果区「＋ 补一个关…」下拉补漏识别的关 */
   dispatchStageOptions?: { displayCode: string; stageName: string }[];
+  /** 关卡链（第十一轮 q4）：依赖关 → 它的前置关，如 VEC-SP10 → VEC-SP09（前置关已自动纳入候选池） */
+  dispatchStageChain?: Record<string, string>;
   stats?: {
     danmakuTotal: number; // 抓取到的弹幕总数（XML 接口返回）
     commentCandidates: number; // 进入候选池的评论数
