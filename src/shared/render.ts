@@ -68,7 +68,34 @@ export function renderSubLine(s: Substitution, hasOp: HasOp, lockedOps: LockedOp
   return `<div class="sub-line">${nameSpan(s.replacement, hasOp, lockedOps)}${substMeta(s)}</div>`;
 }
 
-export function renderSlot(slot: RecommendedSlot, hasOp: HasOp, lockedOps: LockedOps = {}): string {
+/**
+ * 本关槽位被**别的关**占用时的提示（第十五轮 q2 的补充，用户口径）：
+ * 「我勾了补给关里的干员 → 本关对应的那个干员的替换建议要显示出来」。
+ * 本关自己勾的不算冲突（见 isLockLabelOfStage）；有本关的实战替代建议就一并给出，没有就说明。
+ */
+function occupiedAdvice(
+  operator: string,
+  lockedOps: LockedOps,
+  advice?: { ownStageCode?: string; subsByOp?: Map<string, Substitution> },
+): string {
+  const label = lockedOps[operator];
+  if (!label) return "";
+  if (advice?.ownStageCode && isLockLabelOfStage(label, advice.ownStageCode)) return "";
+  const sub = advice?.subsByOp?.get(operator);
+  const who = `<b>${esc(label)}</b>`;
+  return sub
+    ? `<div class="dim" style="margin-top:1px">本关这个位置被 ${who} 占用 —— 可换成 <b>${esc(sub.replacement)}</b>` +
+        `<span class="dim" title="${esc(`${srcLabel(sub)}：${sub.evidence}`)}">（${esc(srcLabel(sub))}）</span></div>`
+    : `<div class="dim" style="margin-top:1px">本关这个位置被 ${who} 占用 —— 暂无替代建议，可去该关候选池看看，或回评论区确认</div>`;
+}
+
+export function renderSlot(
+  slot: RecommendedSlot,
+  hasOp: HasOp,
+  lockedOps: LockedOps = {},
+  advice?: { ownStageCode?: string; subsByOp?: Map<string, Substitution> },
+): string {
+  const adv = occupiedAdvice(slot.original.operator, lockedOps, advice);
   const op = nameSpan(slot.original.operator, hasOp, lockedOps);
   const keyTag = slot.original.isKey ? " <b>关键</b>" : "";
   const supTag = slot.original.support ? " <i>助战</i>" : "";
@@ -79,12 +106,13 @@ export function renderSlot(slot: RecommendedSlot, hasOp: HasOp, lockedOps: Locke
     : "";
 
   if (slot.status === "keep") {
-    return `<div class="slot keep">✓ ${op}${keyTag}${supTag} — 你有，保留</div>`;
+    return `<div class="slot keep">✓ ${op}${keyTag}${supTag} — 你有，保留${adv}</div>`;
   }
   if (slot.status === "substituted" && slot.via && "source" in slot.via) {
     return (
       `<div class="slot sub">⚠ ${op}${keyTag}${supTag} → <b>${nameSpan(slot.finalOperator!, hasOp, lockedOps)}</b>${substMeta(slot.via)}` +
       (slot.note ? `<div class="note">${esc(slot.note)}</div>` : "") +
+      adv +
       alts +
       `</div>`
     );
@@ -92,6 +120,7 @@ export function renderSlot(slot: RecommendedSlot, hasOp: HasOp, lockedOps: Locke
   return (
     `<div class="slot unresolved">✗ ${op}${keyTag}${supTag} — 无解` +
     (slot.note ? `<div class="note">${esc(slot.note)}</div>` : "") +
+    adv +
     (slot.alternatives.length
       ? `<div class="alts"><span class="dim">实战建议：</span>${slot.alternatives
           .map((s) => renderSubLine(s, hasOp, lockedOps))
@@ -168,8 +197,6 @@ function renderScheme(
   colorBySource: boolean,
   /** 本关（目标关）阵容用到的干员 */
   own?: Set<string>,
-  /** 本关那位的替代建议（干员名 → 建议） */
-  subsByOp?: Map<string, Substitution>,
 ): string {
   const key = schemeKeyOf(scheme);
   const url = schemeSourceUrl(scheme);
@@ -215,36 +242,7 @@ function renderScheme(
     `title="${esc(tip)}">` +
     `<span style="flex:none">${box}</span>` +
     `<span style="flex:auto">${label} ${mode}${renderSchemeOperators(scheme, hasOp, lockedOps, pool.displayCode, own)}${occupiedNote}` +
-    ownSubsLine(scheme, own, subsByOp) +
     `</span>` +
-    `</div>`
-  );
-}
-
-/**
- * 本关（目标关）也要用的干员 → 顺带给出"本关那位的替换建议"（第十五轮 q2）。
- * 用户口径：这个干员本关本来就用了（不显示很怪），既然他可能想勾到别的关，就把替换建议一并给出来。
- */
-function ownSubsLine(
-  scheme: MergedScheme,
-  own?: Set<string>,
-  subsByOp?: Map<string, Substitution>,
-): string {
-  if (!own?.size) return "";
-  const overlap = [...new Set(scheme.operators)].filter((n) => own.has(n));
-  if (!overlap.length) return "";
-  const parts = overlap.map((n) => {
-    const sub = subsByOp?.get(n);
-    if (!sub) return `<b>${esc(n)}</b>`;
-    return (
-      `<b>${esc(n)}</b> → 可换成 <b>${esc(sub.replacement)}</b>` +
-      `<span class="dim" title="${esc(`${srcLabel(sub)}：${sub.evidence}`)}">（${esc(srcLabel(sub))}）</span>`
-    );
-  });
-  const hasSub = overlap.some((n) => subsByOp?.get(n));
-  return (
-    `<div class="dim" style="margin-top:1px">本关也要用：${parts.join("；")}` +
-    (hasSub ? "（照本关的替换建议改，就不占本关的人了）" : "（本关阵容里也在用，勾到别的关会互相占用）") +
     `</div>`
   );
 }
@@ -415,8 +413,6 @@ export function renderDispatchGuides(
     chain?: Record<string, string>;
     /** 本关（目标关）阵容用到的干员：候选方案里标「本关也用」并给出替换建议（第十五轮 q2） */
     ownLineup?: string[];
-    /** 本关那位的替代建议（removed → Substitution），随 ownLineup 一起用 */
-    subs?: Substitution[];
   } = {},
 ): string {
   const picks = opts.picks ?? {};
@@ -429,12 +425,8 @@ export function renderDispatchGuides(
   const maxRows = Math.max(2, opts.maxRows ?? 12);
   const colorBySource = opts.colorBySource !== false; // 默认开：MAA 蓝 / B站 粉
   const presentCodes = new Set(pools.map((p) => p.displayCode.toUpperCase()));
-  // 第十五轮 q2：本关（目标关）阵容用到的干员 + 本关那位的替换建议
+  // 第十五轮 q2：本关（目标关）阵容用到的干员（候选方案里给它们打「本关也用」标签）
   const ownSet = new Set((opts.ownLineup ?? []).map((n) => String(n ?? "").trim()).filter(Boolean));
-  const subsByOp = new Map<string, Substitution>();
-  for (const sub of opts.subs ?? []) {
-    if (sub?.removed && !subsByOp.has(sub.removed)) subsByOp.set(sub.removed, sub);
-  }
 
   const totalSchemes = visiblePools.reduce((n, pool) => n + pool.schemes.length, 0);
   const heading =
@@ -481,7 +473,7 @@ export function renderDispatchGuides(
           `<div class="dim" style="font-size:11px">下面这些方案缺干员（只影响显示，不影响勾选）：</div>` +
           hiddenSchemes
             .slice(0, maxRows)
-            .map((scheme) => renderScheme(scheme, pool, hasOp, lockedOps, picked, colorBySource, ownSet, subsByOp))
+            .map((scheme) => renderScheme(scheme, pool, hasOp, lockedOps, picked, colorBySource, ownSet))
             .join("") +
           (hiddenSchemes.length > maxRows
             ? `<div class="dim" style="font-size:11px">另有 ${hiddenSchemes.length - maxRows} 条未列出</div>`
@@ -489,7 +481,7 @@ export function renderDispatchGuides(
           `</div>`
         : "";
       const rows = schemes.length
-        ? schemes.map((scheme) => renderScheme(scheme, pool, hasOp, lockedOps, picked, colorBySource, ownSet, subsByOp)).join("") +
+        ? schemes.map((scheme) => renderScheme(scheme, pool, hasOp, lockedOps, picked, colorBySource, ownSet)).join("") +
           hiddenRows +
           (hiddenNote ? `<div class="dim" style="font-size:11px;margin-top:2px">${hiddenNote}</div>` : "")
         : `<div class="dim" style="font-size:12px;margin-top:3px">` +
@@ -647,6 +639,12 @@ export function renderResultSections(
   const stageKind = options.stageKind ?? "unknown";
   const dispatch = stageKind === "dispatch";
   const ambiguousDispatch = options.ambiguousDispatch === true;
+  // 本关那位的替代建议（干员 → 建议）：本关槽位被别的关占用时显示（第十五轮 q2）
+  const adviceSubsByOp = new Map<string, Substitution>();
+  for (const sub of out.substitutions ?? []) {
+    if (sub?.removed && !adviceSubsByOp.has(sub.removed)) adviceSubsByOp.set(sub.removed, sub);
+  }
+
   const statsLine = s
     ? `抓取弹幕 ${s.danmakuTotal} 条 → 候选池：评论 ${s.commentCandidates} + 弹幕 ${s.danmakuCandidates}｜`
     : "";
@@ -681,7 +679,6 @@ export function renderResultSections(
     excludedStages: options.excludedStages,
     stageOptions: options.stageOptions,
     ownLineup: out.roster.slots.map((s) => s.operator),
-    subs: out.substitutions,
   });
   return {
     intro:
@@ -694,7 +691,14 @@ export function renderResultSections(
     slots:
       sectionHeading("🎯 本关适配阵容", `${out.recommendations.length} 个槽位`) +
       `<div class="hint">实战替代建议：${out.substitutions.length} 条｜${statsLine}名字颜色：<span class="own">绿=你有</span>／<span class="miss">红=你没有</span>${Object.keys(lockedOps).length ? "｜🔒=已派遣（灰+删除线）" : ""}</div>` +
-      out.recommendations.map((s2) => renderSlot(s2, hasOp, lockedOps)).join("") +
+      out.recommendations
+        .map((s2) =>
+          renderSlot(s2, hasOp, lockedOps, {
+            ownStageCode: out.stageCode ?? out.stageResolution?.displayCode,
+            subsByOp: adviceSubsByOp,
+          }),
+        )
+        .join("") +
       (s?.unknownNames && s.unknownNames.length
         ? `<div class="slot unresolved">⚠ 有 ${s.unknownNames.length} 个称呼未能识别：${s.unknownNames
             .map((n) => esc(n))

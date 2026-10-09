@@ -1231,18 +1231,38 @@ check(
   "候选方案里标出「本关也用」的干员（第十五轮 q2）",
   (() => {
     const html = v43.renderResult(rosterKai, hasAll, {}, { stageKind: "target" });
-    return html.includes("本关也用") && /本关也要用：<b>凯尔希<\/b>/.test(html);
+    // 候选池那一行只打标签（建议统一显示在本关槽位上）
+    return /class="own-tag"[^>]*>本关也用</.test(html) && !/本关也要用：/.test(html);
   })(),
 );
 check(
-  "有了本关那位的替换建议就一并给出（凯尔希 → 可换成 闪灵）",
+  "本关槽位被别的关占用时，显示本关那位的替换建议（第十五轮 q2 补充）",
   (() => {
     const sub = {
       removed: "凯尔希", replacement: "闪灵", stage: "VEC-C", evidence: "闪灵可以替凯尔希",
       source: "danmaku", kind: "operator_swap", likes: 9, verified: true,
     };
-    const html = v43.renderResult({ ...rosterKai, substitutions: [sub] }, hasAll, {}, { stageKind: "target" });
-    return /本关也要用：<b>凯尔希<\/b> → 可换成 <b>闪灵<\/b>/.test(html) && html.includes("照本关的替换建议改");
+    const slot = {
+      original: { operator: "凯尔希", isKey: true }, finalOperator: "凯尔希", status: "keep",
+      via: null, alternatives: [], risk: "low", evidenceUrl: "", note: "",
+    };
+    const html = v43.renderSlot(slot, hasAll, { 凯尔希: "VEC-SP02（心中热火）" }, {
+      ownStageCode: "VEC-C",
+      subsByOp: new Map([["凯尔希", sub]]),
+    });
+    return html.includes("本关这个位置被") && /可换成 <b>闪灵<\/b>/.test(html);
+  })(),
+);
+check(
+  "没有替代建议时说明去哪儿看；本关自己勾的不算冲突",
+  (() => {
+    const slot = {
+      original: { operator: "能天使" }, finalOperator: "能天使", status: "keep",
+      via: null, alternatives: [], risk: "low", evidenceUrl: "", note: "",
+    };
+    const other = v43.renderSlot(slot, hasAll, { 能天使: "VEC-SP02（心中热火）" }, { ownStageCode: "VEC-C" });
+    const self = v43.renderSlot(slot, hasAll, { 能天使: "VEC-C（全力以赴）" }, { ownStageCode: "VEC-C" });
+    return other.includes("暂无替代建议") && !self.includes("本关这个位置被");
   })(),
 );
 check(
