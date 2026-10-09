@@ -266,17 +266,81 @@ function collectGridCellHints(vision: StageVisionHints): NormalizedGridHint[] {
 }
 
 /** P1 攻略查询优先用全部黄色格；旧版输出没有列表时退回单格位置。 */
+/**
+ * 从模型说明（note）里解析格位（第十四轮 q1）。
+ *
+ * 实测：模型会把「4行4列，高亮格=第2行第1、2、3格，第3行第2、3、4格，共6格」写在 note 里，
+ * 却因为"格内是图标/文字认不出名称"把 gridCells 整组留空——但**格位本来就够用**
+ * （插件只按序号定位关卡），所以这里兜底把它转成格位。
+ *
+ * 只认「第N行 … 第a、b、c格」与「第a、b、c格」（直接给序号）两种写法；解析不出返回空（宁缺勿错）。
+ */
+export function parseGridCellsFromNote(note: string, columnsFallback?: number): StageGridCellHint[] {
+  const text = String(note ?? "").replace(/[\s　]+/g, "");
+  if (!text) return [];
+  const dim = text.match(/(\d{1,2})行(\d{1,2})列/);
+  const columns = (dim ? Number(dim[2]) : 0) || Math.trunc(Number(columnsFallback) || 0) || 0;
+  const cells: StageGridCellHint[] = [];
+  const push = (row: number | undefined, column: number | undefined, position?: number): void => {
+    if (!position && !(row && column)) return;
+    cells.push({
+      position: position ?? (row && column && columns ? (row - 1) * columns + column : 0),
+      row,
+      column,
+      columns: columns || undefined,
+      name: "",
+    });
+  };
+  const rowMarks = [...text.matchAll(/第(\d{1,2})行/g)];
+  if (rowMarks.length) {
+    for (let i = 0; i < rowMarks.length; i += 1) {
+      const row = Number(rowMarks[i]![1]);
+      const from = rowMarks[i]!.index ?? 0;
+      const to = i + 1 < rowMarks.length ? (rowMarks[i + 1]!.index ?? text.length) : text.length;
+      const seg = text.slice(from, to);
+      // 「第a、b、c格」——必须有「第」字在前，"共6格"这类计数不会被当成列号
+      for (const m of seg.matchAll(/第((?:\d{1,2}[、,，]*)+\d{1,2})格/g)) {
+        for (const n of m[1]!.split(/[、,，]/).map(Number)) {
+          if (n >= 1 && n <= 99) push(row, n, columns ? (row - 1) * columns + n : undefined);
+        }
+      }
+    }
+    return cells.filter((c) => (c.position ?? 0) > 0);
+  }
+  // 没有「第N行」：看是不是直接给了序号列表（「第5、6、7格」/「格位 5、6、7」）
+  const listMatch = text.match(/(?:格位|序号|position[:：]?|第)((?:\d{1,2}[、,，])+\d{1,2})格/);
+  if (listMatch?.[1]) {
+    for (const n of [...new Set(listMatch[1].split(/[、,，]/).map(Number))]) {
+      if (n >= 1 && n <= 99) push(undefined, undefined, n);
+    }
+  }
+  return cells.filter((c) => (c.position ?? 0) > 0);
+}
+
+/** 网格总列数：模型给的总列数优先，其次按特别战线常见布局取 4 */
+function gridColumnsOf(vision: StageVisionHints | undefined): number {
+  const c = Number(vision?.gridColumnsTotal) || Number(vision?.gridColumns);
+  return Number.isInteger(c) && c > 0 ? c : 4;
+}
+
 function collectDispatchGridHints(vision: StageVisionHints): NormalizedGridHint[] {
   const cells = collectGridCellHints(vision);
   if (cells.length > 0) return cells;
   const position = normalizeGridPosition(vision);
-  if (!position) return [];
-  return [{
-    position,
-    row: Number(vision.gridRow) || undefined,
-    column: Number(vision.gridColumn) || undefined,
-    name: sanitizeStageName(vision.gridName) || undefined,
-  }];
+  if (position) {
+    return [{
+      position,
+      row: Number(vision.gridRow) || undefined,
+      column: Number(vision.gridColumn) || undefined,
+      name: sanitizeStageName(vision.gridName) || undefined,
+    }];
+  }
+  // 第十四轮 q1：模型把格位写在了 note 里 → 解析成格位（它们本来就够定位关卡）
+  const columns = gridColumnsOf(vision);
+  return parseGridCellsFromNote(vision.note ?? "", columns)
+    .map((cell) => normalizeGridCell(cell, columns))
+    .filter((hint): hint is NormalizedGridHint => !!hint)
+    .sort((a, b) => a.position - b.position);
 }
 
 function collectCurrentGridHints(vision: StageVisionHints): NormalizedGridHint[] {
@@ -428,6 +492,11 @@ export function resolveDispatchGridFromVision(
   const candidates: StageGridCandidate[] = [];
   const invalidPositions: number[] = [];
   const mismatchNotes: string[] = [];
+  // 格位是从模型说明（note）里解析出来的 → 明确告诉用户来源，别让人以为模型真的填了 gridCells
+  const fromNote =
+    hints.length > 0 && collectGridCellHints(vision!).length === 0 && !normalizeGridPosition(vision!)
+      ? "格位来自模型说明的文本解析（它把行列写在了 note 里，未填 gridCells）"
+      : "";
   for (const hint of hints) {
     const mapped = mapHintToLevel(hint, stages);
     if (!mapped) {
@@ -465,7 +534,7 @@ export function resolveDispatchGridFromVision(
     candidates,
     invalidPositions,
     prefix,
-    note: [...mismatchNotes, countNote, invalidNote].filter(Boolean).join("；") || undefined,
+    note: [fromNote, ...mismatchNotes, countNote, invalidNote].filter(Boolean).join("；") || undefined,
   };
 }
 

@@ -37,7 +37,7 @@ import {
 import { mineStageWithLlm, type BiliScheme } from "../shared/biliDig";
 import { mergePools } from "../shared/dispatchPool";
 import { biliMiningNote, buildDispatchGuides, type DispatchGuidesStats } from "../shared/dispatchGuides";
-import { formatStageResolution, resolveStageForAnalysis } from "../shared/stageResolver";
+import { formatStageResolution, inferEventPrefix, resolveStageForAnalysis } from "../shared/stageResolver";
 import type {
   AnalysisOutput,
   Box,
@@ -415,8 +415,28 @@ async function analyzeVideo(
     dispatchStageOptions = (prefix ? await listDispatchStages(prefix).catch(() => []) : []).map(
       (l) => ({ displayCode: l.displayCode, stageName: l.name }),
     );
-    if (dispatchStageOptions.length === 0) dispatchStageOptions = undefined;
+  } else {
+    // 第十四轮 q2：一个派遣关都没识别出来（模型只写了"像补给网格、但没给格位"）时，
+    // 只要这条视频像是在讲特别战线，就把该活动的补给关清单也带上——结果区据此显示
+    // 「选择补给关…」，让用户自己点，而不是只剩一句文字说明。
+    const hintText = [
+      visionResolution.dispatchGridNote ?? "",
+      meta.stage,
+      meta.video.title,
+      meta.video.desc,
+    ]
+      .filter(Boolean)
+      .join("\n");
+    if (/特别战线|派遣|补给|VEC[\s_-]*SP/i.test(hintText)) {
+      const levels = await getLevelDb().catch(() => []);
+      const prefix = inferEventPrefix(hintText, levels);
+      const stages = prefix ? await listDispatchStages(prefix).catch(() => []) : [];
+      if (stages.length) {
+        dispatchStageOptions = stages.map((l) => ({ displayCode: l.displayCode, stageName: l.name }));
+      }
+    }
   }
+  if (dispatchStageOptions?.length === 0) dispatchStageOptions = undefined;
   const dispatchGuideNote = [
     visionResolution.dispatchGridNote,
     dispatchCandidates.length > 0 &&

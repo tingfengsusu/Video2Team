@@ -483,6 +483,10 @@ check(
     "提示词：gridRows/gridColumnsTotal 必须填字段并给了 4×4 例子",
     /填进这两个字段/.test(promptText) && /4×4 网格里有 6 个高亮格/.test(promptText),
   );
+  check(
+    "提示词：格内是图标认不出名称时也要填格位（第十四轮 q1）",
+    /格内是图标、认不出名称时照样填格位/.test(promptText) && /不要把位置只写在 note 里/.test(promptText),
+  );
 }
 // 第十轮补：模型数出了 4×4 与 6 个启用格，只因"格内文字难辨认"整组留空 → 提示要带上尺寸与模型原话
 check(
@@ -935,7 +939,58 @@ console.log("\n== 第十二轮 p1/p3：序号归位 + 关卡名与干员名撞�
   );
 }
 
-console.log("\n== 第十一轮 q3/q4：网格选关 + 关卡链 ==");
+console.log("\n== 第十四轮 q1：模型把格位写在 note 里 → 解析成序号 ==");
+check(
+  "解析「4行4列 + 第2行第1、2、3格 + 第3行第2、3、4格」→ 格位 5/6/7/10/11/12",
+  JSON.stringify(
+    v43
+      .parseGridCellsFromNote(
+        "画面显示当前启用补给 6/6，网格为4行4列，高亮格为第2行第1、2、3格，第3行第2、3、4格，共6格，但格内文字为图标形式难以准确识别名称，故仅记录数量与位置信息",
+        4,
+      )
+      .map((c) => c.position),
+  ) === "[5,6,7,10,11,12]",
+);
+check(
+  "「共6格」这类计数不会被当成列号",
+  !v43.parseGridCellsFromNote("4行4列，高亮格为第3行第2、3、4格，共6格", 4).some((c) => c.column === 6),
+);
+check(
+  "直接给序号列表也能解析（第5、6、7格）",
+  JSON.stringify(v43.parseGridCellsFromNote("高亮格为第5、6、7格", 4).map((c) => c.position)) === "[5,6,7]",
+);
+{
+  // 16 个补给关的完整关卡库：位置 5/6/7/10/11/12 → VEC-SP05/06/07/10/11/12
+  const bigLevels = Array.from({ length: 16 }, (_, i) => {
+    const n = String(i + 1).padStart(2, "0");
+    return {
+      displayCode: "VEC-SP" + n,
+      stageId: "act3break_sp" + n,
+      name: "测试关" + (i + 1),
+      eventName: "矢量突破#3 拟生态",
+    };
+  });
+  const noteOnly = v43.resolveDispatchGridFromVision(
+    "VEC-C（全力以赴）",
+    "【矢量突破#3】特别战线 补给网格",
+    "",
+    {
+      enabledSupplies: 6,
+      gridCells: [],
+      note: "画面显示当前启用补给 6/6，网格为4行4列，高亮格为第2行第1、2、3格，第3行第2、3、4格，共6格，但格内文字为图标形式难以准确识别名称",
+    },
+    bigLevels,
+  );
+  check(
+    "模型只把格位写在 note 里 → 依然识别出 6 个派遣关，并说明格位来源",
+    noteOnly.candidates.map((c) => c.displayCode).join(",") ===
+      "VEC-SP05,VEC-SP06,VEC-SP07,VEC-SP10,VEC-SP11,VEC-SP12" &&
+      /格位来自模型说明/.test(noteOnly.note ?? ""),
+    noteOnly.candidates.map((c) => c.displayCode).join(",") + "｜" + (noteOnly.note ?? ""),
+  );
+}
+
+console.log("\n== 第十一轮 q3/q4：选择补给关 + 关卡链 ==");
 check(
   "关卡链配置：SP10→SP09、SP12→SP11，且不重复加已在列表里的",
   v43.chainPrereqs(["VEC-SP10"]).join(",") === "VEC-SP09" &&
@@ -973,9 +1028,9 @@ check(
     ],
   });
   check(
-    "「按网格选关…」按钮在候选池**顶部**（第一个关卡块之前，第十一轮 p3）",
+    "「选择补给关…」按钮在候选池**顶部**（第一个关卡块之前，第十一轮 p3）",
     gridHtml.includes('data-act="open-grid"') &&
-      gridHtml.includes("按网格选关…") &&
+      gridHtml.includes("选择补给关…") &&
       gridHtml.indexOf('data-act="open-grid"') < gridHtml.indexOf('class="stagepool"'),
   );
   check(

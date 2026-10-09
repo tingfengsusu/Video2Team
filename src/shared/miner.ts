@@ -204,6 +204,7 @@ export function buildWebCombinedMessages(
     `  · gridRows / gridColumnsTotal 必须**填进这两个字段**（不要只写在 note 里）；例：4×4 网格里有 6 个高亮格 → gridRows=4、gridColumnsTotal=4、gridCells 恰好 6 条\n` +
     `  · 填完后自检：gridCells 的数量应等于 enabledSupplies（当它 >0 时）；不一致就重新数一遍行列再填。只有"确实分辨不出哪些格是高亮的"才允许 gridCells 为空，此时必须在 note 里写清你看到了什么，并保留 enabledSupplies / gridRows / gridColumnsTotal\n` +
     `  · 例：四列网格中第一行第二格 position=2，第二行第一格 position=5，第三行第四格 position=12；不要把黄色格重新排成 1、2、3…\n` +
+    `  · **格内是图标、认不出名称时照样填格位**（实测最常见的失败）：例如 4×4 网格、高亮格是「第2行第1、2、3格」与「第3行第2、3、4格」共 6 格 → gridCells 直接写 [{"position":5},{"position":6},{"position":7},{"position":10},{"position":11},{"position":12}]（name 全部留空即可），gridRows=4、gridColumnsTotal=4。**不要把位置只写在 note 里**——位置本身就够定位关卡，名称只是交叉校验\n` +
     `  · 通名 OCR 只读**黄色格内部**的名称文字区域，不读格子外的界面标题/栏目名/按钮文案（「特别战线」「矢量突破」「选择关卡」「作战」等一律不算通名，宁可留空）\n` +
     `- roster.operators：第一步识别出的全部干员（含助战干员）；name 只取干员名本体，练度修饰词（高练/低练/满练/满配/专三/专二/专一/满潜/满级/精二/精一/模组/XX级 等）剥离后填写\n` +
     `- substitutions：第二步的替代建议；无建议时为空数组 []`;
