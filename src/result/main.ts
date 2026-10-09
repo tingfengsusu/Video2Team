@@ -170,19 +170,34 @@ function wireRowClick(container: HTMLElement): void {
 /** 候选池勾选：与大窗口共用同一套 lockedOps / dispatchPicks，双向同步 */
 async function onPickChange(input: HTMLInputElement): Promise<void> {
   if (!current) return;
-  const pick = resolvePickFromRow(input, current);
-  if (!pick) {
-    const st = document.getElementById("status");
-    if (st) st.innerHTML = `<span class="err">勾选未生效：这一行不在当前结果里（可能是旧结果缓存），请回面板重新分析</span>`;
+  const st = document.getElementById("status");
+  try {
+    const pick = resolvePickFromRow(input, current);
+    if (!pick) {
+      if (st) st.innerHTML = `<span class="err">勾选未生效：这一行不在当前结果里（可能是旧结果缓存），请回面板重新分析</span>`;
+      render();
+      return;
+    }
+    // ① 先改内存状态并重渲染——不等存储写入：即使存储失败，界面也照常更新
+    const outcome = togglePick(lockedOps, picks, pick);
+    lockedOps = outcome.lockedOps;
+    picks = outcome.picks;
+    renderLocks();
     render();
-    return;
+    // ② 再持久化；失败要显式告知（此前 await 抛错会跳过渲染，表现成「勾了没反应」）
+    try {
+      await chrome.storage.local.set({ lockedOps, dispatchPicks: picks });
+      if (st) {
+        st.textContent = outcome.checked
+          ? `已占用 ${pick.ops.length} 名干员（${pick.stageCode}）——本页与面板同步更新`
+          : `已取消 ${pick.stageCode} 的占用`;
+      }
+    } catch (err) {
+      if (st) st.innerHTML = `<span class="err">勾选已生效，但写入本地存储失败：${esc((err as Error)?.message ?? String(err))}（刷新后可能丢失）</span>`;
+    }
+  } catch (err) {
+    if (st) st.innerHTML = `<span class="err">勾选处理失败：${esc((err as Error)?.message ?? String(err))}</span>`;
   }
-  const outcome = togglePick(lockedOps, picks, pick);
-  lockedOps = outcome.lockedOps;
-  picks = outcome.picks;
-  await chrome.storage.local.set({ lockedOps, dispatchPicks: picks });
-  renderLocks();
-  render();
 }
 
 async function init(): Promise<void> {

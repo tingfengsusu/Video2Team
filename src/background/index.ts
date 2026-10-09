@@ -306,11 +306,12 @@ async function analyzeVideo(
   const dispatchGuideEvidence: Record<string, string> = {};
   for (const c of dispatchCandidates) {
     const parts: string[] = [];
-    if (c.gridPosition) parts.push(`特别战线网格第 ${c.gridPosition} 格`);
-    if (c.gridName) parts.push(`格内读到「${c.gridName}」`);
-    if (c.needsVerification) parts.push("与位置推算不一致，需核实");
-    dispatchGuideEvidence[c.displayCode.toUpperCase()] =
-      parts.join("，") || "来自视频标题/分P 的显示码";
+    // 直接写出映射（序号 → 关卡码）：用户实测确认「序号」才是可靠依据，文字只是参考
+    if (c.gridPosition) parts.push(`特别战线网格第 ${c.gridPosition} 格 → ${c.displayCode}`);
+    else parts.push("来自视频标题/分P 的显示码");
+    if (c.gridName) parts.push(`格内文字「${c.gridName}」`);
+    if (c.needsVerification) parts.push("序号越界或与文字不一致，需核实");
+    dispatchGuideEvidence[c.displayCode.toUpperCase()] = parts.join("，");
   }
   // 与下面的解析/推荐并行跑（MAA + B站查询较慢，不阻塞结果）
   let dispatchGuidesPromise: Promise<{

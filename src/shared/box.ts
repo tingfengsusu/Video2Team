@@ -28,6 +28,25 @@ function num(v: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+/**
+ * 「是否已招募」判定：一图流导出换过写法——
+ *  旧版：布尔 true/false；新版（2026-10 实测）：字符串「是」/「否」。
+ * 两种都要认，否则整表被过滤成 0 人（实测报「未解析到任何已招募干员」）。
+ */
+const OWNED_TRUE = new Set(["是", "已招募", "已拥有", "true", "yes", "y", "1", "√", "✓", "有"]);
+const OWNED_FALSE = new Set(["否", "未招募", "未拥有", "false", "no", "n", "0", "×", "没有"]);
+
+function isOwned(v: unknown): boolean {
+  if (v === true) return true;
+  if (v === false || v == null) return false;
+  if (typeof v === "number") return v > 0;
+  const s = String(v).trim().toLowerCase();
+  if (!s) return false;
+  if (OWNED_TRUE.has(s)) return true;
+  if (OWNED_FALSE.has(s)) return false;
+  return false; // 未知写法：按未招募处理（保守），但下面会校验"是否全被过滤"
+}
+
 export async function parseYituliuExcel(file: File): Promise<Box> {
   const wb = XLSX.read(await file.arrayBuffer());
   const ws = wb.Sheets[wb.SheetNames[0]];
@@ -46,7 +65,7 @@ export async function parseYituliuExcel(file: File): Promise<Box> {
   for (const row of rows) {
     const name = String(row[COL.name] ?? "").trim();
     // 练度表导出了全干员图鉴（实测 431 行中仅 244 已招募），未招募的必须过滤
-    if (!name || row[COL.owned] !== true) continue;
+    if (!name || !isOwned(row[COL.owned])) continue;
     operators[name] = {
       name,
       owned: true,
@@ -61,7 +80,15 @@ export async function parseYituliuExcel(file: File): Promise<Box> {
   }
 
   if (Object.keys(operators).length === 0) {
-    throw new Error("未解析到任何已招募干员，请确认导出的是「我的干员」练度表");
+    // 全部被过滤时，把该列的实际取值带出来，便于定位一图流格式变更
+    const sample = rows
+      .slice(0, 3)
+      .map((r) => JSON.stringify(r[COL.owned]))
+      .join("、");
+    throw new Error(
+      `未解析到任何已招募干员（「${COL.owned}」列前几行取值：${sample}）——` +
+        "请确认导出的是「我的员工」→「我的干员」练度表；若格式已变请反馈给作者",
+    );
   }
   return { operators, source: "excel" };
 }
