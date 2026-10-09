@@ -151,20 +151,19 @@ function sleep(ms: number): Promise<void> {
 export function biliMiningNote(stats: DispatchGuidesStats): string {
   if (stats.biliScope === "off") return "";
   if (stats.biliMined === 0 && stats.biliFailed === 0) return "";
-  const parts = [
-    `B站挖掘：${stats.biliMined} 关 · 命中 ${stats.biliHits} 条`,
-    stats.biliCached ? `（缓存 ${stats.biliCached} 关）` : "",
-    stats.biliFailed ? `（${stats.biliFailed} 关搜索失败）` : "",
-  ];
+  const head =
+    `B站挖掘：${stats.biliMined} 关 · 命中 ${stats.biliHits} 条` +
+    (stats.biliCached ? `（缓存 ${stats.biliCached} 关）` : "") +
+    (stats.biliFailed ? `（${stats.biliFailed} 关搜索失败）` : "");
   const tail: string[] = [];
   const deduped = stats.biliHits - stats.biliShown;
-  if (deduped > 0) tail.push(`${deduped} 条与 MAA 方案同阵容已去重`);
-  if (stats.biliSkipped > 0) tail.push(`已排除 ${stats.biliSkipped} 条合集/他关语料`);
+  if (deduped > 0) tail.push(`去重 ${deduped} 条（与 MAA 同阵容）`);
+  if (stats.biliSkipped > 0) tail.push(`过滤 ${stats.biliSkipped} 条（合集或其它关卡）`);
   if (stats.biliExpired > 0) {
-    const window = stats.biliMaxAgeDays > 0 ? `${stats.biliMaxAgeDays} 天外的` : "过期";
-    tail.push(`已排除 ${stats.biliExpired} 条${window}旧视频`);
+    const window = stats.biliMaxAgeDays > 0 ? `超出 ${stats.biliMaxAgeDays} 天` : "已过期";
+    tail.push(`忽略 ${stats.biliExpired} 条（${window}）`);
   }
-  return parts.filter(Boolean).join("") + (tail.length ? `；${tail.join("、")}` : "");
+  return head + (tail.length ? ` ｜ ${tail.join("、")}` : "");
 }
 
 export function emptyGuidesStats(

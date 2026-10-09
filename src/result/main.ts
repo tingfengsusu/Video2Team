@@ -1,17 +1,27 @@
 /**
- * 结果大窗口页（chrome.windows.create 的 popup 窗口，~900px）：
- * 与视频页面板 / popup 共用同一份 `renderResult`，但一次性把「本关阵容 + 前置关候选池 + 占用清单」铺开，抄作业时不用在小面板里滚。
+ * 结果大窗口页（chrome.windows.create 的 popup 窗口，~940px）：
+ * 与视频页面板 / popup 共用同一份 `renderResultSections`，按**两栏卡片**铺开
+ * （左：本关适配阵容；右：总览 + 前置关候选池 + 占用清单），抄作业时不用在小面板里滚。
  *
  * 数据来源：
  * - 结果本体：`storage.session.bigResult`（面板点「⤢ 大窗口」时写入）
  * - 占用清单 / 勾选态 / 练度表 / 关卡类型覆盖：`storage.local`（与面板共用，**双向实时同步**）
  */
 import type { AnalysisOutput, Box, LockedOps } from "../shared/types";
-import { esc, renderResult, renderLockedSection, type HasOp } from "../shared/render";
+import {
+  esc,
+  renderLockedSection,
+  renderResultSections,
+  type HasOp,
+} from "../shared/render";
 import { loadPicks, togglePick, type DispatchPicks } from "../shared/dispatchPicks";
 import { schemeKeyOf } from "../shared/dispatchPool";
-import { isAmbiguousStageResolution, resolveStageKind, type StageKindOverrides } from "../shared/stageKind";
-import { getStageKindOverrides } from "../shared/stageKind";
+import {
+  getStageKindOverrides,
+  isAmbiguousStageResolution,
+  resolveStageKind,
+  type StageKindOverrides,
+} from "../shared/stageKind";
 
 export const BIG_RESULT_KEY = "bigResult";
 
@@ -29,30 +39,74 @@ let overrides: StageKindOverrides = {};
 let hasOp: HasOp = () => false;
 let hideUnavailable = true;
 let maxRows = 12;
+let colorBySource = true;
 
 function renderLocks(): void {
-  $("locks").innerHTML = renderLockedSection(lockedOps);
+  const el = document.getElementById("locks");
+  if (!el) return; // 还没有结果（右栏未渲染）
+  el.innerHTML = renderLockedSection(lockedOps);
   const n = Object.keys(lockedOps).length;
-  $("lockCount").textContent = n ? `（${n} 人）` : "";
+  const count = document.getElementById("lockCount");
+  if (count) count.textContent = n ? `（${n} 人）` : "";
+}
+
+/** 顶部摘要 chips：人数 / 替换 / 无解 / 占用人 */
+function renderChips(): void {
+  const chips: string[] = [];
+  if (current) {
+    const rosterCount = current.roster.slots.length;
+    const subs = current.recommendations.filter((s) => s.status === "substituted").length;
+    const unresolved = current.recommendations.filter((s) => s.status === "unresolved").length;
+    const guides = current.dispatchGuides ?? [];
+    if (rosterCount) chips.push(`阵容 ${rosterCount} 人`);
+    if (subs) chips.push(`替换 ${subs} 处`);
+    if (unresolved) chips.push(`无解 ${unresolved} 处`);
+    if (guides.length) {
+      const pickedN = guides.filter((p) => picks[p.displayCode.toUpperCase()]).length;
+      chips.push(`前置关 ${pickedN}/${guides.length} 已选`);
+    }
+    chips.push(`占用 ${Object.keys(lockedOps).length} 人`);
+  }
+  $("chips").innerHTML = chips
+    .map((c) => `<span class="chip">${esc(c)}</span>`)
+    .join(" ");
 }
 
 function render(): void {
+  renderChips();
   if (!current) {
-    $("result").innerHTML = `<div class="hint">还没有结果：回到B站视频页打开面板 → 分析 → 点「⤢ 大窗口查看」。</div>`;
-    $("headline").textContent = "";
+    $("stageName").textContent = "";
+    $("col-main").innerHTML = `<div class="card"><div class="card-title">还没有结果</div><div class="hint">回到B站视频页 → 打开面板 → 分析 → 点「⤢ 大窗口查看结果」。</div></div>`;
+    $("col-side").innerHTML = "";
     return;
   }
   const kind = resolveStageKind(current.stage, current.videoTitle, overrides);
   const ambiguous = isAmbiguousStageResolution(current.stageResolution);
-  $("headline").textContent = `${current.stage} ｜ ${current.videoTitle}`;
-  $("result").innerHTML = renderResult(current, hasOp, lockedOps, {
+  $("stageName").textContent = current.stage;
+  const sections = renderResultSections(current, hasOp, lockedOps, {
     stageKind: kind.kind,
     allowDispatchSwitch: kind.kind === "unknown" && !ambiguous,
     ambiguousDispatch: ambiguous,
     picks,
     hideUnavailable,
     maxSchemeRows: maxRows,
+    colorBySource,
+    showGuidesHeading: false, // 大窗口里由卡片标题承担，避免重复
   });
+  // 左栏：本关适配阵容（主内容）；右栏：总览 + 前置关候选池 + 占用清单
+  $("col-main").innerHTML =
+    `<div class="card">${sections.intro}${sections.slots}</div>`;
+  $("col-side").innerHTML =
+    `<div class="card">${sections.overview}</div>` +
+    `<div class="card">` +
+    `<div class="card-title">🚩 前置关候选池 <span class="sub">勾选＝该关采用这套（点整行也能勾选）</span></div>` +
+    `${sections.guides || '<div class="hint">本次没有识别到前置关。</div>'}` +
+    `</div>` +
+    `<div class="card">` +
+    `<div class="card-title">🔒 占用清单 <span class="sub" id="lockCount"></span></div>` +
+    `<div id="locks"></div>` +
+    `</div>`;
+  renderLocks();
 }
 
 async function loadLocal(): Promise<void> {
@@ -63,12 +117,13 @@ async function loadLocal(): Promise<void> {
   ])) as {
     box?: Box;
     lockedOps?: LockedOps;
-    advanced?: { hideUnavailableSchemes?: boolean; schemeRows?: number };
+    advanced?: { hideUnavailableSchemes?: boolean; schemeRows?: number; colorBySource?: boolean };
   };
   hasOp = (n) => !!box?.operators[n];
   lockedOps = lo ?? {};
   hideUnavailable = advanced?.hideUnavailableSchemes !== false; // 默认开
   maxRows = Number.isFinite(Number(advanced?.schemeRows)) ? Number(advanced?.schemeRows) : 12;
+  colorBySource = advanced?.colorBySource !== false; // 默认：MAA 蓝 / B站 粉
   picks = await loadPicks();
   overrides = await getStageKindOverrides();
 }
@@ -88,6 +143,19 @@ async function loadResult(): Promise<void> {
     current = null;
     $("status").innerHTML = `<span class="err">读取结果失败（storage.session 不可用）</span>`;
   }
+}
+
+/** 点候选方案整行 = 勾选该方案（点在链接/折叠摘要/复选框上时交给原生行为） */
+function wireRowClick(container: HTMLElement): void {
+  container.addEventListener("click", (e) => {
+    const target = e.target as HTMLElement | null;
+    if (!target || target.closest("a") || target.closest("summary")) return;
+    const row = target.closest<HTMLElement>('[data-pick-row="1"]');
+    if (!row) return;
+    const box = row.querySelector<HTMLInputElement>('input[data-pick="1"]');
+    if (!box || target === box) return;
+    box.click(); // 触发 change → 既有的 onPickChange
+  });
 }
 
 /** 候选池勾选：与大窗口共用同一套 lockedOps / dispatchPicks，双向同步 */
@@ -141,10 +209,11 @@ async function init(): Promise<void> {
       await chrome.storage.local.set({ lockedOps: merged });
     })();
   });
-  $("result").addEventListener("change", (e) => {
+  document.body.addEventListener("change", (e) => {
     const target = e.target as HTMLElement | null;
     if (target?.matches?.('input[data-pick="1"]')) void onPickChange(target as HTMLInputElement);
   });
+  wireRowClick(document.body);
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === "session" && changes[BIG_RESULT_KEY]) {
       void (async () => {
@@ -157,7 +226,6 @@ async function init(): Promise<void> {
     if (changes.lockedOps ?? changes.dispatchPicks ?? changes.box ?? changes.advanced ?? changes.stageKindOverrides) {
       void (async () => {
         await loadLocal();
-        renderLocks();
         render();
       })();
     }

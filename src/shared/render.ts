@@ -107,6 +107,10 @@ export interface ResultRenderOptions {
   hideUnavailable?: boolean;
   /** 每关最多显示几条方案（默认 12，替代原先的 3+3=6 上限） */
   maxSchemeRows?: number;
+  /** MAA 与 B站 标识用不同颜色（蓝/粉）；设置页可关 */
+  colorBySource?: boolean;
+  /** 是否输出渲染层的分区标题（大窗口页用卡片标题时置 false） */
+  showGuidesHeading?: boolean;
 }
 
 /** 一条候选方案的干员列表（本关自己锁定的干员不置灰——它们是这一关要用的） */
@@ -128,6 +132,9 @@ function renderSchemeOperators(scheme: MergedScheme, hasOp: HasOp, lockedOps: Lo
   return items.join("、");
 }
 
+/** 数据源标识配色：MAA=蓝、B站=粉（可被设置项关闭，回到统一蓝） */
+const SOURCE_COLORS: Record<string, string> = { maa: "#0969da", bili: "#e0559b" };
+
 /** §9.2 方案来源链接：MAA → 作业详情页；B站 → 视频页（均新标签打开） */
 function renderScheme(
   scheme: MergedScheme,
@@ -135,34 +142,41 @@ function renderScheme(
   hasOp: HasOp,
   lockedOps: LockedOps,
   picked: { key: string } | undefined,
+  colorBySource: boolean,
 ): string {
   const key = schemeKeyOf(scheme);
   const url = schemeSourceUrl(scheme);
   // B站命中分P 时明确标注「分P12」并直链 ?p=12（实测坑：不带 ?p= 永远落在 P1）
   const isPart = scheme.source === "bili" && !!scheme.page && scheme.page > 1;
   const unit = scheme.source === "maa" ? "作业" : isPart ? `分P${scheme.page}` : "视频";
+  const color = colorBySource ? SOURCE_COLORS[scheme.source] ?? "#0969da" : "#0969da";
+  // 行内只留「来源 · 模式 · 干员」：标题/作者/合集放进悬浮提示（实测行太长会换行刷屏）
+  const detail = [
+    scheme.title ? `标题：${scheme.title}` : "",
+    scheme.author ? `UP主：${scheme.author}` : "",
+    scheme.collection ? `合集：${scheme.collection}${scheme.page ? `（P${scheme.page}）` : ""}` : "",
+  ]
+    .filter(Boolean)
+    .join(" ｜ ");
+  const tip = `${scheme.sourceLabel} · ${SOURCE_TIPS[scheme.source]}${detail ? `\n${detail}` : ""}`;
   const label = url
-    ? `<a href="${esc(url)}" target="_blank" rel="noreferrer" style="color:#0969da;font-weight:700" ` +
-      `title="${esc(`${scheme.sourceLabel} · ${SOURCE_TIPS[scheme.source]}｜打开该${unit}`)}">${esc(scheme.sourceLabel)}</a>`
-    : `<span style="color:#0969da;font-weight:700" title="${esc(SOURCE_TIPS[scheme.source])}">${esc(scheme.sourceLabel)}</span>`;
-  const openTitle = scheme.collection
-    ? `合集：${scheme.collection}${scheme.page ? `（P${scheme.page}）` : ""}`
-    : `打开${unit}`;
+    ? `<a href="${esc(url)}" target="_blank" rel="noreferrer" style="color:${color};font-weight:700" ` +
+      `title="${esc(`${tip}｜点击打开该${unit}页`)}">${esc(scheme.sourceLabel)}</a>`
+    : `<span style="color:${color};font-weight:700" title="${esc(tip)}">${esc(scheme.sourceLabel)}</span>`;
   const openLink = url
-    ? ` <a href="${esc(url)}" target="_blank" rel="noreferrer" class="dim" title="${esc(openTitle)}">${unit}页↗</a>`
+    ? ` <a href="${esc(url)}" target="_blank" rel="noreferrer" class="dim" title="${esc(tip)}">${unit}页↗</a>`
     : "";
   const mode = scheme.mode ? `<b>${esc(scheme.mode)}</b> ` : "";
-  const title = scheme.title ? `<span class="dim"> ｜ ${esc(scheme.title)}</span>` : "";
-  const author = scheme.author ? `<span class="dim"> · ${esc(scheme.author)}</span>` : "";
   const box =
     `<input type="checkbox" class="pickbox" data-pick="1" data-stage="${esc(pool.displayCode)}" ` +
     `data-scheme="${esc(key)}"${picked?.key === key ? " checked" : ""} ` +
     `title="勾选＝本关使用这套方案：其干员计入占用清单（同关自动换选），其它结果立即置灰；取消勾选立即恢复">`;
   return (
-    `<div style="font-size:12px;line-height:1.65;margin-top:3px;display:flex;gap:5px;align-items:baseline">` +
+    `<div class="schemerow" data-pick-row="1" ` +
+    `style="font-size:12px;line-height:1.65;margin-top:3px;display:flex;gap:5px;align-items:baseline;cursor:pointer" ` +
+    `title="${esc(tip)}">` +
     `<span style="flex:none">${box}</span>` +
-    `<span style="flex:auto">${label} ${mode}${renderSchemeOperators(scheme, hasOp, lockedOps, pool.displayCode)}` +
-    `${title}${author}${openLink}</span>` +
+    `<span style="flex:auto">${label} ${mode}${renderSchemeOperators(scheme, hasOp, lockedOps, pool.displayCode)}${openLink}</span>` +
     `</div>`
   );
 }
@@ -274,16 +288,28 @@ export function renderDispatchGuides(
   pools: NonNullable<AnalysisOutput["dispatchGuides"]>,
   hasOp: HasOp,
   lockedOps: LockedOps = {},
-  opts: { note?: string; picks?: DispatchPicks; hideUnavailable?: boolean; maxRows?: number } = {},
+  opts: {
+    note?: string;
+    picks?: DispatchPicks;
+    hideUnavailable?: boolean;
+    maxRows?: number;
+    colorBySource?: boolean;
+    /** 大窗口页自己有卡片标题时，关掉渲染层的分区标题（避免重复） */
+    showHeading?: boolean;
+  } = {},
 ): string {
   const picks = opts.picks ?? {};
   if (pools.length === 0 && !opts.note) return "";
   const maxRows = Math.max(2, opts.maxRows ?? 12);
+  const colorBySource = opts.colorBySource !== false; // 默认开：MAA 蓝 / B站 粉
   const totalSchemes = pools.reduce((n, pool) => n + pool.schemes.length, 0);
-  const heading = sectionHeading(
-    "🚩 P1 派遣关攻略",
-    `按黄色格位置识别 · ${pools.length} 关 ${totalSchemes} 套（勾选＝本关采用）`,
-  );
+  const heading =
+    opts.showHeading === false
+      ? ""
+      : sectionHeading(
+          "🚩 P1 派遣关攻略",
+          `按黄色格位置识别 · ${pools.length} 关 ${totalSchemes} 套（勾选＝本关采用；点整行也能勾选）`,
+        );
   const blocks = pools
     .map((pool: MergedStagePool) => {
       // 「不可抄」的方案（缺干员 / 已被别的关占用）默认隐藏——列表更长也更可用；
@@ -310,24 +336,32 @@ export function renderDispatchGuides(
         .filter(Boolean)
         .join("；");
       const rows = schemes.length
-        ? schemes.map((scheme) => renderScheme(scheme, pool, hasOp, lockedOps, picked)).join("") +
+        ? schemes.map((scheme) => renderScheme(scheme, pool, hasOp, lockedOps, picked, colorBySource)).join("") +
           (hiddenNote ? `<div class="dim" style="font-size:11px;margin-top:2px">${esc(hiddenNote)}</div>` : "")
         : `<div class="dim" style="font-size:12px;margin-top:3px">` +
           (pool.schemes.length && opts.hideUnavailable
             ? `该关 ${pool.schemes.length} 套方案都不可抄（${esc(unavailable.slice(0, 3).join("；"))}${unavailable.length > 3 ? "…" : ""}）`
             : "MAA / B站暂未找到公开方案") +
           `</div>`;
+      // 已选好方案的关默认收起（标题行就写着选了什么），没选的关默认展开方便勾选
+      const pickLine = picked
+        ? `<span style="color:#1a7f37">✅ ${picked.ops.map((n) => esc(n)).join("·")}</span>`
+        : `<span class="dim">⬜ 未选</span>`;
       return (
         `<div style="padding:6px 8px;margin:4px 0;background:#fffdf6;border:1px solid #eadfbd;border-radius:5px">` +
         `<div style="font-size:12px">` +
         `<b><a href="${esc(maaLevelUrl())}" target="_blank" rel="noreferrer" style="color:#0969da;text-decoration:none" ` +
         `title="在 MAA 作业站（prts.plus）看该关作业：打开后点「关卡」筛选 ${esc(pool.displayCode)}，或把显示码/通名粘进搜索框">` +
         `${esc(pool.displayCode)}</a></b>` +
-        `<span class="dim">（${esc(pool.stageName || "关卡名待核实")}）</span>` +
+        `<span class="dim">（${esc(pool.stageName || "关卡名待核实")}）</span> ` +
+        pickLine +
         `<span class="dim" style="float:right">` +
         `<span title="${esc(SOURCE_TIPS.maa)}">MAA作业 ${pool.counts.maa}</span> ｜ ` +
         `<span title="${esc(SOURCE_TIPS.bili)}">B站视频 ${pool.counts.bili}</span></span></div>` +
+        `<details${picked ? "" : " open"}>` +
+        `<summary style="font-size:11px;color:#888;cursor:pointer">候选方案 ${schemes.length} 套</summary>` +
         rows +
+        `</details>` +
         `</div>`
       );
     })
@@ -338,12 +372,20 @@ export function renderDispatchGuides(
   return heading + blocks + noteLine;
 }
 
-export function renderResult(
+/** 结果分段（大窗口页要把「本关阵容」与「前置关候选池」分栏摆放，面板/popup 则直接拼接） */
+export interface ResultSections {
+  intro: string; // 视频标题 / 关卡 / 类型提示 / 切换链接 / 识别说明 / 空清单引导
+  overview: string; // 总览块（本关用这套 / 各前置关选了什么 / 冲突计数）
+  guides: string; // 🚩 前置关候选池（含勾选）
+  slots: string; // 🎯 本关适配阵容 + 未识别名提示
+}
+
+export function renderResultSections(
   out: AnalysisOutput,
   hasOp: HasOp,
   lockedOps: LockedOps = {},
   options: ResultRenderOptions = {},
-): string {
+): ResultSections {
   const s = out.stats;
   const stageKind = options.stageKind ?? "unknown";
   const dispatch = stageKind === "dispatch";
@@ -379,25 +421,38 @@ export function renderResult(
     picks: options.picks,
     hideUnavailable: options.hideUnavailable,
     maxRows: options.maxSchemeRows,
+    colorBySource: options.colorBySource,
+    showHeading: options.showGuidesHeading,
   });
-  return (
-    `<div class="video-title">${esc(out.videoTitle)}</div>` +
-    `<div class="stage">${esc(out.stage)} — ${heading}</div>` +
-    `<div class="hint">${stageHint}</div>` +
-    switchLine +
-    resolutionNote +
-    overviewBlock(dispatch, out, hasOp, lockedOps, options.picks ?? {}) +
-    emptyLocksHint +
-    dispatchGuides +
-    sectionHeading("🎯 本关适配阵容", `${out.recommendations.length} 个槽位`) +
-    `<div class="hint">实战替代建议：${out.substitutions.length} 条｜${statsLine}名字颜色：<span class="own">绿=你有</span>／<span class="miss">红=你没有</span>${Object.keys(lockedOps).length ? "｜🔒=已派遣（灰+删除线）" : ""}</div>` +
-    out.recommendations.map((s2) => renderSlot(s2, hasOp, lockedOps)).join("") +
-    (s?.unknownNames && s.unknownNames.length
-      ? `<div class="slot unresolved">⚠ 有 ${s.unknownNames.length} 个称呼未能识别：${s.unknownNames
-          .map((n) => esc(n))
-          .join("、")}<div class="note">已记入设置页「昵称纠错」——填写正确干员名并采纳后，下次分析即可识别</div></div>`
-      : "")
-  );
+  return {
+    intro:
+      `<div class="video-title">${esc(out.videoTitle)}</div>` +
+      `<div class="stage">${esc(out.stage)} — ${heading}</div>` +
+      `<div class="hint">${stageHint}</div>` +
+      switchLine +
+      resolutionNote,
+    overview: overviewBlock(dispatch, out, hasOp, lockedOps, options.picks ?? {}),
+    guides: emptyLocksHint + dispatchGuides,
+    slots:
+      sectionHeading("🎯 本关适配阵容", `${out.recommendations.length} 个槽位`) +
+      `<div class="hint">实战替代建议：${out.substitutions.length} 条｜${statsLine}名字颜色：<span class="own">绿=你有</span>／<span class="miss">红=你没有</span>${Object.keys(lockedOps).length ? "｜🔒=已派遣（灰+删除线）" : ""}</div>` +
+      out.recommendations.map((s2) => renderSlot(s2, hasOp, lockedOps)).join("") +
+      (s?.unknownNames && s.unknownNames.length
+        ? `<div class="slot unresolved">⚠ 有 ${s.unknownNames.length} 个称呼未能识别：${s.unknownNames
+            .map((n) => esc(n))
+            .join("、")}<div class="note">已记入设置页「昵称纠错」——填写正确干员名并采纳后，下次分析即可识别</div></div>`
+        : ""),
+  };
+}
+
+export function renderResult(
+  out: AnalysisOutput,
+  hasOp: HasOp,
+  lockedOps: LockedOps = {},
+  options: ResultRenderOptions = {},
+): string {
+  const { intro, overview, guides, slots } = renderResultSections(out, hasOp, lockedOps, options);
+  return intro + overview + guides + slots;
 }
 
 /** 占用清单区块（矢量突破类活动）：被派遣干员 chips，✕ 可移除 */

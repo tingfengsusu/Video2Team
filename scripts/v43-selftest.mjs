@@ -551,9 +551,9 @@ const note = v43.biliMiningNote(noteStats);
 check("结果区展示挖掘关数与命中条数", note.includes("B站挖掘：4 关 · 命中 9 条"), note);
 check("标注缓存命中关数", note.includes("缓存 3 关"));
 check("标注搜索失败关数", note.includes("1 关搜索失败"));
-check("标注与 MAA 同阵容的去重条数", note.includes("3 条与 MAA 方案同阵容已去重"));
-check("标注被排除的合集/他关语料条数", note.includes("已排除 5 条合集/他关语料"));
-check("标注被排除的过期视频条数", note.includes("已排除 7 条180 天外的旧视频"), note);
+check("标注与 MAA 同阵容的去重条数", note.includes("去重 3 条（与 MAA 同阵容）"));
+check("标注被过滤的合集/其它关卡条数", note.includes("过滤 5 条（合集或其它关卡）"));
+check("标注被忽略的超期视频条数", note.includes("忽略 7 条（超出 180 天）"), note);
 check(
   "发布时间窗口判定（半年内 / 不限）",
   v43.withinMaxAge(Date.now() / 1000 - 10 * 86400, Date.now(), 180) &&
@@ -673,6 +673,25 @@ const manyRows = v43.pickVisibleSchemes(
   { total: 12, perSource: 6 },
 );
 check("显示上限放宽到 12 条（不再是 3+3）", manyRows.shown.length === 12, String(manyRows.shown.length));
+
+console.log("\n== 候选池交互（第五轮）：整行可点选 / 悬浮详情 / 来源配色 / 折叠 ==");
+const rowHtml = v43.renderResult(baseResult, hasAll, {}, { stageKind: "target", hideUnavailable: false });
+check("方案行可整行点选", rowHtml.includes('data-pick-row="1"'));
+check(
+  "标题/作者/合集移入悬浮提示（行内不再刷屏）",
+  /title="MAA作业[^"]*标题：凯尔希单核/.test(rowHtml) && !rowHtml.includes("｜ 凯尔希单核"),
+);
+check(
+  "来源配色：MAA 蓝 / B站 粉",
+  rowHtml.includes("color:#0969da;font-weight:700") && rowHtml.includes("color:#e0559b;font-weight:700"),
+);
+const monoHtml = v43.renderResult(baseResult, hasAll, {}, { stageKind: "target", colorBySource: false });
+check("关闭配色开关后统一蓝色", !monoHtml.includes("#e0559b") && monoHtml.includes("#0969da"));
+check(
+  "未选关默认展开、已选关默认收起（<details>）",
+  /<details open>/.test(rowHtml) && pickedHtml.includes("<details>") && !/<details open>/.test(pickedHtml),
+);
+check("折叠摘要标出候选方案数", /候选方案 \d+ 套/.test(rowHtml));
 
 console.log("\n== q4 结果可读性：总览块 + 分区标题 ==");
 check("总览块：本关用这套（含人数与干员）", guideHtml.includes("🎯 本关用这套（1 人）") && guideHtml.includes("凯尔希"));

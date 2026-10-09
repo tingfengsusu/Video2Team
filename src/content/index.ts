@@ -83,9 +83,10 @@ let panelOpen = false;
 let images: string[] = [];
 /** 默认按「没有」处理（更保守，不会误报拥有）；openPanel 时从 localStorage box 加载真实判断 */
 let hasOp: HasOp = () => false;
-/** 候选池过滤（设置页可调）：默认只列可抄方案、每关最多 12 条 */
+/** 候选池过滤（设置页可调）：默认只列可抄方案、每关最多 12 条、来源用颜色区分 */
 let hideUnavailable = true;
 let schemeRows = 12;
+let colorBySource = true;
 let pollTimer: number | undefined;
 let stageKindOverrides: StageKindOverrides = {};
 let currentResult: AnalysisOutput | null = null;
@@ -236,11 +237,12 @@ async function readImages(): Promise<string[]> {
 async function loadBox(): Promise<void> {
   const { box, advanced } = (await chrome.storage.local.get(["box", "advanced"])) as {
     box?: Box;
-    advanced?: { hideUnavailableSchemes?: boolean; schemeRows?: number };
+    advanced?: { hideUnavailableSchemes?: boolean; schemeRows?: number; colorBySource?: boolean };
   };
   hasOp = (n) => !!box?.operators[n];
   hideUnavailable = advanced?.hideUnavailableSchemes !== false; // 默认：只列可抄方案
   schemeRows = Number.isFinite(Number(advanced?.schemeRows)) ? Number(advanced?.schemeRows) : 12;
+  colorBySource = advanced?.colorBySource !== false; // 默认：MAA 蓝 / B站 粉
 }
 
 /** 面板头部就绪状态：box / AI 接口（缺项红字提示去设置） */
@@ -340,6 +342,7 @@ function showResult(result: AnalysisOutput): void {
     picks: dispatchPicks,
     hideUnavailable,
     maxSchemeRows: schemeRows,
+    colorBySource,
   });
 
   const switchLink = shadow?.querySelector<HTMLAnchorElement>('[data-act="mark-dispatch"]');
@@ -363,7 +366,7 @@ function showResult(result: AnalysisOutput): void {
       height: Math.round(window.innerHeight * 1.5),
     });
   });
-  q("#result").appendChild(bigBtn);
+  q("#result").prepend(bigBtn); // 放结果最上方（用户反馈：原先在最下方看不见）
 
   if (!shouldShowDispatchAction(stageKind.kind, ambiguousDispatch)) return;
 
@@ -624,11 +627,25 @@ function mount(): void {
     // 清单与候选池勾选一起清空（否则勾选态与占用不一致）
     void chrome.storage.local.set({ lockedOps: {}, dispatchPicks: {} });
   });
+/** 点候选方案整行 = 勾选该方案（点在链接/折叠摘要/复选框上时交给原生行为） */
+function wireRowClick(container: HTMLElement): void {
+  container.addEventListener("click", (e) => {
+    const target = e.target as HTMLElement | null;
+    if (!target || target.closest("a") || target.closest("summary")) return;
+    const row = target.closest<HTMLElement>('[data-pick-row="1"]');
+    if (!row) return;
+    const box = row.querySelector<HTMLInputElement>('input[data-pick="1"]');
+    if (!box || target === box) return;
+    box.click(); // 触发 change → 既有的 onPickChange
+  });
+}
+
   // §9.3 候选池勾选（事件委托：#result 每次重渲染后依然有效）
   q("#result").addEventListener("change", (e) => {
     const target = e.target as HTMLElement | null;
     if (target?.matches?.('input[data-pick="1"]')) void onPickChange(target as HTMLInputElement);
   });
+  wireRowClick(q<HTMLElement>("#result")); // 点整行 = 勾选该方案
   // popup 侧改动截图时同步（互通）
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === "session" && changes[IMG_KEY] && panelOpen) {

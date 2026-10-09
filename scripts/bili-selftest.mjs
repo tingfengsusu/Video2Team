@@ -162,10 +162,12 @@ check(
   res.schemes.every((s) => s.operators.every((n) => dict.exists(n))),
 );
 const combos = res.schemes.map((s) => s.operators.join("+"));
-check("候选池覆盖「凯尔希单人」", combos.some((c) => c === "凯尔希"), combos.slice(0, 8).join(" / "));
+// 内容断言改为**结构化**：不依赖具体视频——旧视频会被默认「半年内」时间窗挡掉（见 design-v4 §10.1）
+check("候选池有实际产出", res.schemes.length >= 3, `${res.schemes.length} 条`);
 check(
-  "候选池覆盖「泥岩」与「阿米娅+蛇屠箱」中的至少一项",
-  combos.some((c) => c === "泥岩" || c === "阿米娅+蛇屠箱"),
+  "含单人方案（单人/低配是主流打法）",
+  combos.some((c) => !c.includes("+")),
+  combos.slice(0, 6).join(" / "),
 );
 check(
   "同 bvid + 干员组合无重复",

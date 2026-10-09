@@ -49,6 +49,7 @@ let stageKindOverrides: StageKindOverrides = {};
 /** 候选池过滤（设置页可调）：默认只列可抄方案、每关最多 12 条 */
 let hideUnavailable = true;
 let schemeRows = 12;
+let colorBySource = true;
 let currentResult: AnalysisOutput | null = null;
 
 function taskMatchesCurrent(task: TaskState): boolean {
@@ -98,10 +99,11 @@ async function renderChecklist(): Promise<void> {
   llmReady = llmReadyNow;
   hasOp = (n) => !!box?.operators[n];
   const { advanced } = (await chrome.storage.local.get("advanced")) as {
-    advanced?: { hideUnavailableSchemes?: boolean; schemeRows?: number };
+    advanced?: { hideUnavailableSchemes?: boolean; schemeRows?: number; colorBySource?: boolean };
   };
   hideUnavailable = advanced?.hideUnavailableSchemes !== false; // 默认：只列可抄方案
   schemeRows = Number.isFinite(Number(advanced?.schemeRows)) ? Number(advanced?.schemeRows) : 12;
+  colorBySource = advanced?.colorBySource !== false; // 默认：MAA 蓝 / B站 粉
 
   const items = [
     currentCtx.videoPage
@@ -244,6 +246,7 @@ function showResult(result: AnalysisOutput): void {
     picks: dispatchPicks,
     hideUnavailable,
     maxSchemeRows: schemeRows,
+    colorBySource,
   });
 
   const switchLink = $("result").querySelector<HTMLAnchorElement>('[data-act="mark-dispatch"]');
@@ -265,7 +268,7 @@ function showResult(result: AnalysisOutput): void {
   bigBtn.addEventListener("click", () => {
     void chrome.runtime.sendMessage({ type: "OPEN_BIG_RESULT", result: currentResult, height: 980 });
   });
-  $("result").appendChild(bigBtn);
+  $("result").prepend(bigBtn); // 放结果最上方（用户反馈：原先在最下方看不见）
 
   if (!shouldShowDispatchAction(stageKind.kind, ambiguousDispatch)) return;
 
@@ -285,6 +288,19 @@ function showResult(result: AnalysisOutput): void {
     (btn as HTMLButtonElement).disabled = true;
   });
   $("result").appendChild(btn);
+}
+
+/** 点候选方案整行 = 勾选该方案（点在链接/折叠摘要/复选框上时交给原生行为） */
+function wireRowClick(container: HTMLElement): void {
+  container.addEventListener("click", (e) => {
+    const target = e.target as HTMLElement | null;
+    if (!target || target.closest("a") || target.closest("summary")) return;
+    const row = target.closest<HTMLElement>('[data-pick-row="1"]');
+    if (!row) return;
+    const box = row.querySelector<HTMLInputElement>('input[data-pick="1"]');
+    if (!box || target === box) return;
+    box.click(); // 触发 change → 既有的 onPickChange
+  });
 }
 
 /**
@@ -478,6 +494,7 @@ async function init(): Promise<void> {
     const target = e.target as HTMLElement | null;
     if (target?.matches?.('input[data-pick="1"]')) void onPickChange(target as HTMLInputElement);
   });
+  wireRowClick($("result")); // 点整行 = 勾选该方案
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === "local" && (changes.lockedOps || changes.dispatchPicks)) {
       if (changes.lockedOps) lockedOps = (changes.lockedOps.newValue as LockedOps | undefined) ?? {};
