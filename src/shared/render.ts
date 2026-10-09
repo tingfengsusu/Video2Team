@@ -76,7 +76,7 @@ export function renderSubLine(s: Substitution, hasOp: HasOp, lockedOps: LockedOp
 function occupiedAdvice(
   operator: string,
   lockedOps: LockedOps,
-  advice?: { ownStageCode?: string; subsByOp?: Map<string, Substitution> },
+  advice?: { ownStageCode?: string; subsByOp?: Map<string, Substitution[]> },
   /** 这位干员已有的实战替代建议（保留槽位现在也会带上） */
   alternatives?: readonly Substitution[],
   /** 渲染建议行用（与其它槽位同一套着色） */
@@ -86,15 +86,15 @@ function occupiedAdvice(
   const label = lockedOps[operator];
   if (!label) return "";
   if (advice?.ownStageCode && isLockLabelOfStage(label, advice.ownStageCode)) return "";
-  const fallback = advice?.subsByOp?.get(operator);
-  const list = alternatives?.length ? alternatives : fallback ? [fallback] : [];
+  const fallback = advice?.subsByOp?.get(operator) ?? [];
+  const list = alternatives?.length ? alternatives : fallback;
   const who = `<b>${esc(label)}</b>`;
   if (!list.length) {
     return `<div class="dim" style="margin-top:1px">本关这个位置被 ${who} 占用 —— 暂无替代建议，可去该关候选池看看，或回评论区确认</div>`;
   }
   // 与「⚠ X → Y」那种槽位**同一排版**：一行说明 + 每条建议独立成行（干员名着色 + 来源 + 原文）
   return (
-    `<div class="dim" style="margin-top:1px">本关这个位置被 ${who} 占用，下面是这位干员的实战替代建议：</div>` +
+    `<div class="dim" style="margin-top:1px">本关这个位置被 ${who} 占用</div>` +
     `<div class="alts"><span class="dim">实战建议：</span>${list.map((sub) => renderSubLine(sub, draw.hasOp, draw.lockedOps)).join("")}</div>`
   );
 }
@@ -103,7 +103,7 @@ export function renderSlot(
   slot: RecommendedSlot,
   hasOp: HasOp,
   lockedOps: LockedOps = {},
-  advice?: { ownStageCode?: string; subsByOp?: Map<string, Substitution> },
+  advice?: { ownStageCode?: string; subsByOp?: Map<string, Substitution[]> },
 ): string {
   const adv = occupiedAdvice(slot.original.operator, lockedOps, advice, slot.alternatives, {
     hasOp,
@@ -653,9 +653,12 @@ export function renderResultSections(
   const dispatch = stageKind === "dispatch";
   const ambiguousDispatch = options.ambiguousDispatch === true;
   // 本关那位的替代建议（干员 → 建议）：本关槽位被别的关占用时显示（第十五轮 q2）
-  const adviceSubsByOp = new Map<string, Substitution>();
+  const adviceSubsByOp = new Map<string, Substitution[]>();
   for (const sub of out.substitutions ?? []) {
-    if (sub?.removed && !adviceSubsByOp.has(sub.removed)) adviceSubsByOp.set(sub.removed, sub);
+    if (!sub?.removed) continue;
+    const list = adviceSubsByOp.get(sub.removed) ?? [];
+    list.push(sub);
+    adviceSubsByOp.set(sub.removed, list);
   }
 
   const statsLine = s

@@ -1250,7 +1250,7 @@ check(
   })(),
 );
 check(
-  "被占用时最多列 2 条建议（带来源）",
+  "被占用时与该关的实战建议同一排版：每条独立成行、全部列出",
   (() => {
     const mk = (rep, src, likes) => ({
       removed: "凯尔希", replacement: rep, stage: "VEC-C", evidence: "可以替", source: src,
@@ -1279,10 +1279,10 @@ check(
     };
     const html = v43.renderSlot(slot, hasAll, { 凯尔希: "VEC-SP02（心中热火）" }, {
       ownStageCode: "VEC-C",
-      subsByOp: new Map([["凯尔希", sub]]),
+      subsByOp: new Map([["凯尔希", [sub]]]),
     });
     // 与「⚠ X → Y」槽位同一排版：一行说明 + 每条建议独立成行
-    return html.includes("本关这个位置被") && html.includes("实战建议：") && /<div class="sub-line">[^<]*闪灵/.test(html);
+    return html.includes("本关这个位置被") && html.includes("实战建议：") && /class="sub-line"[\s\S]{0,120}闪灵/.test(html);
   })(),
 );
 check(
