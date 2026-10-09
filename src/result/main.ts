@@ -15,6 +15,8 @@ import {
   type HasOp,
 } from "../shared/render";
 import { loadPicks, resolvePickFromRow, togglePick, type DispatchPicks } from "../shared/dispatchPicks";
+import { putCachedResult } from "../shared/resultCache";
+import { clearStageSkip, patchStagePool, queryStagePool } from "../shared/stageRecode";
 import { schemeKeyOf } from "../shared/dispatchPool";
 import {
   getStageKindOverrides,
@@ -110,6 +112,7 @@ function render(): void {
     showGuidesHeading: false, // 大窗口里由卡片标题承担，避免重复
     guideEvidence: current.dispatchGuideEvidence,
     excludedStages,
+    stageOptions: current.dispatchStageOptions,
   });
   // 左栏：本关适配阵容（主内容）；右栏：总览 + 前置关候选池 + 占用清单
   $("col-main").innerHTML =
@@ -125,6 +128,37 @@ function render(): void {
     `<div id="locks"></div>` +
     `</div>`;
   renderLocks();
+}
+
+/**
+ * 手动纠正识别：把某关「改成…」另一关，或「补一个关」——
+ * 后台现查该关的 MAA/B站 方案，替换/追加进当前结果，并写入结果缓存。
+ */
+async function onStageRecode(sel: HTMLSelectElement): Promise<void> {
+  if (!current) return;
+  const act = sel.getAttribute("data-act");
+  const code = sel.value.trim().toUpperCase();
+  if (!act || !code) return;
+  const from = act === "recode-stage" ? sel.getAttribute("data-from") : null;
+  const st = document.getElementById("status");
+  sel.disabled = true;
+  if (st) st.textContent = `正在查询 ${code} 的候选方案（MAA + B站，约 3-10 秒）…`;
+  const pool = await queryStagePool(code);
+  if (!pool) {
+    if (st) st.innerHTML = `<span class="err">查询 ${code} 失败（无网络或该关暂无数据），可稍后重试</span>`;
+    sel.disabled = false;
+    sel.value = "";
+    return;
+  }
+  const next = patchStagePool(current, from, pool);
+  current = next;
+  const page = next.roster.page ?? 0;
+  await putCachedResult(next, page);
+  await clearStageSkip(`${next.bvid}|${page}`, code);
+  sel.value = "";
+  sel.disabled = false;
+  if (st) st.textContent = `已更新 ${code} 的候选方案（${pool.schemes.length} 套）`;
+  render();
 }
 
 async function loadLocal(): Promise<void> {
@@ -253,6 +287,11 @@ async function init(): Promise<void> {
     if (target?.matches?.('input[data-pick="1"]')) void onPickChange(target as HTMLInputElement);
   });
   wireRowClick(document.body);
+  // 「改成…／补一个关」：手动纠正派遣关识别（body 委托，容器每次重渲染）
+  document.body.addEventListener("change", (e) => {
+    const sel = (e.target as HTMLElement | null)?.closest?.("select[data-act]") as HTMLSelectElement | null;
+    if (sel) void onStageRecode(sel);
+  });
   document.body.addEventListener("click", (e) => {
     const link = (e.target as HTMLElement | null)?.closest<HTMLAnchorElement>("[data-act]");
     const act = link?.getAttribute("data-act");

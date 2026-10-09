@@ -47,7 +47,13 @@ const result = {
   videoTitle: "【全力以赴】VEC-C 面板夹具",
   stage: "VEC-C（全力以赴）", bvid: "BV1TEST", stageCode: "VEC-C",
   dispatchGuides: [pool],
-  dispatchGuideEvidence: { "VEC-SP02": "特别战线网格第 5 格，格内读到「催化装备」" },
+  dispatchGuideEvidence: { "VEC-SP02": "特别战线网格第 5 格 → VEC-SP02，格内文字「催化装备」" },
+  dispatchStageOptions: [
+    { displayCode: "VEC-SP01", stageName: "重力危机" },
+    { displayCode: "VEC-SP02", stageName: "心中热火" },
+    { displayCode: "VEC-SP07", stageName: "荒废矿道" },
+    { displayCode: "VEC-SP12", stageName: "四号站台" },
+  ],
   stats: { danmakuTotal: 320, commentCandidates: 42, danmakuCandidates: 18 },
 };
 
@@ -71,7 +77,27 @@ const page = `<!DOCTYPE html>
   globalThis.chrome = {
     runtime: {
       onMessage: { addListener: () => {} },
-      sendMessage: async (msg) => (msg && msg.type === "GET_TASK" ? { task: null } : { ok: true }),
+      sendMessage: async (msg) => {
+        if (msg && msg.type === "GET_TASK") return { task: null };
+        if (msg && msg.type === "DISPATCH_QUERY_STAGE") {
+          return {
+            ok: true,
+            pool: {
+              displayCode: String(msg.displayCode).toUpperCase(),
+              stageId: "act3break_fixture",
+              stageName: "夹具关",
+              counts: { maa: 2, bili: 1 },
+              schemes: [{
+                source: "maa", sourceLabel: "MAA作业", displayCode: String(msg.displayCode).toUpperCase(),
+                stageName: "夹具关", operators: ["凯尔希"], opers: [{ name: "凯尔希", skill: 3 }],
+                mode: "单人", title: "夹具方案", details: "", author: "fixture", url: "", bvid: "",
+                views: 0, hotScore: 0,
+              }],
+            },
+          };
+        }
+        return { ok: true };
+      },
       getURL: (p) => "/" + p,
       getManifest: () => ({ version: "0.0.0-fixture" }),
       openOptionsPage: () => {},

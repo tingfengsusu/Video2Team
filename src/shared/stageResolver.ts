@@ -411,12 +411,18 @@ export function resolveDispatchGridFromVision(
   const invalidNote = invalidPositions.length
     ? `网格位置 ${invalidPositions.join("、")} 超出该活动的派遣关范围`
     : "";
+  // 自检对账：画面「当前启用补给 N/M」的 N 应与黄格数量一致（实测模型会漏格/读错序号）
+  const enabled = Number(vision?.enabledSupplies);
+  const countNote =
+    Number.isInteger(enabled) && enabled > 0 && enabled !== hints.length && hints.length > 0
+      ? `画面「当前启用补给」显示 ${enabled} 个，网格里识别到 ${hints.length} 个黄格——可能有遗漏或错位，请用「改成…／补一个关」核对`
+      : "";
 
   return {
     candidates,
     invalidPositions,
     prefix,
-    note: [...mismatchNotes, invalidNote].filter(Boolean).join("；") || undefined,
+    note: [...mismatchNotes, countNote, invalidNote].filter(Boolean).join("；") || undefined,
   };
 }
 
