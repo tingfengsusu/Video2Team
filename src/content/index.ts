@@ -189,7 +189,7 @@ const STYLE = `
   .stage-select:hover { border-color: #23ade5; }
   .stage-select:focus-visible { outline: none; border-color: #23ade5; box-shadow: 0 0 0 3px rgba(35,173,229,.25); }
   .stage-select[disabled] { opacity: .5; cursor: not-allowed; }
-  /* 网格选关（第十一轮 q3）：像游戏里的特别战线那样按序号点选 */
+  /* 「选择补给关」浮层（第十一轮 q3）：像游戏里的特别战线那样按序号点选 */
   .gridpicker { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center;
                 justify-content: center; background: rgba(15,23,42,.38); }
   .gridpicker[hidden] { display: none; }
@@ -469,7 +469,7 @@ async function onPickChange(input: HTMLInputElement): Promise<void> {
 }
 
 /**
- * 手动补关：结果区「＋ 补一个关…」/ 网格选关（第十一轮 q3）——后台现查这些关的 MAA/B站 方案
+ * 手动补关：结果区「＋ 补一个关…」/「选择补给关…」（第十一轮 q3）——后台现查这些关的 MAA/B站 方案
  * 并并入当前结果（后台会带上关卡链前置关），写入结果缓存（刷新后仍保留，无需重新分析）。
  */
 async function applyStageCodes(codes: readonly string[]): Promise<void> {
@@ -746,7 +746,7 @@ function wireRowClick(container: HTMLElement): void {
   });
   wireRowClick(q<HTMLElement>("#result")); // 点整行 = 勾选该方案
   wireHoverDetails(q<HTMLElement>("#result")); // 候选池折叠块：悬浮即展开（第十轮 q3）
-  wireGridPicker(q<HTMLElement>("#result"), (codes) => void applyStageCodes(codes)); // 网格选关（第十一轮 q3）
+  wireGridPicker(q<HTMLElement>("#result"), (codes) => void applyStageCodes(codes)); // 选择补给关（第十一轮 q3）
   wireShowHidden(q<HTMLElement>("#result")); // 「点开查看」缺干员被隐藏的方案（第十三轮 q1）
   // 「＋ 补一个关…」：手动补漏识别的派遣关（change 委托）
   q("#result").addEventListener("change", (e: Event) => {

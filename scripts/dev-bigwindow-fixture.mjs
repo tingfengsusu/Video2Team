@@ -81,7 +81,7 @@ const result = {
     "VEC-SP07": "特别战线网格第 7 格 → VEC-SP07，格内文字「缴械装备」",
     "VEC-SP10": "特别战线网格第 10 格 → VEC-SP10，格内文字「净血装备」",
   },
-  // 「＋ 补一个关…」下拉：只列候选池里还没出现的关；「按网格选关…」浮层用同一份清单
+  // 「＋ 补一个关…」下拉：只列候选池里还没出现的关；「选择补给关…」浮层用同一份清单
   dispatchStageOptions: [
     { displayCode: "VEC-SP01", stageName: "重力危机" },
     { displayCode: "VEC-SP02", stageName: "心中热火" },
@@ -124,7 +124,7 @@ const stub = `
       getManifest: () => ({ version: "0.0.0-fixture" }),
       getURL: (p) => "/" + p,
       sendMessage: async (msg) => {
-        // 「＋ 补一个关…」/「按网格选关…」：夹具里直接返回假方案，便于离线验证「现查并写回」
+        // 「＋ 补一个关…」/「选择补给关…」：夹具里直接返回假方案，便于离线验证「现查并写回」
         if (msg && msg.type === "DISPATCH_QUERY_STAGE") {
           const codes = (Array.isArray(msg.displayCodes) ? msg.displayCodes : [msg.displayCode])
             .map((c) => String(c ?? "").toUpperCase())

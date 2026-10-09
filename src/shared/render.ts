@@ -366,7 +366,7 @@ export function renderDispatchGuides(
   const picks = opts.picks ?? {};
   const excluded = new Set((opts.excludedStages ?? []).map((c) => c.toUpperCase()));
   const visiblePools = pools.filter((pool) => !excluded.has(pool.displayCode.toUpperCase()));
-  // 一个派遣关都没识别到时也别整段消失：只要知道本活动的派遣关清单，就留着「按网格选关」入口兜底
+  // 一个派遣关都没识别到时也别整段消失：只要知道本活动的派遣关清单，就留着「选择补给关…」入口兜底
   if (visiblePools.length === 0 && !opts.note && excluded.size === 0 && !(opts.stageOptions ?? []).length) {
     return "";
   }
@@ -496,15 +496,15 @@ export function renderDispatchGuides(
   const addableStages = (opts.stageOptions ?? []).filter(
     (o) => !presentCodes.has(o.displayCode.toUpperCase()),
   );
-  // 网格选关（第十一轮 q3）：像游戏里那样按序号点选派遣关——漏好几关时比逐个下拉快得多；
+  // 「选择补给关…」（第十一轮 q3 原名"按网格选关"，第十四轮按用户口径改名）：像游戏里那样按序号点选——漏好几关时比逐个下拉快得多；
   // 已在候选池里的格子禁用（避免重复查询），选中的交给 wireGridPicker → applyStageCodes。
   const stageOptions = opts.stageOptions ?? [];
   // 已在候选池的关：默认勾着（能看到当前状态），但应用时**跳过查询**、也不会重复加（第十二轮 p1）
   const inPoolCount = stageOptions.filter((o) => presentCodes.has(o.displayCode.toUpperCase())).length;
   const gridPicker = stageOptions.length
     ? `<div class="gridpicker" hidden>` +
-      `<div class="gp-card" role="dialog" aria-label="按网格选关">` +
-      `<div class="gp-title">特别战线 · 按网格选关` +
+      `<div class="gp-card" role="dialog" aria-label="选择补给关">` +
+      `<div class="gp-title">特别战线 · 选择补给关` +
       `<span class="gp-sub">序号 = 从上到下、从左到右（灰格/白格也占号），与识别依据是同一套编号；` +
       `按住拖动可连续点选（滑过哪些格就选哪些），已在候选池的关默认勾着、不会重复查询</span></div>` +
       `<div class="gp-grid">` +
@@ -528,10 +528,10 @@ export function renderDispatchGuides(
       `</span></div>` +
       `</div></div>`
     : "";
-  // 网格选关按钮放**区块顶部**（第十一轮 q3 用户反馈：放最底部不好点）
+  // 「选择补给关…」按钮放**区块顶部**（第十一轮 q3 用户反馈：放最底部不好点）
   const pickerBtn = stageOptions.length
     ? `<button type="button" class="stage-select" data-act="open-grid"` +
-      ` title="像游戏里那样按序号点选派遣关：点选/长按格子，再「查询并加入候选池」">按网格选关…</button>`
+      ` title="像游戏里那样按序号点选补给关（派遣关）：点选/按住拖动连续选，再「查询并加入候选池」">选择补给关…</button>`
     : "";
   const topTools = pickerBtn
     ? `<div style="display:flex;justify-content:flex-end;gap:6px;margin:2px 0 6px">${pickerBtn}</div>`
@@ -585,7 +585,7 @@ export function renderResultSections(
     : dispatch
       ? "本关结果可加入占用清单；后续推图关会自动避开这些干员。"
       : "本关为推进关：结果已避开占用清单中的干员。";
-  // 第十二轮 p4：「这其实是派遣关 → 当作派遣关」已移除——手动挑关走候选池的「按网格选关…」，
+  // 第十二轮 p4：「这其实是派遣关 → 当作派遣关」已移除——手动挑关走候选池的「选择补给关…」（第十四轮改名），
   // 同一个入口更直观，也少一个"改判定"的隐式状态
   const resolutionNote = out.stageResolution?.note
     ? `<div class="hint" style="color:#b8860b">关卡识别：${esc(out.stageResolution.note)}</div>`
