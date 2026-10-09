@@ -673,6 +673,34 @@ const manyRows = v43.pickVisibleSchemes(
 );
 check("显示上限放宽到 12 条（不再是 3+3）", manyRows.shown.length === 12, String(manyRows.shown.length));
 
+console.log("\n== 页面元素一致性（防止「删了面板但监听还在」打断初始化） ==");
+{
+  // 只检查 `$("id")` / `$<T>("id")` 这类元素取用：这类引用一旦指向不存在的元素，
+  // 就是"init 抛错 → 后续监听全没挂上"的元凶（2026-10-09 大窗口实测）。
+  const fsx = await import("node:fs");
+  const pathx = await import("node:path");
+  const here = pathx.dirname(new URL(import.meta.url).pathname.replace(/^[\\/]([A-Za-z]:)/, "$1"));
+  const rootDir = pathx.join(here, "..");
+  const optional = new Set(["locks", "lockCount", "poolFilterNote", "kpis", "reanalyze"]); // 有守卫/运行时创建，可缺
+  const idRe = /\bid="([A-Za-z][\w-]*)"/g;
+  const useRe = /\$<[^>]*>\("([A-Za-z][\w-]*)"\)|\$\("([A-Za-z][\w-]*)"\)/g;
+  for (const [htmlPath, tsPath] of [
+    ["src/result/index.html", "src/result/main.ts"],
+    ["src/popup/index.html", "src/popup/main.ts"],
+  ]) {
+    const html = fsx.readFileSync(pathx.join(rootDir, htmlPath), "utf8");
+    const ts = fsx.readFileSync(pathx.join(rootDir, tsPath), "utf8");
+    const ids = new Set([...html.matchAll(idRe)].map((mm) => mm[1]));
+    const used = new Set([...ts.matchAll(useRe)].map((mm) => mm[1] ?? mm[2]));
+    const missing = [...used].filter((id) => !ids.has(id) && !optional.has(id));
+    check(
+      tsPath.split("/").pop() + " 取用的元素都存在（" + used.size + " 个）",
+      missing.length === 0,
+      missing.join("、"),
+    );
+  }
+}
+
 console.log("\n== 单字干员名（黑/令/黍…）与勾选兜底 ==");
 check(
   "单字干员名可识别（黑/机械师 双人）",
