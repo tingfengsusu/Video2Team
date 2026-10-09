@@ -1224,6 +1224,21 @@ check(
 );
 check("分区标题：本关适配阵容", guideHtml.includes("🎯 本关适配阵容"));
 check(
+  "替换建议的「来源+原文」另起一行（第十五轮 q3）",
+  (() => {
+    const via = {
+      removed: "泥岩", replacement: "星熊", stage: "VEC-C", evidence: "没有泥岩可以用星熊顶，注意技能",
+      source: "comment", kind: "operator_swap", likes: 18, verified: true,
+    };
+    const slot = {
+      original: { operator: "泥岩" }, finalOperator: "星熊", status: "substituted",
+      kind: "operator_swap", via, alternatives: [], risk: "medium", evidenceUrl: "", note: "关键位替换，注意开局费用",
+    };
+    const html = v43.renderSlot(slot, hasAll, {});
+    return /class="dim subst-meta" style="display:block/.test(html) && !/→<\/b>（评论区/.test(html);
+  })(),
+);
+check(
   "派遣关结果的总览用「本关阵容」措辞",
   v43.renderResult(baseResult, hasAll, {}, { stageKind: "dispatch" }).includes("🎯 本关阵容"),
 );

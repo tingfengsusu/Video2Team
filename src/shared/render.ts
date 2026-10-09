@@ -54,9 +54,13 @@ function srcLabel(s: Substitution): string {
 }
 
 /** 建议行的元信息尾部：来源 + 溯源链接 + 原文引用 */
+/** 建议的来源与原文：**另起一行**（第十五轮 q3：追加在主行后面读起来很挤） */
 function substMeta(s: Substitution): string {
   const link = s.evidenceUrl ? ` <a href="${esc(s.evidenceUrl)}" target="_blank">溯源</a>` : "";
-  return `（${srcLabel(s)}）${link}<span class="quote">“${esc(s.evidence.slice(0, 40))}”</span>`;
+  return (
+    `<span class="dim subst-meta" style="display:block;margin-top:1px">` +
+    `（${esc(srcLabel(s))}）${link}<span class="quote">“${esc(s.evidence.slice(0, 40))}”</span></span>`
+  );
 }
 
 /** 一条独立成行的实战建议（替代者名着色 + 占用徽章） */
