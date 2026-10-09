@@ -63,6 +63,7 @@ const result = {
   },
   substitutions: [
     { removed: "凯尔希", replacement: "闪灵", stage: "VEC-C", evidence: "闪灵可以替凯尔希，练度够就行", source: "danmaku", kind: "operator_swap", likes: 9, verified: true },
+    { removed: "凯尔希", replacement: "夜莺", stage: "VEC-C", evidence: "夜莺也能顶凯尔希，就是要注意技能时机", source: "comment", kind: "operator_swap", likes: 4, verified: true },
     { removed: "泥岩", replacement: "星熊", stage: "VEC-C", evidence: "没有泥岩可以用星熊顶，注意技能", source: "comment", kind: "operator_swap", likes: 18, verified: true },
     { removed: "令", replacement: "余", stage: "VEC-C", evidence: "令可以换成余，练度够就行", source: "danmaku", kind: "operator_swap", likes: 6, verified: true },
   ],

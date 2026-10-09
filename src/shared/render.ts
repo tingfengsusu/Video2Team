@@ -77,26 +77,26 @@ function occupiedAdvice(
   operator: string,
   lockedOps: LockedOps,
   advice?: { ownStageCode?: string; subsByOp?: Map<string, Substitution> },
-  /** 这位干员已有的实战替代建议（保留槽位现在也会带上；最多显示 2 条） */
+  /** 这位干员已有的实战替代建议（保留槽位现在也会带上） */
   alternatives?: readonly Substitution[],
+  /** 渲染建议行用（与其它槽位同一套着色） */
+  render?: { hasOp: HasOp; lockedOps: LockedOps },
 ): string {
+  const draw = render ?? { hasOp: () => true, lockedOps: {} };
   const label = lockedOps[operator];
   if (!label) return "";
   if (advice?.ownStageCode && isLockLabelOfStage(label, advice.ownStageCode)) return "";
   const fallback = advice?.subsByOp?.get(operator);
-  const list = (alternatives?.length ? alternatives : fallback ? [fallback] : []).slice(0, 2);
+  const list = alternatives?.length ? alternatives : fallback ? [fallback] : [];
   const who = `<b>${esc(label)}</b>`;
   if (!list.length) {
     return `<div class="dim" style="margin-top:1px">本关这个位置被 ${who} 占用 —— 暂无替代建议，可去该关候选池看看，或回评论区确认</div>`;
   }
-  const rendered = list
-    .map(
-      (sub) =>
-        `<b>${esc(sub.replacement)}</b>` +
-        `<span class="dim" title="${esc(`${srcLabel(sub)}：${sub.evidence}`)}">（${esc(srcLabel(sub))}）</span>`,
-    )
-    .join("／");
-  return `<div class="dim" style="margin-top:1px">本关这个位置被 ${who} 占用 —— 可换成 ${rendered}</div>`;
+  // 与「⚠ X → Y」那种槽位**同一排版**：一行说明 + 每条建议独立成行（干员名着色 + 来源 + 原文）
+  return (
+    `<div class="dim" style="margin-top:1px">本关这个位置被 ${who} 占用，下面是这位干员的实战替代建议：</div>` +
+    `<div class="alts"><span class="dim">实战建议：</span>${list.map((sub) => renderSubLine(sub, draw.hasOp, draw.lockedOps)).join("")}</div>`
+  );
 }
 
 export function renderSlot(
@@ -105,7 +105,10 @@ export function renderSlot(
   lockedOps: LockedOps = {},
   advice?: { ownStageCode?: string; subsByOp?: Map<string, Substitution> },
 ): string {
-  const adv = occupiedAdvice(slot.original.operator, lockedOps, advice, slot.alternatives);
+  const adv = occupiedAdvice(slot.original.operator, lockedOps, advice, slot.alternatives, {
+    hasOp,
+    lockedOps,
+  });
   const op = nameSpan(slot.original.operator, hasOp, lockedOps);
   const keyTag = slot.original.isKey ? " <b>关键</b>" : "";
   const supTag = slot.original.support ? " <i>助战</i>" : "";

@@ -1262,7 +1262,8 @@ check(
       risk: "low", evidenceUrl: "", note: "",
     };
     const html = v43.renderSlot(slot, hasAll, { 凯尔希: "VEC-SP02（心中热火）" }, { ownStageCode: "VEC-C" });
-    return /可换成 <b>闪灵<\/b>.*／.*<b>夜莺<\/b>/.test(html) && !html.includes("苏苏洛");
+    // 完整列出（与 p2「其他实战建议」同排版），不再只给 2 条
+    return html.includes("闪灵") && html.includes("夜莺") && html.includes("苏苏洛") && (html.match(/class="sub-line"/g) ?? []).length === 3;
   })(),
 );
 check(
@@ -1280,7 +1281,8 @@ check(
       ownStageCode: "VEC-C",
       subsByOp: new Map([["凯尔希", sub]]),
     });
-    return html.includes("本关这个位置被") && /可换成 <b>闪灵<\/b>/.test(html);
+    // 与「⚠ X → Y」槽位同一排版：一行说明 + 每条建议独立成行
+    return html.includes("本关这个位置被") && html.includes("实战建议：") && /<div class="sub-line">[^<]*闪灵/.test(html);
   })(),
 );
 check(
