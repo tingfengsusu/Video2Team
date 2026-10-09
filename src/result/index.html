@@ -4,110 +4,248 @@
     <meta charset="UTF-8" />
     <title>Video2Team · 结果</title>
     <style>
-      /* ================= 设计基线 =================
-         8px 间距栅格 / 4 级字号（22 标题 · 15 分区 · 13 正文 · 11 辅助）/
-         低饱和中性色 + 单一强调色（#23ade5），状态色仅用于语义（绿=保留、橙=替换、红=无解） */
+      /* ============================================================================
+         设计 B ·「Data-Dense Dashboard」（依据 ui-ux-pro-max 的设计系统查询）
+         - 风格：Data-Dense Dashboard（KPI 卡 + 网格 + 行高亮 + 最小留白，数据可见性优先）
+         - 配色：蓝数据 + 琥珀强调（primary #1E40AF / secondary #3B82F6 / accent #D97706 /
+                 bg #F8FAFC / card #FFF / muted #E9EEF6 / border #DBEAFE / destructive #DC2626）
+         - 字体：Fira Sans（界面）+ Fira Code（关卡号/计数，tabular-nums）
+         - 图标：内联 SVG（不用 emoji —— 技能清单明确要求）
+         - 交互：hover 行高亮 / 可见 focus ring / 200ms 过渡 / 按下反馈 / 键盘可达
+         ============================================================================ */
       :root {
         color-scheme: light;
-        --ink: #1f2328;
-        --ink-2: #57606a;
-        --ink-3: #8b949e;
-        --line: #e6e8eb;
-        --bg: #f6f8fa;
+        --primary: #1e40af;
+        --primary-600: #1d4ed8;
+        --secondary: #3b82f6;
+        --accent: #d97706;
+        --bg: #f8fafc;
         --card: #ffffff;
-        --accent: #23ade5;
-        --ok: #1a7f37;
-        --warn: #b8860b;
-        --bad: #c0392b;
-        --maa: #0969da;
-        --bili: #e0559b;
+        --fg: #1e3a8a;
+        --muted: #e9eef6;
+        --muted-fg: #475569;
+        --border: #dbeafe;
+        --destructive: #dc2626;
+        --ok: #15803d;
+        --maa: #1d4ed8;
+        --bili: #be185d;
+        --ring: #1e40af;
+        --radius-lg: 12px;
+        --radius-md: 8px;
+        --radius-sm: 6px;
+        --shadow: 0 1px 2px rgba(30, 58, 138, 0.06), 0 4px 12px rgba(30, 58, 138, 0.06);
+        --speed: 200ms;
       }
       * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
       body {
-        margin: 0; background: var(--bg); color: var(--ink);
-        font-family: system-ui, "Microsoft YaHei", sans-serif;
-        font-size: 13px; line-height: 1.6;
+        margin: 0; background: var(--bg); color: var(--fg);
+        font-family: "Fira Sans", system-ui, "Microsoft YaHei", sans-serif;
+        font-size: 13px; line-height: 1.5;
+        font-variant-numeric: tabular-nums;
       }
-      /* ---- 顶部工具条（吸顶） ---- */
-      header {
-        position: sticky; top: 0; z-index: 10; background: var(--card);
-        border-bottom: 1px solid var(--line); padding: 12px 20px;
+      .mono { font-family: "Fira Code", ui-monospace, Consolas, monospace; }
+      .icon { width: 16px; height: 16px; flex: none; stroke: currentColor; stroke-width: 1.8;
+              fill: none; stroke-linecap: round; stroke-linejoin: round; }
+      :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; border-radius: 4px; }
+
+      /* ---------- 顶栏 ---------- */
+      .topbar {
+        position: sticky; top: 0; z-index: 20; background: var(--card);
+        border-bottom: 1px solid var(--border); padding: 10px 20px;
         display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
       }
-      header .brand { font-size: 15px; font-weight: 700; letter-spacing: .2px; }
-      header .stage { font-size: 13px; color: var(--ink-2); }
-      header .grow { flex: auto; }
-      .chip {
-        display: inline-flex; align-items: center; gap: 4px;
-        background: #f1f3f5; border: 1px solid var(--line); border-radius: 999px;
-        padding: 2px 10px; font-size: 12px; color: var(--ink-2);
+      .brand { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; color: var(--primary); }
+      .stage-chip {
+        display: inline-flex; align-items: center; gap: 6px; background: var(--muted);
+        border-radius: var(--radius-sm); padding: 3px 8px; font-size: 12px; color: var(--primary);
       }
+      .grow { flex: auto; }
       .btn {
-        border: 1px solid var(--line); background: var(--card); color: var(--ink);
-        border-radius: 8px; padding: 6px 12px; font-size: 13px; cursor: pointer;
+        display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+        background: var(--card); color: var(--fg); border: 1px solid var(--border);
+        border-radius: var(--radius-md); padding: 7px 12px; font: inherit; font-size: 13px;
+        transition: background var(--speed), transform var(--speed), box-shadow var(--speed);
       }
-      .btn:hover { background: #f6f8fa; }
-      .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-      .btn.primary:hover { filter: brightness(.95); }
+      .btn:hover { background: var(--muted); }
+      .btn:active { transform: scale(0.98); }
+      .btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+      .btn.primary:hover { background: var(--primary-600); }
+      .btn.danger { color: var(--destructive); border-color: #fecaca; }
+      .btn.danger:hover { background: #fef2f2; }
 
-      /* ---- 布局：总览铺满 + 两栏（主=本关阵容 / 侧=前置关候选池） ---- */
-      main { max-width: 1240px; margin: 0 auto; padding: 16px 20px 40px; }
-      .cols { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr); gap: 16px; align-items: start; }
-      @media (max-width: 900px) { .cols { grid-template-columns: minmax(0, 1fr); } }
-      .card {
-        background: var(--card); border: 1px solid var(--line); border-radius: 12px;
-        padding: 14px 16px; margin-bottom: 16px;
+      /* ---------- KPI 条 ---------- */
+      .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 10px; margin: 14px 0 16px; }
+      .kpi {
+        background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-md);
+        padding: 10px 12px; box-shadow: var(--shadow);
       }
-      .card > .card-title {
-        font-size: 15px; font-weight: 700; margin: 0 0 10px; display: flex; align-items: center; gap: 6px;
+      .kpi .k-label { font-size: 11px; letter-spacing: .04em; color: var(--muted-fg); text-transform: uppercase; }
+      .kpi .k-value { font-family: "Fira Code", ui-monospace, monospace; font-size: 22px; font-weight: 600; color: var(--primary); line-height: 1.25; }
+      .kpi .k-unit { font-size: 12px; color: var(--muted-fg); font-family: inherit; font-weight: 400; }
+      .kpi.warn .k-value { color: var(--accent); }
+      .kpi.bad .k-value { color: var(--destructive); }
+
+      /* ---------- 布局：主区（前置关候选池）+ 侧栏（本关阵容 / 占用清单，吸顶） ---------- */
+      main { max-width: 1280px; margin: 0 auto; padding: 0 20px 40px; }
+      .grid { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(300px, 1fr); gap: 16px; align-items: start; }
+      @media (max-width: 980px) { .grid { grid-template-columns: minmax(0, 1fr); } .side { position: static !important; } }
+      .side { position: sticky; top: 66px; display: flex; flex-direction: column; gap: 16px; }
+      .panel { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
+      .panel + .panel { margin-top: 16px; }
+      .panel-head {
+        display: flex; align-items: center; gap: 8px; padding: 10px 14px;
+        border-bottom: 1px solid var(--border); font-weight: 600; font-size: 13px; color: var(--primary);
       }
-      .card > .card-title .sub { font-size: 12px; font-weight: 400; color: var(--ink-3); }
-      .muted { color: var(--ink-3); }
-      #status { color: var(--ink-3); font-size: 12px; margin: 0 0 12px; }
+      .panel-head .count { margin-left: auto; font-family: "Fira Code", monospace; font-size: 12px; color: var(--muted-fg); font-weight: 400; }
+      .panel-body { padding: 12px 14px; }
+      .panel-body.tight { padding: 8px 10px; }
+      #status { color: var(--muted-fg); font-size: 12px; margin: 0 0 12px; }
       #status:empty { display: none; }
 
-      /* ---- 渲染层（renderResult 输出）样式 ---- */
-      .video-title { font-size: 12px; color: var(--ink-2); margin: 0 0 2px; }
-      .stage { font-size: 18px; font-weight: 700; margin: 0 0 6px; }
-      .slot {
-        font-size: 14px; line-height: 1.65; padding: 8px 10px; border-radius: 8px; margin-bottom: 6px;
-        background: #fbfcfd; border: 1px solid var(--line); border-left-width: 3px;
+      /* ---------- 工具行：筛选 ---------- */
+      .toolrow { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+      .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 999px; overflow: hidden; }
+      .seg button {
+        border: 0; background: var(--card); color: var(--muted-fg); font: inherit; font-size: 12px;
+        padding: 5px 12px; cursor: pointer; transition: background var(--speed), color var(--speed);
       }
+      .seg button + button { border-left: 1px solid var(--border); }
+      .seg button:hover { background: var(--muted); }
+      .seg button[aria-pressed="true"] { background: var(--primary); color: #fff; }
+      .search {
+        display: inline-flex; align-items: center; gap: 6px; flex: auto; min-width: 180px;
+        border: 1px solid var(--border); border-radius: var(--radius-md); padding: 5px 10px; color: var(--muted-fg);
+      }
+      .search input { border: 0; outline: 0; font: inherit; font-size: 12px; width: 100%; color: var(--fg); background: transparent; }
+      .search input::placeholder { color: #94a3b8; }
+
+      /* ---------- 渲染层（renderResultSections 输出）样式 ---------- */
+      .video-title { font-size: 12px; color: var(--muted-fg); margin: 0 0 2px; }
+      .stage { font-size: 19px; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 6px; color: var(--primary); }
+      .slot {
+        font-size: 13px; line-height: 1.6; padding: 8px 10px; border-radius: var(--radius-md);
+        margin-bottom: 6px; background: #fbfcfe; border: 1px solid var(--border); border-left: 3px solid var(--border);
+        transition: background var(--speed);
+      }
+      .slot:hover { background: #f1f6ff; }
       .keep { border-left-color: var(--ok); }
-      .sub { border-left-color: var(--warn); }
-      .unresolved { border-left-color: var(--bad); }
-      .slot .note { color: var(--bad); font-size: 12px; }
-      .slot a, a.link { color: var(--accent); text-decoration: none; font-size: 12px; }
-      .slot .alts { font-size: 12px; color: var(--ink-2); margin-top: 2px; }
+      .sub { border-left-color: var(--accent); }
+      .unresolved { border-left-color: var(--destructive); }
+      .slot .note { color: var(--destructive); font-size: 12px; }
+      .slot a, a.link { color: var(--primary); text-decoration: none; font-size: 12px; }
+      .slot a:hover, a.link:hover { text-decoration: underline; }
+      .slot .alts { font-size: 12px; color: var(--muted-fg); margin-top: 2px; }
       .sub-line { display: block; line-height: 1.7; }
-      .own { color: var(--ok); font-weight: 700; }
-      .miss { color: var(--bad); font-weight: 700; }
-      .occupied { color: #999; text-decoration: line-through; }
-      .pickbox { cursor: pointer; margin: 2px 0 0; }
-      .schemerow:hover { background: #f3f9fd; border-radius: 6px; }
-      .quote { color: #999; }
-      .dim { color: var(--ink-3); font-size: 12px; }
-      .err { color: var(--bad); }
-      .hint { font-size: 11px; color: var(--ink-3); line-height: 1.7; }
-      a { color: var(--accent); text-decoration: none; }
-      details summary { color: var(--ink-3); font-size: 11px; cursor: pointer; }
-      #locks:empty::after { content: "（空，勾选候选方案即可占用）"; color: var(--ink-3); font-size: 12px; }
+      .own { color: var(--ok); font-weight: 600; }
+      .miss { color: var(--destructive); font-weight: 600; }
+      .occupied { color: #94a3b8; text-decoration: line-through; }
+      .pickbox { cursor: pointer; margin: 2px 0 0; accent-color: var(--primary); }
+      .schemerow { transition: background var(--speed); }
+      .schemerow:hover { background: #eff6ff; border-radius: var(--radius-sm); }
+      .quote { color: #94a3b8; }
+      .dim { color: var(--muted-fg); font-size: 12px; }
+      .err { color: var(--destructive); }
+      .hint { font-size: 11px; color: var(--muted-fg); line-height: 1.7; }
+      a { color: var(--primary); text-decoration: none; }
+      a:hover { text-decoration: underline; }
+      details { margin-top: 6px; }
+      details summary { color: var(--muted-fg); font-size: 11px; cursor: pointer; }
+      details summary:hover { color: var(--primary); }
+
+      /* 候选池：关卡块做成数据卡片，带左侧状态条（已选=绿 / 未选=琥珀） */
+      .stagepool { border-left: 3px solid var(--border) !important; transition: background var(--speed); }
+      .stagepool[data-picked="1"] { border-left-color: var(--ok) !important; }
+      .stagepool[data-picked="0"] { border-left-color: var(--accent) !important; }
+      .stagepool[hidden] { display: none; }
+      .schemerow[hidden] { display: none; }
+
+      /* 占用清单 chips */
+      .lockchip { transition: background var(--speed); }
+      #locks:empty::after { content: "为空 —— 勾选候选方案即可占用"; color: var(--muted-fg); font-size: 12px; }
+
+      /* 总览块（render 层带内联色，这里按设计 B 覆写为中性蓝灰） */
+      .overview { background: #f8fafc !important; border: 1px solid var(--border) !important;
+                  border-radius: var(--radius-md) !important; }
+      .lockbadge { font-size: 10px; background: #fef3c7; border: 1px solid #fcd34d;
+                   border-radius: 3px; padding: 0 3px; margin-left: 2px; }
+      /* 新标签打开的可视提示用内联 SVG 图标（替代 ↗ 符号） */
+      .ext-svg { width: 11px; height: 11px; stroke: currentColor; fill: none;
+                 stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+                 vertical-align: -1px; margin-left: 1px; }
+      #context { padding: 10px 14px; }
     </style>
   </head>
   <body>
-    <header>
-      <span class="brand">🎮 Video2Team</span>
-      <span class="stage" id="stageName"></span>
+    <!-- 图标：内联 SVG（Lucide 风格），技能清单要求不用 emoji 当图标 -->
+    <svg style="display: none">
+      <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></symbol>
+      <symbol id="i-flag" viewBox="0 0 24 24"><path d="M4 21V4h9l1 2h6v9h-7l-1-2H4"/></symbol>
+      <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+      <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="M6 7l1 13h10l1-13"/></symbol>
+      <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></symbol>
+      <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4h6v6"/><path d="M20 4l-8 8"/><path d="M18 14v6H4V6h6"/></symbol>
+    </svg>
+
+    <header class="topbar">
+      <span class="brand">
+        <svg class="icon" aria-hidden="true"><use href="#i-target"/></svg>
+        Video2Team
+      </span>
+      <span class="stage-chip mono" id="stageName"></span>
       <span class="grow"></span>
-      <span id="chips"></span>
-      <button class="btn" id="refreshBtn" title="重新读取结果">⟳ 刷新</button>
-      <button class="btn" id="clearLocks" title="清空占用清单与勾选">清除占用</button>
+      <button class="btn" id="refreshBtn" title="重新读取结果">
+        <svg class="icon" aria-hidden="true"><use href="#i-refresh"/></svg>刷新
+      </button>
+      <button class="btn danger" id="clearLocks" title="清空占用清单与勾选">
+        <svg class="icon" aria-hidden="true"><use href="#i-trash"/></svg>清除占用
+      </button>
     </header>
+
     <main>
       <div id="status"></div>
-      <div class="cols">
-        <div id="col-main"></div>
-        <div id="col-side"></div>
+      <div class="kpis" id="kpis"></div>
+      <section class="panel" id="context" style="margin-bottom:16px"></section>
+      <div class="grid">
+        <section class="panel">
+          <div class="panel-head">
+            <svg class="icon" aria-hidden="true"><use href="#i-flag"/></svg>
+            前置关候选池
+            <span class="count" id="poolCount"></span>
+          </div>
+          <div class="toolrow">
+            <div class="seg" role="group" aria-label="按选择状态筛选关卡">
+              <button data-filter="all" aria-pressed="true">全部</button>
+              <button data-filter="unpicked" aria-pressed="false">未选</button>
+              <button data-filter="picked" aria-pressed="false">已选</button>
+            </div>
+            <label class="search">
+              <svg class="icon" aria-hidden="true"><use href="#i-search"/></svg>
+              <input id="searchInput" type="search" placeholder="过滤方案（干员 / 标题 / 来源）" />
+            </label>
+          </div>
+          <div class="panel-body tight" id="col-pool"></div>
+        </section>
+
+        <aside class="side">
+          <div class="panel">
+            <div class="panel-head">
+              <svg class="icon" aria-hidden="true"><use href="#i-target"/></svg>
+              本关适配阵容
+              <span class="count" id="slotCount"></span>
+            </div>
+            <div class="panel-body" id="col-main"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head">
+              <svg class="icon" aria-hidden="true"><use href="#i-lock"/></svg>
+              占用清单
+              <span class="count" id="lockCount"></span>
+            </div>
+            <div class="panel-body" id="locks"></div>
+          </div>
+        </aside>
       </div>
     </main>
     <script type="module" src="./result.js"></script>

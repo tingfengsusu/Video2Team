@@ -36,12 +36,18 @@ const MISS_STYLE = "color:#c0392b;font-weight:700";
 const OCCUPIED_STYLE = "color:#999;text-decoration:line-through";
 
 /** 干员名（按是否持有着色——内联样式，绿=你有 红=你没有；被派遣则灰+删除线+🔒） */
-function nameSpan(name: string, hasOp: HasOp, lockedOps: LockedOps = {}): string {
+/** 大窗口「设计 B」用 plainIcons=true：技能规范要求不用 emoji 当图标，改文字徽章 */
+function nameSpan(
+  name: string,
+  hasOp: HasOp,
+  lockedOps: LockedOps = {},
+  plainIcons = false,
+): string {
   const lockStage = lockedOps[name];
   if (lockStage) {
     return (
       `<span class="occupied" style="${OCCUPIED_STYLE}">${esc(name)}</span>` +
-      `<span class="lockbadge" style="color:#b8860b" title="已派遣：${esc(lockStage)}">🔒</span>`
+      `<span class="lockbadge" style="color:#b8860b" title="已派遣：${esc(lockStage)}">${plainIcons ? "占用" : "🔒"}</span>`
     );
   }
   const owned = hasOp(name);
@@ -60,37 +66,50 @@ function substMeta(s: Substitution): string {
 }
 
 /** 一条独立成行的实战建议（替代者名着色 + 占用徽章） */
-export function renderSubLine(s: Substitution, hasOp: HasOp, lockedOps: LockedOps = {}): string {
-  return `<div class="sub-line">${nameSpan(s.replacement, hasOp, lockedOps)}${substMeta(s)}</div>`;
+export function renderSubLine(
+  s: Substitution,
+  hasOp: HasOp,
+  lockedOps: LockedOps = {},
+  plainIcons = false,
+): string {
+  return `<div class="sub-line">${nameSpan(s.replacement, hasOp, lockedOps, plainIcons)}${substMeta(s)}</div>`;
 }
 
-export function renderSlot(slot: RecommendedSlot, hasOp: HasOp, lockedOps: LockedOps = {}): string {
-  const op = nameSpan(slot.original.operator, hasOp, lockedOps);
+export function renderSlot(
+  slot: RecommendedSlot,
+  hasOp: HasOp,
+  lockedOps: LockedOps = {},
+  plainIcons = false,
+): string {
+  const op = nameSpan(slot.original.operator, hasOp, lockedOps, plainIcons);
   const keyTag = slot.original.isKey ? " <b>关键</b>" : "";
   const supTag = slot.original.support ? " <i>助战</i>" : "";
   const alts = slot.alternatives.length
     ? `<div class="alts"><span class="dim">其他实战建议：</span>${slot.alternatives
-        .map((s) => renderSubLine(s, hasOp, lockedOps))
+        .map((s) => renderSubLine(s, hasOp, lockedOps, plainIcons))
         .join("")}</div>`
     : "";
 
+  const keepMark = plainIcons ? "保留" : "✓";
+  const subMark = plainIcons ? "替换" : "⚠";
+  const unMark = plainIcons ? "无解" : "✗";
   if (slot.status === "keep") {
-    return `<div class="slot keep">✓ ${op}${keyTag}${supTag} — 你有，保留</div>`;
+    return `<div class="slot keep">${keepMark} ${op}${keyTag}${supTag} — 你有，保留</div>`;
   }
   if (slot.status === "substituted" && slot.via && "source" in slot.via) {
     return (
-      `<div class="slot sub">⚠ ${op}${keyTag}${supTag} → <b>${nameSpan(slot.finalOperator!, hasOp, lockedOps)}</b>${substMeta(slot.via)}` +
+      `<div class="slot sub">${subMark} ${op}${keyTag}${supTag} → <b>${nameSpan(slot.finalOperator!, hasOp, lockedOps, plainIcons)}</b>${substMeta(slot.via)}` +
       (slot.note ? `<div class="note">${esc(slot.note)}</div>` : "") +
       alts +
       `</div>`
     );
   }
   return (
-    `<div class="slot unresolved">✗ ${op}${keyTag}${supTag} — 无解` +
+    `<div class="slot unresolved">${unMark} ${op}${keyTag}${supTag} — 无解` +
     (slot.note ? `<div class="note">${esc(slot.note)}</div>` : "") +
     (slot.alternatives.length
       ? `<div class="alts"><span class="dim">实战建议：</span>${slot.alternatives
-          .map((s) => renderSubLine(s, hasOp, lockedOps))
+          .map((s) => renderSubLine(s, hasOp, lockedOps, plainIcons))
           .join("")}</div>`
       : "") +
     `</div>`
@@ -111,10 +130,20 @@ export interface ResultRenderOptions {
   colorBySource?: boolean;
   /** 是否输出渲染层的分区标题（大窗口页用卡片标题时置 false） */
   showGuidesHeading?: boolean;
+  /** 是否输出「本关适配阵容」分区标题（大窗口页用卡片标题时置 false） */
+  showSlotsHeading?: boolean;
+  /** 不用 emoji 标记（大窗口「设计 B」按技能规范改用文字/SVG） */
+  plainIcons?: boolean;
 }
 
 /** 一条候选方案的干员列表（本关自己锁定的干员不置灰——它们是这一关要用的） */
-function renderSchemeOperators(scheme: MergedScheme, hasOp: HasOp, lockedOps: LockedOps, stageCode: string): string {
+function renderSchemeOperators(
+  scheme: MergedScheme,
+  hasOp: HasOp,
+  lockedOps: LockedOps,
+  stageCode: string,
+  plainIcons = false,
+): string {
   const scopedLocks: LockedOps = {};
   for (const [name, label] of Object.entries(lockedOps)) {
     if (!isLockLabelOfStage(label, stageCode)) scopedLocks[name] = label;
@@ -126,7 +155,7 @@ function renderSchemeOperators(scheme: MergedScheme, hasOp: HasOp, lockedOps: Lo
     .slice(0, 8)
     .map(
       (oper) =>
-        nameSpan(oper.name, hasOp, scopedLocks) +
+        nameSpan(oper.name, hasOp, scopedLocks, plainIcons) +
         (oper.skill ? `<span class="dim">${oper.skill}技</span>` : ""),
     );
   return items.join("、");
@@ -143,6 +172,7 @@ function renderScheme(
   lockedOps: LockedOps,
   picked: { key: string } | undefined,
   colorBySource: boolean,
+  plainIcons = false,
 ): string {
   const key = schemeKeyOf(scheme);
   const url = schemeSourceUrl(scheme);
@@ -164,7 +194,11 @@ function renderScheme(
       `title="${esc(`${tip}｜点击打开该${unit}页`)}">${esc(scheme.sourceLabel)}</a>`
     : `<span style="color:${color};font-weight:700" title="${esc(tip)}">${esc(scheme.sourceLabel)}</span>`;
   const openLink = url
-    ? ` <a href="${esc(url)}" target="_blank" rel="noreferrer" class="dim" title="${esc(tip)}">${unit}页↗</a>`
+    ? ` <a href="${esc(url)}" target="_blank" rel="noreferrer" class="dim" title="${esc(tip)}">${unit}页${
+        plainIcons
+          ? `<svg class="ext-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6"/><path d="M20 4l-8 8"/><path d="M18 14v6H4V6h6"/></svg>`
+          : "↗"
+      }</a>`
     : "";
   const mode = scheme.mode ? `<b>${esc(scheme.mode)}</b> ` : "";
   const box =
@@ -173,10 +207,12 @@ function renderScheme(
     `title="勾选＝本关使用这套方案：其干员计入占用清单（同关自动换选），其它结果立即置灰；取消勾选立即恢复">`;
   return (
     `<div class="schemerow" data-pick-row="1" ` +
+    `data-ops="${esc(scheme.operators.join("、"))}" ` +
+    `data-search="${esc([scheme.sourceLabel, scheme.mode, scheme.title, scheme.author, scheme.operators.join("")].filter(Boolean).join(" "))}" ` +
     `style="font-size:12px;line-height:1.65;margin-top:3px;display:flex;gap:5px;align-items:baseline;cursor:pointer" ` +
     `title="${esc(tip)}">` +
     `<span style="flex:none">${box}</span>` +
-    `<span style="flex:auto">${label} ${mode}${renderSchemeOperators(scheme, hasOp, lockedOps, pool.displayCode)}${openLink}</span>` +
+    `<span style="flex:auto">${label} ${mode}${renderSchemeOperators(scheme, hasOp, lockedOps, pool.displayCode, plainIcons)}${openLink}</span>` +
     `</div>`
   );
 }
@@ -221,24 +257,26 @@ function overviewBlock(
   hasOp: HasOp,
   lockedOps: LockedOps,
   picks: DispatchPicks,
+  plainIcons = false,
 ): string {
   const lineup = dispatch
     ? out.roster.slots.map((s) => s.operator)
     : out.recommendations.map((slot) => slot.finalOperator ?? slot.original.operator);
   const names = [...new Set(lineup)].filter(Boolean);
   const lineupHtml = names.length
-    ? names.slice(0, 14).map((n) => nameSpan(n, hasOp, lockedOps)).join("、") +
+    ? names.slice(0, 14).map((n) => nameSpan(n, hasOp, lockedOps, plainIcons)).join("、") +
       (names.length > 14 ? ` <span class="dim">等 ${names.length} 人</span>` : "")
     : `<span class="dim">（未识别到阵容）</span>`;
   const substituted = out.recommendations.filter((s) => s.status === "substituted").length;
   const unresolved = out.recommendations.filter((s) => s.status === "unresolved").length;
 
   const pools = out.dispatchGuides ?? [];
+  const ovTitle = `${dispatch ? "本关阵容" : "本关用这套"}（${names.length} 人）`;
   const guideLines = pools.map((pool) => {
     const pick = picks[pool.displayCode.toUpperCase()];
     const chosen = pick
-      ? `✅ ${pick.ops.map((n) => esc(n)).join("·")}`
-      : `<span class="dim">⬜ 未选 → 在下方候选池勾选</span>`;
+      ? `${plainIcons ? "<b>已选</b> " : "✅ "}${pick.ops.map((n) => esc(n)).join("·")}`
+      : `<span class="dim">${plainIcons ? "未选（在下方候选池勾选）" : "⬜ 未选 → 在下方候选池勾选"}</span>`;
     return (
       `<div style="font-size:12px;line-height:1.6"><b>${esc(pool.displayCode)}</b>` +
       `<span class="dim">（${esc(pool.stageName || "关卡名待核实")}）</span> ${chosen}</div>`
@@ -246,13 +284,13 @@ function overviewBlock(
   });
 
   return (
-    `<div style="background:#f7fbfe;border:1px solid #cfe6f5;border-radius:6px;padding:8px 10px;margin:8px 0">` +
-    `<div style="font-size:13px;line-height:1.7"><b>${dispatch ? "🎯 本关阵容" : "🎯 本关用这套"}（${names.length} 人）</b>：${lineupHtml}</div>` +
+    `<div class="overview" style="background:#f7fbfe;border:1px solid #cfe6f5;border-radius:6px;padding:8px 10px;margin:8px 0">` +
+    `<div style="font-size:13px;line-height:1.7"><b>${plainIcons ? "" : "🎯 "}${ovTitle}</b>：${lineupHtml}</div>` +
     (substituted || unresolved
       ? `<div class="hint">${substituted ? `已替换 ${substituted} 处` : ""}${substituted && unresolved ? "，" : ""}${unresolved ? `无解 <span class="miss">${unresolved}</span> 处` : ""}</div>`
       : "") +
     (guideLines.length
-      ? `<div style="margin-top:4px;font-size:13px"><b>🚩 前置关（派遣占用）</b></div>` + guideLines.join("")
+      ? `<div style="margin-top:4px;font-size:13px"><b>${plainIcons ? "前置关（派遣占用）" : "🚩 前置关（派遣占用）"}</b></div>` + guideLines.join("")
       : "") +
     `</div>`
   );
@@ -296,6 +334,8 @@ export function renderDispatchGuides(
     colorBySource?: boolean;
     /** 大窗口页自己有卡片标题时，关掉渲染层的分区标题（避免重复） */
     showHeading?: boolean;
+    /** 不用 emoji 标记（大窗口「设计 B」按技能规范改用文字/SVG） */
+    plainIcons?: boolean;
   } = {},
 ): string {
   const picks = opts.picks ?? {};
@@ -336,7 +376,11 @@ export function renderDispatchGuides(
         .filter(Boolean)
         .join("；");
       const rows = schemes.length
-        ? schemes.map((scheme) => renderScheme(scheme, pool, hasOp, lockedOps, picked, colorBySource)).join("") +
+        ? schemes
+            .map((scheme) =>
+              renderScheme(scheme, pool, hasOp, lockedOps, picked, colorBySource, opts.plainIcons),
+            )
+            .join("") +
           (hiddenNote ? `<div class="dim" style="font-size:11px;margin-top:2px">${esc(hiddenNote)}</div>` : "")
         : `<div class="dim" style="font-size:12px;margin-top:3px">` +
           (pool.schemes.length && opts.hideUnavailable
@@ -345,10 +389,12 @@ export function renderDispatchGuides(
           `</div>`;
       // 已选好方案的关默认收起（标题行就写着选了什么），没选的关默认展开方便勾选
       const pickLine = picked
-        ? `<span style="color:#1a7f37">✅ ${picked.ops.map((n) => esc(n)).join("·")}</span>`
-        : `<span class="dim">⬜ 未选</span>`;
+        ? `<span style="color:#1a7f37">${opts.plainIcons ? "已选" : "✅"} ${picked.ops.map((n) => esc(n)).join("·")}</span>`
+        : `<span class="dim">${opts.plainIcons ? "未选" : "⬜ 未选"}</span>`;
       return (
-        `<div style="padding:6px 8px;margin:4px 0;background:#fffdf6;border:1px solid #eadfbd;border-radius:5px">` +
+        `<div class="stagepool" data-stage="${esc(pool.displayCode)}" ` +
+        `data-picked="${picked ? "1" : "0"}" ` +
+        `style="padding:6px 8px;margin:4px 0;background:#fffdf6;border:1px solid #eadfbd;border-radius:5px">` +
         `<div style="font-size:12px">` +
         `<b><a href="${esc(maaLevelUrl())}" target="_blank" rel="noreferrer" style="color:#0969da;text-decoration:none" ` +
         `title="在 MAA 作业站（prts.plus）看该关作业：打开后点「关卡」筛选 ${esc(pool.displayCode)}，或把显示码/通名粘进搜索框">` +
@@ -391,7 +437,7 @@ export function renderResultSections(
   const dispatch = stageKind === "dispatch";
   const ambiguousDispatch = options.ambiguousDispatch === true;
   const statsLine = s
-    ? `抓取弹幕 ${s.danmakuTotal} 条 → 候选池：评论 ${s.commentCandidates} + 弹幕 ${s.danmakuCandidates}｜`
+    ? `抓取弹幕 ${s.danmakuTotal} 条${options.plainIcons ? "，" : " → "}候选池：评论 ${s.commentCandidates} + 弹幕 ${s.danmakuCandidates}｜`
     : "";
   const heading = dispatch ? "派遣关 · 候选方案" : "适配结果（含占用约束）";
   const stageHint = ambiguousDispatch
@@ -423,6 +469,7 @@ export function renderResultSections(
     maxRows: options.maxSchemeRows,
     colorBySource: options.colorBySource,
     showHeading: options.showGuidesHeading,
+    plainIcons: options.plainIcons,
   });
   return {
     intro:
@@ -431,14 +478,25 @@ export function renderResultSections(
       `<div class="hint">${stageHint}</div>` +
       switchLine +
       resolutionNote,
-    overview: overviewBlock(dispatch, out, hasOp, lockedOps, options.picks ?? {}),
+    overview: overviewBlock(dispatch, out, hasOp, lockedOps, options.picks ?? {}, options.plainIcons),
     guides: emptyLocksHint + dispatchGuides,
     slots:
-      sectionHeading("🎯 本关适配阵容", `${out.recommendations.length} 个槽位`) +
-      `<div class="hint">实战替代建议：${out.substitutions.length} 条｜${statsLine}名字颜色：<span class="own">绿=你有</span>／<span class="miss">红=你没有</span>${Object.keys(lockedOps).length ? "｜🔒=已派遣（灰+删除线）" : ""}</div>` +
-      out.recommendations.map((s2) => renderSlot(s2, hasOp, lockedOps)).join("") +
+      (options.showSlotsHeading === false
+        ? ""
+        : sectionHeading(
+            options.plainIcons ? "本关适配阵容" : "🎯 本关适配阵容",
+            `${out.recommendations.length} 个槽位`,
+          )) +
+      `<div class="hint">实战替代建议：${out.substitutions.length} 条｜${statsLine}名字颜色：<span class="own">绿=你有</span>／<span class="miss">红=你没有</span>${
+        Object.keys(lockedOps).length
+          ? options.plainIcons
+            ? "｜「占用」=已派遣（灰+删除线）"
+            : "｜🔒=已派遣（灰+删除线）"
+          : ""
+      }</div>` +
+      out.recommendations.map((s2) => renderSlot(s2, hasOp, lockedOps, options.plainIcons)).join("") +
       (s?.unknownNames && s.unknownNames.length
-        ? `<div class="slot unresolved">⚠ 有 ${s.unknownNames.length} 个称呼未能识别：${s.unknownNames
+        ? `<div class="slot unresolved">${options.plainIcons ? "未识别" : "⚠"} 有 ${s.unknownNames.length} 个称呼未能识别：${s.unknownNames
             .map((n) => esc(n))
             .join("、")}<div class="note">已记入设置页「昵称纠错」——填写正确干员名并采纳后，下次分析即可识别</div></div>`
         : ""),
@@ -456,7 +514,7 @@ export function renderResult(
 }
 
 /** 占用清单区块（矢量突破类活动）：被派遣干员 chips，✕ 可移除 */
-export function renderLockedSection(lockedOps: LockedOps): string {
+export function renderLockedSection(lockedOps: LockedOps, plainIcons = false): string {
   const entries = Object.entries(lockedOps);
   if (entries.length === 0) {
     return `<div class="hint" style="color:#999">清单为空。在派遣关候选池里勾选方案即可占用（勾选是主路径，勾完其它结果立即置灰）；也可用结果下方「加入占用清单」手动兜底。</div>`;
@@ -466,7 +524,9 @@ export function renderLockedSection(lockedOps: LockedOps): string {
       ([name, stage]) =>
         `<span class="lockchip" style="display:inline-block;background:#fdf3d8;border:1px solid #e8d48a;border-radius:12px;padding:2px 8px;margin:2px;font-size:12px">` +
         `<b>${esc(name)}</b><span class="dim"> · ${esc(stage)}</span>` +
-        `<span class="rmlock" data-name="${esc(name)}" title="移除" style="cursor:pointer;color:#c0392b;margin-left:4px">✕</span></span>`,
+        `<span class="rmlock" data-name="${esc(name)}" title="移除" style="cursor:pointer;color:#c0392b;margin-left:4px">${
+          plainIcons ? "移除" : "✕"
+        }</span></span>`,
     )
     .join("");
 }
