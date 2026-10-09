@@ -115,7 +115,7 @@ export interface ResultRenderOptions {
   guideEvidence?: Record<string, string>;
   /** 用户手动排除的关卡显示码 */
   excludedStages?: string[];
-  /** 本活动全部派遣关（供「改成…／补一个关」下拉） */
+  /** 本活动全部派遣关（供「＋ 补一个关…」下拉；已在候选池里的关会自动滤掉） */
   stageOptions?: { displayCode: string; stageName: string }[];
 }
 
@@ -333,7 +333,7 @@ export function renderDispatchGuides(
     evidence?: Record<string, string>;
     /** 用户手动排除的关卡显示码（识别不准时改） */
     excludedStages?: string[];
-    /** 本活动全部派遣关：供「改成…／补一个关」下拉（不传则不显示纠正入口） */
+    /** 本活动全部派遣关：供「＋ 补一个关…」下拉（不传则不显示纠正入口） */
     stageOptions?: { displayCode: string; stageName: string }[];
   } = {},
 ): string {
@@ -421,19 +421,21 @@ export function renderDispatchGuides(
   const noteLine = opts.note
     ? `<div class="hint" style="color:#b8860b">${esc(opts.note)}</div>`
     : "";
-  // 漏识别时的补关入口：只列"当前还没出现的关"，做成一行工具条（不再是裸 select）
-  const presentCodes = new Set(visiblePools.map((p) => p.displayCode.toUpperCase()));
+  // 漏识别时的补关入口：只列"当前候选池里还没出现的关"（已经在列表里的不用补；
+  // 被手动「不是这关」排除的关走它自己的「恢复」链接，也不在这里重复出现）。
+  // 样式走 .stage-select 类，各界面 CSS 按自己的设计上色（hover/focus 可见、200ms 过渡）。
+  const presentCodes = new Set(pools.map((p) => p.displayCode.toUpperCase()));
   const addableStages = (opts.stageOptions ?? []).filter(
     (o) => !presentCodes.has(o.displayCode.toUpperCase()),
   );
   const addStageLine = addableStages.length
-    ? `<div style="display:flex;align-items:center;gap:8px;margin:8px 0 2px">` +
-      `<span class="dim">漏识别了某一关？</span>` +
-      `<select data-act="add-stage" title="补一个关：现查该关的 MAA/B站 方案并加入候选池" ` +
-      `style="font-size:12px;padding:3px 8px;border:1px solid #d0d7de;border-radius:6px;background:#fff;color:#333;cursor:pointer;max-width:190px">` +
-      `<option value="">＋ 补一个关…</option>` +
+    ? `<div class="hint" style="margin-top:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">` +
+      `<span class="dim" style="white-space:nowrap">漏识别了某一关？</span>` +
+      `<select class="stage-select" data-act="add-stage" aria-label="补一个关"` +
+      ` title="补一个关：现查该关的 MAA / B站 方案并加入候选池"` +
+      ` style="max-width:200px"><option value="">＋ 补一个关…</option>` +
       addableStages
-        .map((o) => `<option value="${esc(o.displayCode)}">${esc(o.displayCode)} · ${esc(o.stageName)}</option>`)
+        .map((o) => `<option value="${esc(o.displayCode)}">${esc(o.displayCode)}（${esc(o.stageName)}）</option>`)
         .join("") +
       `</select></div>`
     : "";

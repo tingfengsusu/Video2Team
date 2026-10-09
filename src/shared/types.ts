@@ -170,7 +170,7 @@ export interface AnalysisOutput extends StageResult {
   dispatchGuideNote?: string; // P1 识别成功但攻略查询失败时的降级说明
   /** 每关的识别依据（显示码 → 「P1 网格第 5 格，格内读到「催化装备」」）：识别错了可见可纠 */
   dispatchGuideEvidence?: Record<string, string>;
-  /** 本活动全部派遣关（显示码 + 关名）：供结果区「改成…／补一个关」手动纠正识别错误 */
+  /** 本活动全部派遣关（显示码 + 关名）：供结果区「＋ 补一个关…」下拉补漏识别的关 */
   dispatchStageOptions?: { displayCode: string; stageName: string }[];
   stats?: {
     danmakuTotal: number; // 抓取到的弹幕总数（XML 接口返回）

@@ -88,9 +88,23 @@
       .quote { color: #999; }
       .dim { color: var(--ink-3); font-size: 12px; }
       .err { color: var(--bad); }
-      .hint { font-size: 11px; color: var(--ink-3); line-height: 1.7; }
+      .hint { font-size: 12px; color: var(--ink-3); line-height: 1.7; }
       a { color: var(--accent); text-decoration: none; }
-      details summary { color: var(--ink-3); font-size: 11px; cursor: pointer; }
+      /* ---- 第九轮 q3：大窗口比页内面板放大一档（方案行/表头/下拉 13px、辅助文字 12px）----
+         渲染层带行内 12px/11px，需页面级 !important 覆盖 */
+      .schemerow { font-size: 13px !important; }
+      .stagepool > div:first-child { font-size: 13px !important; }
+      .dim { font-size: 12px !important; }
+      /* 「＋ 补一个关」下拉：与卡片一致（hover/focus 可见、200ms 过渡、tabular 数字） */
+      .stage-select {
+        font: inherit; font-size: 13px; line-height: 1.4; padding: 5px 10px; min-height: 32px;
+        border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--ink);
+        cursor: pointer; transition: border-color .2s, box-shadow .2s;
+      }
+      .stage-select:hover { border-color: var(--accent); }
+      .stage-select:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(35,173,229,.25); }
+      /* 折叠摘要（渲染层带行内 11px，需 !important 才提得上来） */
+      details summary { color: var(--ink-3); font-size: 12px !important; cursor: pointer; }
       #locks:empty::after { content: "（空，勾选候选方案即可占用）"; color: var(--ink-3); font-size: 12px; }
     </style>
   </head>

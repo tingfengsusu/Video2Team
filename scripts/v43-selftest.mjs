@@ -680,6 +680,29 @@ const allUnusableHtml = v43.renderResult(
   { stageKind: "target", hideUnavailable: true },
 );
 check("整关都缺干员时说明原因（不留空白）", /该关 1 套方案缺干员/.test(allUnusableHtml), allUnusableHtml.match(/该关[^<]*/)?.[0]);
+
+console.log("\n== 派遣关纠错入口：只留「＋ 补一个关…」 ==");
+const addStageHtml = v43.renderResult(
+  { ...baseResult, dispatchGuides: [guidePool] },
+  hasAll,
+  {},
+  {
+    stageKind: "target",
+    stageOptions: [
+      { displayCode: "VEC-SP02", stageName: "心中热火" }, // 已在候选池 → 不列
+      { displayCode: "VEC-SP05", stageName: "难以相交" }, // 漏识别 → 应列
+    ],
+  },
+);
+check(
+  "补关下拉用 .stage-select 类（各界面 CSS 统一按卡片风格上色）",
+  addStageHtml.includes('class="stage-select"') && addStageHtml.includes('data-act="add-stage"'),
+);
+check("下拉只列当前候选池里还没出现的关", addStageHtml.includes('<option value="VEC-SP05">VEC-SP05（难以相交）</option>') && !addStageHtml.includes('<option value="VEC-SP02">'));
+check("入口文案是「＋ 补一个关…」，不再有「改成…」", addStageHtml.includes("＋ 补一个关…") && !addStageHtml.includes("改成"));
+const noOptionsHtml = v43.renderResult({ ...baseResult, dispatchGuides: [guidePool] }, hasAll, {}, { stageKind: "target" });
+check("没有可补的关时整行不出现", !noOptionsHtml.includes("补一个关") && !noOptionsHtml.includes("stage-select"));
+
 const manyRows = v43.pickVisibleSchemes(
   Array.from({ length: 30 }, (_, i) => ({ source: i % 2 ? "maa" : "bili", tag: `S${i}` })),
   { total: 12, perSource: 6 },
