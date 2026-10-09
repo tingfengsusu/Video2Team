@@ -360,12 +360,17 @@ export function renderDispatchGuides(
     excludedStages?: string[];
     /** 本活动全部派遣关：供「＋ 补一个关…」下拉（不传则不显示纠正入口） */
     stageOptions?: { displayCode: string; stageName: string }[];
+    /** 关卡链（第十一轮 q4）：依赖关 → 前置关，如 VEC-SP10 → VEC-SP09（前置关已自动纳入候选池） */
+    chain?: Record<string, string>;
   } = {},
 ): string {
   const picks = opts.picks ?? {};
   const excluded = new Set((opts.excludedStages ?? []).map((c) => c.toUpperCase()));
   const visiblePools = pools.filter((pool) => !excluded.has(pool.displayCode.toUpperCase()));
-  if (visiblePools.length === 0 && !opts.note && excluded.size === 0) return "";
+  // 一个派遣关都没识别到时也别整段消失：只要知道本活动的派遣关清单，就留着「按网格选关」入口兜底
+  if (visiblePools.length === 0 && !opts.note && excluded.size === 0 && !(opts.stageOptions ?? []).length) {
+    return "";
+  }
   const maxRows = Math.max(2, opts.maxRows ?? 12);
   const colorBySource = opts.colorBySource !== false; // 默认开：MAA 蓝 / B站 粉
   const totalSchemes = visiblePools.reduce((n, pool) => n + pool.schemes.length, 0);
@@ -426,6 +431,17 @@ export function renderDispatchGuides(
       const evidenceLine = evidence
         ? `<div class="hint" style="margin-top:1px">识别依据：${esc(evidence)}</div>`
         : "";
+      // 关卡链（第十一轮 q4）：本关需要先打谁 / 谁需要先打本关（打前置关同样占干员）
+      const code = pool.displayCode.toUpperCase();
+      const needFirst = opts.chain?.[code];
+      const dependents = Object.entries(opts.chain ?? {})
+        .filter(([, prev]) => prev === code)
+        .map(([dep]) => dep);
+      const chainLine = needFirst
+        ? `<div class="hint" style="color:#b8860b">关卡链：本关需要先打 <b>${esc(needFirst)}</b>（已自动加入候选池，它的占用也要算上）</div>`
+        : dependents.length
+          ? `<div class="hint" style="color:#b8860b">关卡链：<b>${esc(dependents.join("、"))}</b> 需要先打本关</div>`
+          : "";
       return (
         `<div class="stagepool" data-stage="${esc(pool.displayCode)}" data-picked="${picked ? "1" : "0"}" ` +
         `style="padding:6px 8px;margin:4px 0;background:#fffdf6;border:1px solid #eadfbd;border-radius:5px">` +
@@ -442,7 +458,9 @@ export function renderDispatchGuides(
         `style="font-size:11px" title="识别错了？把这个关从本次前置关列表移除">不是这关</a>` +
         `</span></div>` +
         evidenceLine +
-        `<details data-hover="1"${picked ? "" : " open"}>` +
+        chainLine +
+        // 第十一轮 q2：悬浮展开只给**已选关**（它默认收起）；未选的关默认展开，不必也不该被鼠标进出开合
+        (picked ? '<details data-hover="1">' : "<details open>") +
         `<summary style="font-size:11px;color:#888;cursor:pointer">候选方案 ${schemes.length} 套</summary>` +
         rows +
         `</details>` +
@@ -460,17 +478,54 @@ export function renderDispatchGuides(
   const addableStages = (opts.stageOptions ?? []).filter(
     (o) => !presentCodes.has(o.displayCode.toUpperCase()),
   );
-  const addStageLine = addableStages.length
-    ? `<div class="hint" style="margin-top:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">` +
-      `<span class="dim" style="white-space:nowrap">漏识别了某一关？</span>` +
-      `<select class="stage-select" data-act="add-stage" aria-label="补一个关"` +
-      ` title="补一个关：现查该关的 MAA / B站 方案并加入候选池"` +
-      ` style="max-width:200px"><option value="">＋ 补一个关…</option>` +
-      addableStages
-        .map((o) => `<option value="${esc(o.displayCode)}">${esc(o.displayCode)}（${esc(o.stageName)}）</option>`)
+  // 网格选关（第十一轮 q3）：像游戏里那样按序号点选派遣关——漏好几关时比逐个下拉快得多；
+  // 已在候选池里的格子禁用（避免重复查询），选中的交给 wireGridPicker → applyStageCodes。
+  const stageOptions = opts.stageOptions ?? [];
+  const gridPicker = stageOptions.length
+    ? `<div class="gridpicker" hidden>` +
+      `<div class="gp-card" role="dialog" aria-label="按网格选关">` +
+      `<div class="gp-title">特别战线 · 按网格选关` +
+      `<span class="gp-sub">序号 = 从上到下、从左到右（灰格/白格也占号），与识别依据是同一套编号</span></div>` +
+      `<div class="gp-grid">` +
+      stageOptions
+        .map((o, i) => {
+          const inPool = presentCodes.has(o.displayCode.toUpperCase());
+          return (
+            `<button type="button" class="gp-cell${inPool ? " in-pool" : ""}" data-code="${esc(o.displayCode)}"` +
+            (inPool ? " disabled" : "") +
+            ` title="${esc(`${o.displayCode} ${o.stageName}${inPool ? "（已在候选池）" : ""}`)}">` +
+            `<b>${i + 1}</b><span>${esc(o.displayCode)}</span><i>${esc(o.stageName)}</i></button>`
+          );
+        })
         .join("") +
-      `</select></div>`
+      `</div>` +
+      `<div class="gp-foot">` +
+      `<span class="gp-count dim">已选 <b>0</b> 关</span>` +
+      `<span class="gp-actions">` +
+      `<button type="button" class="stage-select" data-act="close-grid">取消</button>` +
+      `<button type="button" class="stage-select gp-apply" data-act="apply-grid" disabled>查询并加入候选池</button>` +
+      `</span></div>` +
+      `</div></div>`
     : "";
+  const addStageLine =
+    addableStages.length || stageOptions.length
+      ? `<div class="hint" style="margin-top:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">` +
+        (addableStages.length
+          ? `<span class="dim" style="white-space:nowrap">漏识别了某一关？</span>` +
+            `<select class="stage-select" data-act="add-stage" aria-label="补一个关"` +
+            ` title="补一个关：现查该关的 MAA / B站 方案并加入候选池"` +
+            ` style="max-width:200px"><option value="">＋ 补一个关…</option>` +
+            addableStages
+              .map((o) => `<option value="${esc(o.displayCode)}">${esc(o.displayCode)}（${esc(o.stageName)}）</option>`)
+              .join("") +
+            `</select>`
+          : "") +
+        (stageOptions.length
+          ? `<button type="button" class="stage-select" data-act="open-grid"` +
+            ` title="像游戏里那样按序号点选派遣关：点选/长按格子，再「查询并加入候选池」">按网格选关…</button>`
+          : "") +
+        `</div>`
+      : "";
   const excludedLine = excluded.size
     ? `<div class="hint">已排除（识别不准）：${[...excluded]
         .map(
@@ -479,7 +534,7 @@ export function renderDispatchGuides(
         )
         .join("、")}</div>`
     : "";
-  return heading + blocks + addStageLine + excludedLine + noteLine;
+  return heading + blocks + addStageLine + gridPicker + excludedLine + noteLine;
 }
 
 /** 结果分段（大窗口页要把「本关阵容」与「前置关候选池」分栏摆放，面板/popup 则直接拼接） */
@@ -528,6 +583,7 @@ export function renderResultSections(
       : "";
   const dispatchGuides = renderDispatchGuides(out.dispatchGuides ?? [], hasOp, lockedOps, {
     note: out.dispatchGuideNote,
+    chain: out.dispatchStageChain,
     picks: options.picks,
     hideUnavailable: options.hideUnavailable,
     maxRows: options.maxSchemeRows,

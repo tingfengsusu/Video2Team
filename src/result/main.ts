@@ -16,8 +16,9 @@ import {
 } from "../shared/render";
 import { loadPicks, resolvePickFromRow, togglePick, type DispatchPicks } from "../shared/dispatchPicks";
 import { putCachedResult } from "../shared/resultCache";
-import { clearStageSkip, patchStagePool, queryStagePool } from "../shared/stageRecode";
+import { clearStageSkip, patchStagePools, queryStagePools } from "../shared/stageRecode";
 import { wireHoverDetails } from "../shared/hoverDetails";
+import { wireGridPicker } from "../shared/gridPicker";
 import { schemeKeyOf } from "../shared/dispatchPool";
 import {
   getStageKindOverrides,
@@ -132,35 +133,35 @@ function render(): void {
 }
 
 /**
- * 手动纠正识别：结果区「＋ 补一个关…」——后台现查该关的 MAA/B站 方案并追加进当前结果，
- * 同时写入结果缓存（大窗口刷新/重开不丢）。
- * act="recode-stage"（整关替换）为兼容保留：当前 UI 已不再提供「改成…」入口。
+ * 手动补关：结果区「＋ 补一个关…」/ 网格选关（第十一轮 q3）——后台现查这些关的 MAA/B站 方案
+ * 并并入当前结果（后台会带上关卡链前置关），写入结果缓存（大窗口刷新/重开不丢）。
  */
-async function onStageRecode(sel: HTMLSelectElement): Promise<void> {
+async function applyStageCodes(codes: readonly string[]): Promise<void> {
   if (!current) return;
-  const act = sel.getAttribute("data-act");
-  const code = sel.value.trim().toUpperCase();
-  if (!act || !code) return;
-  const from = act === "recode-stage" ? sel.getAttribute("data-from") : null;
+  const list = codes.map((c) => String(c ?? "").trim().toUpperCase()).filter(Boolean);
+  if (!list.length) return;
   const st = document.getElementById("status");
-  sel.disabled = true;
-  if (st) st.textContent = `正在查询 ${code} 的候选方案（MAA + B站，约 3-10 秒）…`;
-  const pool = await queryStagePool(code);
-  if (!pool) {
-    if (st) st.innerHTML = `<span class="err">查询 ${code} 失败（无网络或该关暂无数据），可稍后重试</span>`;
-    sel.disabled = false;
-    sel.value = "";
+  const label = list.join("、");
+  if (st) st.textContent = `正在查询 ${label} 的候选方案（MAA + B站，约 3-10 秒）…`;
+  const pools = await queryStagePools(list);
+  if (!pools.length) {
+    if (st) st.innerHTML = `<span class="err">查询 ${label} 失败（无网络或该关暂无数据），可稍后重试</span>`;
     return;
   }
-  const next = patchStagePool(current, from, pool);
+  const next = patchStagePools(current, pools);
   current = next;
   const page = next.roster.page ?? 0;
   await putCachedResult(next, page);
-  await clearStageSkip(`${next.bvid}|${page}`, code);
-  sel.value = "";
-  sel.disabled = false;
-  if (st) st.textContent = `已更新 ${code} 的候选方案（${pool.schemes.length} 套）`;
+  for (const code of list) await clearStageSkip(`${next.bvid}|${page}`, code);
+  if (st) st.textContent = `已更新 ${pools.map((p) => p.displayCode).join("、")} 的候选方案（共 ${pools.length} 关）`;
   render();
+}
+
+async function onStageRecode(sel: HTMLSelectElement): Promise<void> {
+  const code = sel.value.trim().toUpperCase();
+  if (!code) return;
+  sel.value = "";
+  await applyStageCodes([code]);
 }
 
 async function loadLocal(): Promise<void> {
@@ -290,6 +291,7 @@ async function init(): Promise<void> {
   });
   wireRowClick(document.body);
   wireHoverDetails(document.body); // 候选池折叠块：悬浮即展开（第十轮 q3）
+  wireGridPicker(document.body, (codes) => void applyStageCodes(codes)); // 网格选关（第十一轮 q3）
   // 「＋ 补一个关…」：手动补漏识别的派遣关（body 委托，容器每次重渲染）
   document.body.addEventListener("change", (e) => {
     const sel = (e.target as HTMLElement | null)?.closest?.("select[data-act]") as HTMLSelectElement | null;

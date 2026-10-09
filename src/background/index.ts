@@ -16,6 +16,7 @@ import { buildWebCombinedMessages, parseMiningReply, type Candidate } from "../s
 import { recommend } from "../shared/recommender";
 import { OperatorDB } from "../shared/operatorDB";
 import { loadAliases } from "../shared/aliases";
+import { chainMapFor, chainPrereqs } from "../shared/constants";
 import {
   callLLM,
   getLlmConfig,
@@ -307,18 +308,46 @@ async function analyzeVideo(
   );
   stageResolution = visionResolution.resolution;
   meta = { ...meta, stage: visionResolution.displayStage };
-  const dispatchCandidates = visionResolution.dispatchCandidates;
+  const dispatchCandidates = [...visionResolution.dispatchCandidates];
+  // 第十一轮 q4：关卡链——某些派遣关必须先打它的前置关（实测 10→9、12→11），打前置关同样要占干员，
+  // 所以程序侧自动把前置关也纳入候选池（纯程序，不需要模型判断）。
+  {
+    const codes = () => dispatchCandidates.map((c) => c.displayCode);
+    const extra = chainPrereqs(codes());
+    if (extra.length) {
+      const levels = await getLevelDb().catch(() => []);
+      for (const code of extra) {
+        const level = levels.find((l) => l.displayCode.toUpperCase() === code);
+        dispatchCandidates.push({
+          gridPosition: 0,
+          displayCode: code,
+          stageId: level?.stageId ?? "",
+          stageName: level?.name ?? "",
+        });
+      }
+    }
+  }
+  const chainOf: Record<string, string> =
+    chainMapFor(dispatchCandidates.map((c) => c.displayCode)) ?? {}; // 依赖关 → 前置关（结果页说明用）
   // 识别依据：把「模型看到的是第几格 / 格内读到什么」摊开给用户看（截图顺序不固定，故不写"P1"）；
   // 识别不准时可用结果区的「不是这关」一键排除（render.ts 的 skip-stage / restore-stage）
   const dispatchGuideEvidence: Record<string, string> = {};
+  const chainDependents: Record<string, string> = {}; // 前置关 → 依赖它的关（反查，供说明用）
+  for (const [dep, prev] of Object.entries(chainOf)) chainDependents[prev] = dep;
   for (const c of dispatchCandidates) {
     const parts: string[] = [];
-    // 直接写出映射（序号 → 关卡码）：用户实测确认「序号」才是可靠依据，文字只是参考
-    if (c.gridPosition) parts.push(`特别战线网格第 ${c.gridPosition} 格 → ${c.displayCode}`);
-    else parts.push("来自视频标题/分P 的显示码");
+    const code = c.displayCode.toUpperCase();
+    if (chainDependents[code]) {
+      parts.push(`关卡链前置：${chainDependents[code]} 需要先打本关（已自动加入候选池）`);
+    } else if (c.gridPosition) {
+      // 直接写出映射（序号 → 关卡码）：用户实测确认「序号」才是可靠依据，文字只是参考
+      parts.push(`特别战线网格第 ${c.gridPosition} 格 → ${c.displayCode}`);
+    } else {
+      parts.push("来自视频标题/分P 的显示码");
+    }
     if (c.gridName) parts.push(`格内文字「${c.gridName}」`);
     if (c.needsVerification) parts.push("序号越界或与文字不一致，需核实");
-    dispatchGuideEvidence[c.displayCode.toUpperCase()] = parts.join("，");
+    dispatchGuideEvidence[code] = parts.join("，");
   }
   // 与下面的解析/推荐并行跑（MAA + B站查询较慢，不阻塞结果）
   let dispatchGuidesPromise: Promise<{
@@ -406,6 +435,7 @@ async function analyzeVideo(
       ? dispatchGuideEvidence
       : undefined,
     dispatchStageOptions,
+    dispatchStageChain: Object.keys(chainOf).length ? chainOf : undefined,
     stats,
   };
 }
@@ -494,30 +524,42 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     })().catch((err: Error) => sendResponse({ ok: false, error: err.message }));
     return true;
   }
-  // 结果区「＋ 补一个关…」：按单个显示码现查该关候选池（MAA + B站）
+  // 结果区「＋ 补一个关…」/ 网格选关：按显示码现查该关候选池（MAA + B站）；
+  // 带关卡链的关（10→9、12→11）会把它的前置关一并查回来（第十一轮 q4）
   if (msg?.type === "DISPATCH_QUERY_STAGE") {
     void (async () => {
-      const displayCode = String(msg.displayCode ?? "").trim().toUpperCase();
+      const requested = (Array.isArray(msg.displayCodes) ? msg.displayCodes : [msg.displayCode])
+        .map((c: unknown) => String(c ?? "").trim().toUpperCase())
+        .filter((c: string) => /^VEC-SP\d{1,2}$/.test(c));
+      const displayCode = requested[0] ?? "";
       const stageName = msg.stageName ? String(msg.stageName) : undefined;
-      if (!/^VEC-SP\d{1,2}$/.test(displayCode)) {
+      if (!requested.length) {
         sendResponse({ ok: false, error: "只支持 VEC-SPxx 形式的派遣关" });
         return;
       }
       const levels = await getLevelDb().catch(() => []);
-      const level = levels.find((l) => l.displayCode.toUpperCase() === displayCode);
+      const codes = [...requested, ...chainPrereqs(requested)].filter(
+        (c, i, arr) => arr.indexOf(c) === i,
+      );
+      const candidates = codes.map((code) => {
+        const level = levels.find((l) => l.displayCode.toUpperCase() === code);
+        return {
+          gridPosition: 0,
+          displayCode: code,
+          stageId: level?.stageId ?? "",
+          stageName: level?.name ?? (code === displayCode ? stageName ?? "" : ""),
+        };
+      });
       const opDB = await OperatorDB.load();
       await loadAliases();
-      const res = await buildDispatchGuides(
-        [{
-          gridPosition: 0,
-          displayCode,
-          stageId: level?.stageId ?? "",
-          stageName: level?.name ?? stageName ?? "",
-        }],
-        opDB,
-        { perStageLimit: 8, biliScope: "all", biliPages: 2, maxPartsVideos: 3, maxDescVideos: 0 },
-      );
-      sendResponse({ ok: true, pool: res.pools[0] ?? null, stats: res.stats });
+      const res = await buildDispatchGuides(candidates, opDB, {
+        perStageLimit: 8,
+        biliScope: "all",
+        biliPages: 2,
+        maxPartsVideos: 3,
+        maxDescVideos: 0,
+      });
+      sendResponse({ ok: true, pools: res.pools, pool: res.pools[0] ?? null, stats: res.stats });
     })().catch((err: Error) => sendResponse({ ok: false, error: err.message }));
     return true;
   }
