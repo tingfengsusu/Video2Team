@@ -62,6 +62,7 @@ const result = {
     slots: [{ operator: "凯尔希", isKey: true }, { operator: "能天使", support: true }, { operator: "令" }, { operator: "泥岩" }, { operator: "克洛丝" }, { operator: "遥" }],
   },
   substitutions: [
+    { removed: "凯尔希", replacement: "闪灵", stage: "VEC-C", evidence: "闪灵可以替凯尔希，练度够就行", source: "danmaku", kind: "operator_swap", likes: 9, verified: true },
     { removed: "泥岩", replacement: "星熊", stage: "VEC-C", evidence: "没有泥岩可以用星熊顶，注意技能", source: "comment", kind: "operator_swap", likes: 18, verified: true },
     { removed: "令", replacement: "余", stage: "VEC-C", evidence: "令可以换成余，练度够就行", source: "danmaku", kind: "operator_swap", likes: 6, verified: true },
   ],
