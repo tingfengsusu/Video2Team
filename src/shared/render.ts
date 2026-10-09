@@ -325,16 +325,18 @@ function pickedSchemeUrl(
 }
 
 /**
- * §10.6（q4）总览块：一屏看清三件事——
- * ① 本关（主推关）最终用哪些干员（被占用的灰+删除线）；② 各前置关选了哪套方案（或还没选）；
- * ③ 有几处替换/无解。放在结果最顶部，避免用户从长列表里自己拼。
+ * §10.6（q4）总览块：一屏看清本关（主推关）最终用哪些干员（被占用的灰+删除线）与替换/无解计数。
+ *
+ * 第十六轮（2026-10-09）**移除「🚩 前置关（派遣占用）」列表**（用户实测：多余）：
+ * 它逐关复述「这关选了哪套」，与下方「🚩 特别战线候选池」完全重复——候选池每关行本来就写着
+ * ✅ 已选什么 / ⬜ 未选，而且那才是可勾选的主交互；面板顶部还有「🔒 占用清单」chips、大窗口顶部有
+ * 「前置关 x/y 已选」chip。前置关进度不需要在总览里再列一遍。
  */
 function overviewBlock(
   dispatch: boolean,
   out: AnalysisOutput,
   hasOp: HasOp,
   lockedOps: LockedOps,
-  picks: DispatchPicks,
 ): string {
   const lineup = dispatch
     ? out.roster.slots.map((s) => s.operator)
@@ -347,32 +349,11 @@ function overviewBlock(
   const substituted = out.recommendations.filter((s) => s.status === "substituted").length;
   const unresolved = out.recommendations.filter((s) => s.status === "unresolved").length;
 
-  const pools = out.dispatchGuides ?? [];
-  const guideLines = pools.map((pool) => {
-    const pick = picks[pool.displayCode.toUpperCase()];
-    const chosen = pick
-      ? `✅ ${pick.ops.map((n) => esc(n)).join("·")}`
-      : `<span class="dim">⬜ 未选 → 在下方候选池勾选</span>`;
-    // 已选的关：显示码本身指向**那套已选攻略**（勾选后候选行会折叠，这里是唯一的一键入口）
-    const pickedLink = pickedSchemeUrl(pool, pick);
-    const codeHtml = pickedLink
-      ? `<a href="${esc(pickedLink.url)}" target="_blank" rel="noreferrer" style="color:#0969da;text-decoration:none" ` +
-        `title="${esc(`打开已选方案：${pickedLink.label}`)}">${esc(pool.displayCode)}</a>`
-      : esc(pool.displayCode);
-    return (
-      `<div style="font-size:12px;line-height:1.6"><b>${codeHtml}</b>` +
-      `<span class="dim">（${esc(pool.stageName || "关卡名待核实")}）</span> ${chosen}</div>`
-    );
-  });
-
   return (
     `<div style="background:#f7fbfe;border:1px solid #cfe6f5;border-radius:6px;padding:8px 10px;margin:8px 0">` +
     `<div style="font-size:13px;line-height:1.7"><b>${dispatch ? "🎯 本关阵容" : "🎯 本关用这套"}（${names.length} 人）</b>：${lineupHtml}</div>` +
     (substituted || unresolved
       ? `<div class="hint">${substituted ? `已替换 ${substituted} 处` : ""}${substituted && unresolved ? "，" : ""}${unresolved ? `无解 <span class="miss">${unresolved}</span> 处` : ""}</div>`
-      : "") +
-    (guideLines.length
-      ? `<div style="margin-top:4px;font-size:13px"><b>🚩 前置关（派遣占用）</b></div>` + guideLines.join("")
       : "") +
     `</div>`
   );
@@ -536,7 +517,9 @@ export function renderDispatchGuides(
       return (
         `<div class="stagepool" data-stage="${esc(pool.displayCode)}" data-picked="${picked ? "1" : "0"}" ` +
         `style="padding:6px 8px;margin:4px 0;background:#fffdf6;border:1px solid #eadfbd;border-radius:5px">` +
-        `<div style="font-size:12px">` +
+        // display:flow-root：窄面板（视频页 460px）下关名+已选一长，右侧浮动的来源计数会掉到第二行，
+        // 而浮动不撑高父盒 → 会盖住下一行的「识别依据」（实测重叠）。建 BFC 让它把父盒撑开、换行显示。
+        `<div style="font-size:12px;display:flow-root">` +
         `<b><a href="${esc(stageUrl)}" target="_blank" rel="noreferrer" style="color:#0969da;text-decoration:none" ` +
         `title="${esc(stageTip)}">` +
         `${esc(pool.displayCode)}${stageMark}</a></b>` +
@@ -702,7 +685,7 @@ export function renderResultSections(
       `<div class="stage">${esc(out.stage)} — ${heading}</div>` +
       `<div class="hint">${stageHint}</div>` +
       resolutionNote,
-    overview: overviewBlock(dispatch, out, hasOp, lockedOps, options.picks ?? {}),
+    overview: overviewBlock(dispatch, out, hasOp, lockedOps),
     guides: emptyLocksHint + dispatchGuides,
     slots:
       sectionHeading("🎯 本关适配阵容", `${out.recommendations.length} 个槽位`) +
