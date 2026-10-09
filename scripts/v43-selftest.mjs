@@ -1222,7 +1222,7 @@ check(
   })(),
 );
 check(
-  "被占用时最多列 2 条建议（带来源）",
+  "被占用时与该关的实战建议同一排版：每条独立成行、全部列出",
   (() => {
     const mk = (rep, src, likes) => ({
       removed: "凯尔希", replacement: rep, stage: "VEC-C", evidence: "可以替", source: src,
@@ -1234,7 +1234,7 @@ check(
       risk: "low", evidenceUrl: "", note: "",
     };
     const html = v43.renderSlot(slot, hasAll, { 凯尔希: "VEC-SP02（心中热火）" }, true, { ownStageCode: "VEC-C" });
-    return /可换成 <b>闪灵<\/b>.*／.*<b>夜莺<\/b>/.test(html) && !html.includes("苏苏洛");
+    return html.includes("闪灵") && html.includes("夜莺") && html.includes("苏苏洛") && (html.match(/class="sub-line"/g) ?? []).length === 3;
   })(),
 );
 check(
@@ -1250,9 +1250,10 @@ check(
     };
     const html = v43.renderSlot(slot, hasAll, { 凯尔希: "VEC-SP02（心中热火）" }, true, {
       ownStageCode: "VEC-C",
-      subsByOp: new Map([["凯尔希", sub]]),
+      subsByOp: new Map([["凯尔希", [sub]]]),
     });
-    return html.includes("本关这个位置被") && /可换成 <b>闪灵<\/b>/.test(html);
+    // 与「⚠ X → Y」槽位同一排版：一行说明 + 每条建议独立成行
+    return html.includes("本关这个位置被") && html.includes("实战建议：") && /class="sub-line"[\s\S]{0,120}闪灵/.test(html);
   })(),
 );
 check(
