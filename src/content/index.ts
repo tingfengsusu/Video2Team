@@ -32,6 +32,7 @@ import {
   type ResultCacheEntry,
 } from "../shared/resultCache";
 import { clearStageSkip, patchStagePool, queryStagePool } from "../shared/stageRecode";
+import { wireHoverDetails } from "../shared/hoverDetails";
 
 // ---------- 基础能力 ----------
 
@@ -712,6 +713,7 @@ function wireRowClick(container: HTMLElement): void {
     if (target?.matches?.('input[data-pick="1"]')) void onPickChange(target as HTMLInputElement);
   });
   wireRowClick(q<HTMLElement>("#result")); // 点整行 = 勾选该方案
+  wireHoverDetails(q<HTMLElement>("#result")); // 候选池折叠块：悬浮即展开（第十轮 q3）
   // 「＋ 补一个关…」：手动补漏识别的派遣关（change 委托）
   q("#result").addEventListener("change", (e: Event) => {
     const sel = (e.target as HTMLElement | null)?.closest?.("select[data-act]") as HTMLSelectElement | null;

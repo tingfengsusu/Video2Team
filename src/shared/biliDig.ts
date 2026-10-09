@@ -239,18 +239,32 @@ function singleCharPositions(text: string, name: string): number[] {
   return out;
 }
 
-/** 文本中出现的干员（字典 + 纠错集 → 标准全名），按出现顺序去重 */
+/** 文本中出现的干员（字典 + 纠错集 → 标准全名），按出现顺序去重。
+ *
+ * 长名优先匹配，且**已被更长名字吃掉的文本区间不再被更短的名字重复命中**——
+ * 实测（2026-10-09）：标题「麒麟R夜刀单人VEC-SP10」同时命中「麒麟R夜刀」和「夜刀」、
+ * 「焰狐龙梓兰」同时命中「焰狐龙梓兰」和「梓兰」，单人攻略被写成双干员。
+ * 文本里真的分开写了两个名字（如「麒麟R夜刀、夜刀」）仍然都能识别。
+ */
 export function matchOperators(text: string, dict: NameDict, index: NameIndex = buildNameIndex(dict)): string[] {
   const found: Array<{ full: string; pos: number }> = [];
   const seen = new Set<string>();
+  const covered: Array<[number, number]> = []; // 已被更长名字占用的区间 [start, end)
+  const taken = (p: number, len: number) => covered.some(([s, e]) => p >= s && p + len <= e);
+  const positionsOf = (name: string): number[] => {
+    if (name.length === 1) return singleCharPositions(text, name);
+    const out: number[] = [];
+    for (let i = text.indexOf(name); i >= 0; i = text.indexOf(name, i + 1)) out.push(i);
+    return out;
+  };
   for (const name of index.names) {
-    const positions = name.length === 1 ? singleCharPositions(text, name) : [text.indexOf(name)];
-    const pos = positions.find((p) => p >= 0);
+    const pos = positionsOf(name).find((p) => !taken(p, name.length));
     if (pos == null) continue;
     const full = dict.resolve(name);
     if (!dict.exists(full) || seen.has(full)) continue;
     seen.add(full);
     found.push({ full, pos });
+    covered.push([pos, pos + name.length]);
   }
   // 按命中词在文本中的位置排序（别名命中时用别名位置，不能用全名再查一次）
   found.sort((a, b) => a.pos - b.pos);
