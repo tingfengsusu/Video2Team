@@ -8,6 +8,7 @@ import type { AnalysisOutput, Box, LockedOps, TaskState } from "../shared/types"
 import { esc, renderResult, renderLockedSection, type HasOp } from "../shared/render";
 import {
   loadPicks,
+  resolvePickFromRow,
   togglePick,
   type DispatchPicks,
 } from "../shared/dispatchPicks";
@@ -324,26 +325,20 @@ function wireRowClick(container: HTMLElement): void {
  */
 async function onPickChange(input: HTMLInputElement): Promise<void> {
   if (!currentResult) return;
-  const stageCode = input.getAttribute("data-stage") ?? "";
-  const key = input.getAttribute("data-scheme") ?? "";
-  const pool = (currentResult.dispatchGuides ?? []).find(
-    (p) => p.displayCode.toUpperCase() === stageCode.toUpperCase(),
-  );
-  const scheme = pool?.schemes.find((s) => schemeKeyOf(s) === key);
-  if (!pool || !scheme) return;
-  const outcome = togglePick(lockedOps, dispatchPicks, {
-    stageCode: pool.displayCode,
-    stageName: pool.stageName,
-    key,
-    ops: scheme.operators,
-  });
+  const pick = resolvePickFromRow(input, currentResult);
+  if (!pick) {
+    $("status").innerHTML = `<span class="err">勾选未生效：这一行不在当前结果里（可能是旧结果缓存），请点「重新分析」后再试</span>`;
+    showResult(currentResult);
+    return;
+  }
+  const outcome = togglePick(lockedOps, dispatchPicks, pick);
   lockedOps = outcome.lockedOps;
   dispatchPicks = outcome.picks;
   await chrome.storage.local.set({ lockedOps, dispatchPicks });
   renderLocks();
   $("status").textContent = outcome.checked
-    ? `已占用 ${scheme.operators.length} 名干员（${pool.displayCode}）——下方结果已实时置灰`
-    : `已取消 ${pool.displayCode} 的占用`;
+    ? `已占用 ${pick.ops.length} 名干员（${pick.stageCode}）——下方结果已实时置灰`
+    : `已取消 ${pick.stageCode} 的占用`;
   showResult(currentResult);
 }
 

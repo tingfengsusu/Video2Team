@@ -14,7 +14,7 @@ import {
   renderResultSections,
   type HasOp,
 } from "../shared/render";
-import { loadPicks, togglePick, type DispatchPicks } from "../shared/dispatchPicks";
+import { loadPicks, resolvePickFromRow, togglePick, type DispatchPicks } from "../shared/dispatchPicks";
 import { schemeKeyOf } from "../shared/dispatchPool";
 import {
   getStageKindOverrides,
@@ -170,19 +170,14 @@ function wireRowClick(container: HTMLElement): void {
 /** 候选池勾选：与大窗口共用同一套 lockedOps / dispatchPicks，双向同步 */
 async function onPickChange(input: HTMLInputElement): Promise<void> {
   if (!current) return;
-  const stageCode = input.getAttribute("data-stage") ?? "";
-  const key = input.getAttribute("data-scheme") ?? "";
-  const pool = (current.dispatchGuides ?? []).find(
-    (p) => p.displayCode.toUpperCase() === stageCode.toUpperCase(),
-  );
-  const scheme = pool?.schemes.find((s) => schemeKeyOf(s) === key);
-  if (!pool || !scheme) return;
-  const outcome = togglePick(lockedOps, picks, {
-    stageCode: pool.displayCode,
-    stageName: pool.stageName,
-    key,
-    ops: scheme.operators,
-  });
+  const pick = resolvePickFromRow(input, current);
+  if (!pick) {
+    const st = document.getElementById("status");
+    if (st) st.innerHTML = `<span class="err">勾选未生效：这一行不在当前结果里（可能是旧结果缓存），请回面板重新分析</span>`;
+    render();
+    return;
+  }
+  const outcome = togglePick(lockedOps, picks, pick);
   lockedOps = outcome.lockedOps;
   picks = outcome.picks;
   await chrome.storage.local.set({ lockedOps, dispatchPicks: picks });
