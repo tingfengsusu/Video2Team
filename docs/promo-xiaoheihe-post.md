@@ -6,7 +6,7 @@
 
 **1. 要打哪些补给关，插件自己认**
 
-![补给关候选池：勾选一套后，别的关共用干员被置灰并标注占用来源](https://raw.githubusercontent.com/tingfengsusu/photo/main/video2team/v0.3.0/01-pool-occupied.png)
+![补给关候选池：勾选一套后，别的关共用干员被置灰并标注占用来源](promo-images-v2/01-pool-occupied.png)
 
 你把特别战线那一屏截进去（或粘贴），插件会按**序号**认关（顺序 = 从上到下、从左到右），而且会把它认的依据写出来——比如「特别战线网格第 5 格 → VEC-SP02，格内文字『催化装备』」。**认错了你一眼就能看出来**，底下还有「不是这关」可以把它去掉。
 
@@ -22,13 +22,13 @@
 
 **3. 新入口：「选择补给关…」**
 
-![选择补给关：按序号点选，可按住拖动连续选，也能取消识别错的关](https://raw.githubusercontent.com/tingfengsusu/photo/main/video2team/v0.3.0/03-supply-picker.png)
+![选择补给关：按序号点选，可按住拖动连续选，也能取消识别错的关](promo-images-v2/03-supply-picker.png)
 
 候选池顶部这个按钮，打开是一个**按序号排的补给网格**，像游戏里那样点：**按住拖动可以连续选**，已经在池里的默认勾着（取消它 = 这关识别错了，应用后会从列表移除）。适合识别不准或漏关的时候手动挑。
 
 **4. 大窗口结果页**
 
-![大窗口结果页：左边补给关候选池，右边本关阵容，勾选双向实时同步](https://raw.githubusercontent.com/tingfengsusu/photo/main/video2team/v0.3.0/04-big-window.png)
+![大窗口结果页：左边补给关候选池，右边本关阵容，勾选双向实时同步](promo-images-v2/04-big-window.png)
 
 点「⤢ 大窗口查看结果」会开一个独立窗口：**左栏补给关候选池、右栏本关阵容**，一屏看全，和视频页面板/扩展弹窗的勾选**双向实时同步**。视频页关掉，它也自己关。
 
@@ -41,7 +41,7 @@
 
 **【它到底做什么】**
 
-![结果总览：本关用这套 + 前置关各选了什么](https://raw.githubusercontent.com/tingfengsusu/photo/main/video2team/v0.3.0/02-overview.png)
+![结果总览：本关用这套 + 前置关各选了什么](promo-images-v2/02-overview.png)
 
 一句话：**识别攻略视频的编队 → 把这关弹幕+评论里所有「XX 可以换 XX」挖出来 → 和你的练度表逐一比对 → 给你一份你能用的阵容。**
 
