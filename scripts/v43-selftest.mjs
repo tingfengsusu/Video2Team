@@ -1293,6 +1293,10 @@ check(
   try {
     const up = await v43.checkForUpdate();
     check("远端更高 → 提示更新", up.hasUpdate === true && up.latest === "0.2.2", String(up.latest));
+    globalThis.fetch = async () => ({ ok: true, json: async () => ({ version: "0.2.1" }) });
+    store.versionCheckCache = undefined;
+    const same = await v43.checkForUpdate({ force: true });
+    check("同版本不提示（不会误报更新）", same.hasUpdate === false, String(same.latest));
     await v43.ignoreVersion("0.2.2");
     const ignored = await v43.checkForUpdate();
     check("点过「忽略」后同一版本不再提示", ignored.hasUpdate === false);
@@ -1300,6 +1304,24 @@ check(
     globalThis.chrome = realChrome;
     globalThis.fetch = realFetch;
   }
+}
+
+{
+  const realChrome = globalThis.chrome;
+  globalThis.chrome = { storage: { local: { get: async () => ({ devRemoteBase: "http://127.0.0.1:8787/docs" }) } } };
+  let withDev = [];
+  let without = [];
+  try {
+    withDev = await v43.effectiveFileUrls("docs/version.json");
+    globalThis.chrome = { storage: { local: { get: async () => ({}) } } };
+    without = await v43.effectiveFileUrls("docs/version.json");
+  } finally {
+    globalThis.chrome = realChrome;
+  }
+  check(
+    "调试来源覆盖：设了 devRemoteBase 就只走它（可用本地文件测更新/公告）",
+    withDev.length === 1 && withDev[0] === "http://127.0.0.1:8787/docs/version.json" && without.length === 2,
+  );
 }
 
 console.log(failures === 0 ? "\n✅ v4.3 修复清单验收自测全部通过" : `\n❌ ${failures} 项未通过`);

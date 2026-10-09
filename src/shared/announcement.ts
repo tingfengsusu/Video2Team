@@ -19,13 +19,13 @@ export interface AnnouncementItem {
   body: string;
 }
 
-import { fetchFirstJson, repoFileUrls } from "./remoteFile";
+import { effectiveFileUrls, fetchFirstJson } from "./remoteFile";
 
 const CACHE_KEY = "announcementCache";
 const READ_KEY = "announcementRead";
 const TTL_MS = 6 * 60 * 60 * 1000;
 
-const SOURCES = repoFileUrls("docs/announcement.json");
+const REMOTE_PATH = "docs/announcement.json";
 
 interface CacheEntry {
   ts: number;
@@ -75,7 +75,7 @@ async function readReadIds(): Promise<string[]> {
 }
 
 async function fetchFromSources(): Promise<AnnouncementItem[] | null> {
-  const items = parseAnnouncement(await fetchFirstJson(SOURCES));
+  const items = parseAnnouncement(await fetchFirstJson(await effectiveFileUrls(REMOTE_PATH)));
   return items.length ? items : null;
 }
 

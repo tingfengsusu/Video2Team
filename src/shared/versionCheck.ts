@@ -16,13 +16,13 @@ export interface RemoteVersion {
   steps?: string[];
 }
 
-import { fetchFirstJson, repoFileUrls } from "./remoteFile";
+import { effectiveFileUrls, fetchFirstJson } from "./remoteFile";
 
 const CACHE_KEY = "versionCheckCache";
 const IGNORE_KEY = "versionIgnored";
 const TTL_MS = 6 * 60 * 60 * 1000;
 
-const SOURCES = repoFileUrls("docs/version.json");
+const REMOTE_PATH = "docs/version.json";
 
 interface CacheEntry {
   ts: number;
@@ -100,7 +100,7 @@ export async function ignoreVersion(version: string): Promise<void> {
 }
 
 async function fetchFromSources(): Promise<RemoteVersion | null> {
-  return parseVersionFile(await fetchFirstJson(SOURCES));
+  return parseVersionFile(await fetchFirstJson(await effectiveFileUrls(REMOTE_PATH)));
 }
 
 /**

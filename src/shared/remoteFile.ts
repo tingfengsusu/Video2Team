@@ -33,11 +33,25 @@ export async function fetchFirstJson(
   }
 }
 
-/** 远端仓库文件的候选地址（raw 官方 + jsdelivr CDN） */
+/** 远端仓库文件的候选地址：jsdelivr CDN → raw.githubusercontent.com（并行竞速，见 fetchFirstJson） */
 export function repoFileUrls(path: string, repo = "tingfengsusu/Video2Team", branch = "main"): string[] {
   const p = String(path ?? "").replace(/^\/+/, "");
   return [
     `https://cdn.jsdelivr.net/gh/${repo}@${branch}/${p}`,
     `https://raw.githubusercontent.com/${repo}/${branch}/${p}`,
   ];
+}
+
+/** 调试用：把来源指到别的地址（如 `http://127.0.0.1:8787/docs` 用本地文件测试更新/公告） */
+export const DEV_SOURCE_KEY = "devRemoteBase";
+
+export async function effectiveFileUrls(path: string): Promise<string[]> {
+  try {
+    const v = (await chrome.storage.local.get(DEV_SOURCE_KEY)) as { [k: string]: string | undefined };
+    const base = String(v[DEV_SOURCE_KEY] ?? "").trim().replace(/\/+$/, "");
+    if (base) return [`${base}/${String(path ?? "").replace(/^\/+/, "").split("/").pop()}`];
+  } catch {
+    /* 没设置就用线上 */
+  }
+  return repoFileUrls(path);
 }

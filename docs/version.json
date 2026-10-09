@@ -7,10 +7,10 @@
     "大窗口跟随视频页关闭；换视频不再串结果",
     "启动公告：仓库 docs/announcement.json"
   ],
-  "releaseUrl": "https://github.com/tingfengsusu/Video2Team",
+  "releaseUrl": "https://github.com/tingfengsusu/Video2Team/releases",
   "steps": [
-    "在仓库目录执行：npm run selfupdate（= git pull --ff-only && npm run build）",
-    "回到 chrome://extensions，点 Video2Team 的「刷新」",
-    "已经打开的 B 站页面按 F5 重新加载一次"
+    "开发者（本机有 git+node）：在仓库目录执行 npm run selfupdate（= git pull --ff-only && npm run build）",
+    "普通用户（没有 npm）：到 Releases 下载 Video2Team_v0.2.1.zip，解压覆盖你加载扩展的那个文件夹",
+    "两种方式之后都要：chrome://extensions 点 Video2Team 的「刷新」，再 F5 一下已打开的 B 站页面"
   ]
 }
