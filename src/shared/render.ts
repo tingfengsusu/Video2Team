@@ -99,7 +99,6 @@ export function renderSlot(slot: RecommendedSlot, hasOp: HasOp, lockedOps: Locke
 
 export interface ResultRenderOptions {
   stageKind?: StageKind;
-  allowDispatchSwitch?: boolean;
   ambiguousDispatch?: boolean;
   /** §9.3 候选池勾选态（关卡显示码 → 已勾选方案） */
   picks?: DispatchPicks;
@@ -481,18 +480,21 @@ export function renderDispatchGuides(
   // 网格选关（第十一轮 q3）：像游戏里那样按序号点选派遣关——漏好几关时比逐个下拉快得多；
   // 已在候选池里的格子禁用（避免重复查询），选中的交给 wireGridPicker → applyStageCodes。
   const stageOptions = opts.stageOptions ?? [];
+  // 已在候选池的关：默认勾着（能看到当前状态），但应用时**跳过查询**、也不会重复加（第十二轮 p1）
+  const inPoolCount = stageOptions.filter((o) => presentCodes.has(o.displayCode.toUpperCase())).length;
   const gridPicker = stageOptions.length
     ? `<div class="gridpicker" hidden>` +
       `<div class="gp-card" role="dialog" aria-label="按网格选关">` +
       `<div class="gp-title">特别战线 · 按网格选关` +
-      `<span class="gp-sub">序号 = 从上到下、从左到右（灰格/白格也占号），与识别依据是同一套编号</span></div>` +
+      `<span class="gp-sub">序号 = 从上到下、从左到右（灰格/白格也占号），与识别依据是同一套编号；` +
+      `按住拖动可连续点选（滑过哪些格就选哪些），已在候选池的关默认勾着、不会重复查询</span></div>` +
       `<div class="gp-grid">` +
       stageOptions
         .map((o, i) => {
           const inPool = presentCodes.has(o.displayCode.toUpperCase());
           return (
-            `<button type="button" class="gp-cell${inPool ? " in-pool" : ""}" data-code="${esc(o.displayCode)}"` +
-            (inPool ? " disabled" : "") +
+            `<button type="button" class="gp-cell${inPool ? " in-pool on" : ""}" data-code="${esc(o.displayCode)}"` +
+            (inPool ? ` data-in-pool="1"` : "") +
             ` title="${esc(`${o.displayCode} ${o.stageName}${inPool ? "（已在候选池）" : ""}`)}">` +
             `<b>${i + 1}</b><span>${esc(o.displayCode)}</span><i>${esc(o.stageName)}</i></button>`
           );
@@ -500,7 +502,7 @@ export function renderDispatchGuides(
         .join("") +
       `</div>` +
       `<div class="gp-foot">` +
-      `<span class="gp-count dim">已选 <b>0</b> 关</span>` +
+      `<span class="gp-count dim">已选 <b>${inPoolCount}</b> 关<span class="gp-new"></span></span>` +
       `<span class="gp-actions">` +
       `<button type="button" class="stage-select" data-act="close-grid">取消</button>` +
       `<button type="button" class="stage-select gp-apply" data-act="apply-grid" disabled>查询并加入候选池</button>` +
@@ -564,12 +566,8 @@ export function renderResultSections(
     : dispatch
       ? "本关结果可加入占用清单；后续推图关会自动避开这些干员。"
       : "本关为推进关：结果已避开占用清单中的干员。";
-  const allowSwitch = !ambiguousDispatch && (options.allowDispatchSwitch ?? stageKind === "unknown");
-  const switchLine =
-    allowSwitch
-      ? `<div class="hint">关卡类型无法自动判断，当前按推进关处理。` +
-        `<a href="#" data-act="mark-dispatch" class="link">这其实是派遣关 → 当作派遣关</a></div>`
-      : "";
+  // 第十二轮 p4：「这其实是派遣关 → 当作派遣关」已移除——手动挑关走候选池的「按网格选关…」，
+  // 同一个入口更直观，也少一个"改判定"的隐式状态
   const resolutionNote = out.stageResolution?.note
     ? `<div class="hint" style="color:#b8860b">关卡识别：${esc(out.stageResolution.note)}</div>`
     : "";
@@ -598,7 +596,6 @@ export function renderResultSections(
       `<div class="video-title">${esc(out.videoTitle)}</div>` +
       `<div class="stage">${esc(out.stage)} — ${heading}</div>` +
       `<div class="hint">${stageHint}</div>` +
-      switchLine +
       resolutionNote,
     overview: overviewBlock(dispatch, out, hasOp, lockedOps, options.picks ?? {}),
     guides: emptyLocksHint + dispatchGuides,

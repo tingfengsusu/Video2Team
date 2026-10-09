@@ -317,7 +317,8 @@ check("多黄格提示先核对关卡编号", ambiguousHtml.includes("未唯一�
 check("多黄格不显示手动切换链接", !ambiguousHtml.includes("这其实是派遣关"));
 
 const unknownHtml = stage.renderResult(result, () => false, {}, { stageKind: "unknown" });
-check("无法判断默认目标关并提供小链接", unknownHtml.includes("这其实是派遣关 → 当作派遣关"));
+// 第十二轮 p4：「这其实是派遣关 → 当作派遣关」已移除（手动挑关走候选池的「按网格选关…」）
+check("不再出现「当作派遣关」小链接", !unknownHtml.includes("mark-dispatch") && !unknownHtml.includes("这其实是派遣关"));
 
 const guideResult = {
   ...result,

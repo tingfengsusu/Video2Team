@@ -53,6 +53,8 @@
       /* ---- 布局：总览铺满 + 两栏（主=本关阵容 / 侧=前置关候选池） ---- */
       main { max-width: 1240px; margin: 0 auto; padding: 16px 20px 40px; }
       .cols { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr); gap: 16px; align-items: start; }
+      /* 没有派遣关（普通关）：单栏居中显示，别在左边留一张空卡片（第十二轮 p3） */
+      .cols.single { grid-template-columns: minmax(0, 1fr); max-width: 880px; margin: 0 auto; }
       @media (max-width: 900px) { .cols { grid-template-columns: minmax(0, 1fr); } }
       .card {
         background: var(--card); border: 1px solid var(--line); border-radius: 12px;

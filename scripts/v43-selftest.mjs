@@ -35,6 +35,7 @@ await esbuild.build({
       export * from "../src/shared/miner.ts";
       export * from "../src/shared/constants.ts";
       export * from "../src/shared/gridPicker.ts";
+      export * from "../src/shared/stageRecode.ts";
     `,
     resolveDir: join(root, "scripts"),
     sourcefile: "v43-selftest-entry.ts",
@@ -876,6 +877,54 @@ check(
   v43.matchOperators("麒麟R夜刀、夜刀 双人 VEC-SP10", db).join("、"),
 );
 
+console.log("\n== 第十二轮 p1/p3：序号归位 + 关卡名与干员名撞车护栏 ==");
+{
+  const pool02 = { ...guidePool };
+  const pool10 = { ...guidePool, displayCode: "VEC-SP10", stageId: "act3break_sp10", stageName: "后院死局" };
+  const withOrder = {
+    ...baseResult,
+    dispatchGuides: [pool10],
+    dispatchStageOptions: [
+      { displayCode: "VEC-SP02", stageName: "心中热火" },
+      { displayCode: "VEC-SP05", stageName: "难以相交" },
+      { displayCode: "VEC-SP07", stageName: "荒废矿道" },
+      { displayCode: "VEC-SP10", stageName: "后院死局" },
+    ],
+  };
+  const merged = v43.patchStagePools(withOrder, [pool02]);
+  check(
+    "手动补的关按本活动序号归位（SP02 排到 SP10 前面，不是追加在末尾）",
+    merged.dispatchGuides.map((p) => p.displayCode).join(",") === "VEC-SP02,VEC-SP10",
+    merged.dispatchGuides.map((p) => p.displayCode).join(","),
+  );
+}
+{
+  // 实测坑：关卡「0-9」的通名是「临光」，而「临光」也是干员名、还是「耀骑士临光」的子串
+  const lv = [
+    { displayCode: "0-9", name: "临光", stageId: "main_09", eventName: "主线" },
+    { displayCode: "VEC-SP07", name: "投资回报", stageId: "act3break_sp07", eventName: "矢量突破#3" },
+  ];
+  const guard = { isOperatorLike: (n) => n === "临光" || "耀骑士临光".includes(n) };
+  const fromDesc = v43.resolveStageFromText(
+    "【月行水上】SR-EX-1至8突袭",
+    "SR-EX-1至8 摆完挂机",
+    "阵容里用耀骑士临光替代了原来的干员，临光开技能即可",
+    lv,
+    guard,
+  );
+  check(
+    "简介里提到干员（临光/耀骑士临光）不再把关卡带跑成「0-9（临光）」",
+    fromDesc.displayCode !== "0-9",
+    `${fromDesc.source}/${fromDesc.displayCode ?? "(无)"}`,
+  );
+  const fromTitle = v43.resolveStageFromText("0-9 临光 挂机", "", "", lv, guard);
+  check(
+    "但标题里真写了这个关名时仍然算数（0-9 临光）",
+    fromTitle.displayCode === "0-9",
+    `${fromTitle.source}/${fromTitle.displayCode ?? "(无)"}`,
+  );
+}
+
 console.log("\n== 第十一轮 q3/q4：网格选关 + 关卡链 ==");
 check(
   "关卡链配置：SP10→SP09、SP12→SP11，且不重复加已在列表里的",
@@ -924,12 +973,13 @@ check(
     gridHtml.includes('class="gridpicker"') && gridHtml.includes("<b>1</b>") && gridHtml.includes("<b>3</b>"),
   );
   check(
-    "已在候选池的格子禁用（避免重复查询）",
-    /class="gp-cell in-pool"[^>]*disabled/.test(gridHtml),
+    "已在候选池的格子默认勾着、但标成 in-pool（应用时跳过查询，第十二轮 p1）",
+    /class="gp-cell in-pool on"[^>]*data-in-pool="1"/.test(gridHtml) &&
+      !/class="gp-cell in-pool[^"]*"[^>]*disabled/.test(gridHtml),
   );
   check(
-    "应用按钮默认禁用 + 计数从 0 起",
-    /data-act="apply-grid" disabled/.test(gridHtml) && gridHtml.includes("已选 <b>0</b> 关"),
+    "已选计数从「池里的关」起算，且没有新选的关时应用按钮禁用",
+    /data-act="apply-grid" disabled/.test(gridHtml) && gridHtml.includes('已选 <b>1</b> 关'),
   );
   const noOptionsHtml = v43.renderResult(baseResult, hasAll, {}, { stageKind: "target" });
   check("拿不到派遣关清单时不渲染浮层/按钮", !noOptionsHtml.includes("gridpicker") && !noOptionsHtml.includes("open-grid"));

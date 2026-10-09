@@ -105,7 +105,6 @@ function render(): void {
   $("stageName").textContent = current.stage;
   const sections = renderResultSections(current, hasOp, lockedOps, {
     stageKind: kind.kind,
-    allowDispatchSwitch: kind.kind === "unknown" && !ambiguous,
     ambiguousDispatch: ambiguous,
     picks,
     hideUnavailable,
@@ -116,18 +115,23 @@ function render(): void {
     excludedStages,
     stageOptions: current.dispatchStageOptions,
   });
-  // 左栏：前置关候选池（主交互，第十一轮 p1 按用户口径换位）；右栏：本关用这套 + 阵容 + 占用清单
-  $("col-main").innerHTML =
-    `<div class="card">` +
-    `<div class="card-title">🚩 前置关候选池 <span class="sub">勾选＝该关采用这套（点整行也能勾选）</span></div>` +
-    `${sections.guides || '<div class="hint">本次没有识别到前置关。</div>'}` +
-    `</div>`;
-  $("col-side").innerHTML =
-    `<div class="card">${sections.intro}${sections.overview}${sections.slots}</div>` +
-    `<div class="card">` +
-    `<div class="card-title">🔒 占用清单 <span class="sub" id="lockCount"></span></div>` +
-    `<div id="locks"></div>` +
-    `</div>`;
+  // 左栏：前置关候选池（主交互）；右栏：本关用这套 + 阵容。
+  // 第十二轮 p2/p3：移除「占用清单」卡片（占用状态在每个干员名上就有，顶部还有「占用 N 人」chip，
+  // 「清除占用」按钮独立走 storage，不依赖这张卡）；没有派遣关时（普通关）改单栏居中，不留空卡片。
+  const hasPoolSection = !!sections.guides;
+  document.querySelector(".cols")?.classList.toggle("single", !hasPoolSection);
+  const resultCard = `<div class="card">${sections.intro}${sections.overview}${sections.slots}</div>`;
+  if (hasPoolSection) {
+    $("col-main").innerHTML =
+      `<div class="card">` +
+      `<div class="card-title">🚩 前置关候选池 <span class="sub">勾选＝该关采用这套（点整行也能勾选）</span></div>` +
+      `${sections.guides}` +
+      `</div>`;
+    $("col-side").innerHTML = resultCard;
+  } else {
+    $("col-main").innerHTML = resultCard;
+    $("col-side").innerHTML = "";
+  }
   renderLocks();
 }
 

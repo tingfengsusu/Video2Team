@@ -48,15 +48,28 @@ export function patchStagePool(result: AnalysisOutput, pool: MergedStagePool): A
   return { ...result, dispatchGuides: guides };
 }
 
-/** 把多关候选池并入结果，并同步「关卡链」说明（第十一轮 q4：手动补关也要带上链条） */
+/** 把多关候选池并入结果：按**本活动的序号**排回去（第十二轮 p1：新加的关要落在它对应的序号位置，
+ *  而不是一律追加到末尾），并同步「关卡链」说明（手动补关也要带上链条）。 */
 export function patchStagePools(
   result: AnalysisOutput,
   pools: readonly MergedStagePool[],
 ): AnalysisOutput {
-  let next = pools.reduce<AnalysisOutput>((acc, pool) => patchStagePool(acc, pool), result);
-  const chain = chainMapFor((next.dispatchGuides ?? []).map((p) => p.displayCode));
-  next = { ...next, dispatchStageChain: chain };
-  return next;
+  const next = pools.reduce<AnalysisOutput>((acc, pool) => patchStagePool(acc, pool), result);
+  const order = new Map(
+    (result.dispatchStageOptions ?? []).map((o, i) => [o.displayCode.toUpperCase(), i]),
+  );
+  const guides = [...(next.dispatchGuides ?? [])];
+  // 稳定排序：清单里没有的关（理论上不该有）排在后面并保持原有相对顺序
+  guides.sort(
+    (a, b) =>
+      (order.get(a.displayCode.toUpperCase()) ?? Number.MAX_SAFE_INTEGER) -
+      (order.get(b.displayCode.toUpperCase()) ?? Number.MAX_SAFE_INTEGER),
+  );
+  return {
+    ...next,
+    dispatchGuides: guides,
+    dispatchStageChain: chainMapFor(guides.map((p) => p.displayCode)),
+  };
 }
 
 /** 取消某关的「不是这关」排除记录（改/补关后应能正常显示） */

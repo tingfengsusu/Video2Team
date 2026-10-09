@@ -20,7 +20,6 @@ import {
   getStageKindOverrides,
   isAmbiguousStageResolution,
   resolveStageKind,
-  setStageKindOverride,
   shouldShowDispatchAction,
   type StageKindOverrides,
 } from "../shared/stageKind";
@@ -391,7 +390,6 @@ function showResult(result: AnalysisOutput): void {
   const ambiguousDispatch = isAmbiguousStageResolution(result.stageResolution);
   q("#result").innerHTML = renderResult(result, hasOp, lockedOps, {
     stageKind: stageKind.kind,
-    allowDispatchSwitch: stageKind.kind === "unknown" && !ambiguousDispatch,
     ambiguousDispatch,
     picks: dispatchPicks,
     hideUnavailable,
@@ -400,15 +398,6 @@ function showResult(result: AnalysisOutput): void {
     guideEvidence: result.dispatchGuideEvidence,
     excludedStages,
     stageOptions: result.dispatchStageOptions,
-  });
-
-  const switchLink = shadow?.querySelector<HTMLAnchorElement>('[data-act="mark-dispatch"]');
-  switchLink?.addEventListener("click", (e) => {
-    e.preventDefault();
-    void (async () => {
-      stageKindOverrides = await setStageKindOverride(result.stage, result.videoTitle, "dispatch");
-      showResult(result);
-    })();
   });
 
   // 「⤢ 大窗口查看结果」：任何关卡类型都提供（独立扩展窗口，一次看全，勾选双向同步）
