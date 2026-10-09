@@ -454,8 +454,51 @@ check(
   "有启用补给数但读不到格位 → 给出可见原因（不再静默当成非派遣关）",
   noCellButSupplies.candidates.length === 0 &&
     typeof noCellButSupplies.note === "string" &&
-    /当前启用补给 6 个/.test(noCellButSupplies.note),
+    /「当前启用补给」显示 6 个/.test(noCellButSupplies.note) &&
+    /格位/.test(noCellButSupplies.note) &&
+    /模型说明/.test(noCellButSupplies.note),
   noCellButSupplies.note,
+);
+// 第十轮补：模型数出了 4×4 与 6 个启用格，只因"格内文字难辨认"整组留空 → 提示要带上尺寸与模型原话
+// 第十轮补：提示词必须把「格位」写成必填、格内文字选填（实测模型因"文字难辨认"整组留空）
+{
+  const promptText = String(
+    v43.buildWebCombinedMessages("VEC-C", "阵容文本", [], [], ["data:image/png;base64,x"]).messages[1].content[0]
+      .text ?? "",
+  );
+  check(
+    "提示词：格位必填、格名选填（文字读不清也要逐格填 position）",
+    /格位是必填项/.test(promptText) && /看不清文字完全不影响填格位/.test(promptText),
+  );
+  check("提示词：明确不许因文字没读清而整组留空", /更不能因此整组留空/.test(promptText));
+  check(
+    "提示词：gridRows/gridColumnsTotal 必须填字段并给了 4×4 例子",
+    /填进这两个字段/.test(promptText) && /4×4 网格里有 6 个高亮格/.test(promptText),
+  );
+}
+check(
+  "只给出网格尺寸时同样触发提示，并附上模型原话",
+  (() => {
+    const r = v43.resolveDispatchGridFromVision(
+      "VEC-C",
+      "【矢量突破】VEC-SP10 后院死局",
+      "",
+      {
+        explicitCode: "",
+        gridRows: 4,
+        gridColumnsTotal: 4,
+        enabledSupplies: 6,
+        gridCells: [],
+        note: "黄色格子内部文字难以精确辨认，故不填写具体格子信息",
+      },
+      levels,
+    );
+    return (
+      r.candidates.length === 0 &&
+      /（4×4）/.test(r.note ?? "") &&
+      /黄色格子内部文字难以精确辨认/.test(r.note ?? "")
+    );
+  })(),
 );
 check(
   "没有任何网格线索时仍然静默（不误报）",
