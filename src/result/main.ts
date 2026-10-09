@@ -32,6 +32,20 @@ interface BigResultPayload {
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
+/**
+ * 安全绑定：元素不存在时只告警、不抛错。
+ * 教训（2026-10-09）：页面里某个面板被删/在无结果时不渲染，而 init() 仍去 addEventListener →
+ * 抛错 → 其后所有监听（勾选、点行、Esc、storage 同步）都没挂上，表现为"怎么点都没反应"。
+ */
+function on(id: string, event: string, handler: (e: Event) => void): void {
+  const el = document.getElementById(id);
+  if (!el) {
+    console.warn(`[result] 页面缺少 #${id}，已跳过该绑定`);
+    return;
+  }
+  el.addEventListener(event, handler);
+}
+
 let current: AnalysisOutput | null = null;
 let lockedOps: LockedOps = {};
 let picks: DispatchPicks = {};
@@ -206,7 +220,7 @@ async function init(): Promise<void> {
   renderLocks();
   render();
 
-  $("refreshBtn").addEventListener("click", () => {
+  on("refreshBtn", "click", () => {
     void (async () => {
       await loadLocal();
       await loadResult();
@@ -218,12 +232,13 @@ async function init(): Promise<void> {
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") window.close();
   });
-  $("closeBtn").addEventListener("click", () => window.close());
-  $("clearLocks").addEventListener("click", () => {
+  on("closeBtn", "click", () => window.close());
+  on("clearLocks", "click", () => {
     void chrome.storage.local.set({ lockedOps: {}, dispatchPicks: {} });
   });
-  $("locks").addEventListener("click", (e) => {
-    const rm = (e.target as HTMLElement).closest(".rmlock");
+  // 占用 chip 的「移除」：body 委托（#locks 只在有结果时渲染，委托写法与它在不在无关）
+  document.body.addEventListener("click", (e) => {
+    const rm = (e.target as HTMLElement | null)?.closest(".rmlock");
     if (!rm) return;
     const name = rm.getAttribute("data-name") ?? "";
     void (async () => {
