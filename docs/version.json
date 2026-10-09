@@ -1,0 +1,16 @@
+{
+  "version": "0.2.1",
+  "date": "2026-10-09",
+  "notes": [
+    "特别战线：识别「选择补给关…」入口（可点选/拖动、也能取消识别错的关）",
+    "关卡链自动纳入（VEC-SP10→SP09、VEC-SP12→SP11）",
+    "大窗口跟随视频页关闭；换视频不再串结果",
+    "启动公告：仓库 docs/announcement.json"
+  ],
+  "releaseUrl": "https://github.com/tingfengsusu/Video2Team",
+  "steps": [
+    "在仓库目录执行：npm run selfupdate（= git pull --ff-only && npm run build）",
+    "回到 chrome://extensions，点 Video2Team 的「刷新」",
+    "已经打开的 B 站页面按 F5 重新加载一次"
+  ]
+}

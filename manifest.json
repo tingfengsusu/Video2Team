@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Video2Team · 方舟作业适配器",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "把大佬的作业，改成你抄得动的作业 — B站明日方舟挂机攻略阵容适配",
   "permissions": [
     "storage",

@@ -19,14 +19,13 @@ export interface AnnouncementItem {
   body: string;
 }
 
+import { fetchFirstJson, repoFileUrls } from "./remoteFile";
+
 const CACHE_KEY = "announcementCache";
 const READ_KEY = "announcementRead";
 const TTL_MS = 6 * 60 * 60 * 1000;
 
-const SOURCES = [
-  "https://raw.githubusercontent.com/tingfengsusu/Video2Team/main/docs/announcement.json",
-  "https://cdn.jsdelivr.net/gh/tingfengsusu/Video2Team@main/docs/announcement.json",
-];
+const SOURCES = repoFileUrls("docs/announcement.json");
 
 interface CacheEntry {
   ts: number;
@@ -76,17 +75,8 @@ async function readReadIds(): Promise<string[]> {
 }
 
 async function fetchFromSources(): Promise<AnnouncementItem[] | null> {
-  for (const url of SOURCES) {
-    try {
-      const res = await fetch(url, { cache: "no-cache" });
-      if (!res.ok) continue;
-      const items = parseAnnouncement(await res.json());
-      if (items.length) return items;
-    } catch {
-      /* 换下一个源 */
-    }
-  }
-  return null;
+  const items = parseAnnouncement(await fetchFirstJson(SOURCES));
+  return items.length ? items : null;
 }
 
 /**

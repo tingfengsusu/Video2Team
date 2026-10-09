@@ -34,6 +34,7 @@ import {
 import { clearStageSkip, dropStagePools, excludeStages, patchStagePools, queryStagePools } from "../shared/stageRecode";
 import { wireHoverDetails } from "../shared/hoverDetails";
 import { dismissAnnouncement, readAnnouncement, type AnnouncementItem } from "../shared/announcement";
+import { checkForUpdate, ignoreVersion } from "../shared/versionCheck";
 import { wireGridPicker } from "../shared/gridPicker";
 import { wireShowHidden } from "../shared/toggles";
 
@@ -150,6 +151,14 @@ const STYLE = `
   .announce[hidden] { display: none; }
   .announce b { color: #333; }
   .announce a { color: #23ade5; text-decoration: none; cursor: pointer; margin-left: auto; white-space: nowrap; }
+  /* 更新提示：蓝色左边条 */
+  .update { display: flex; align-items: flex-start; gap: 6px; font-size: 12px; line-height: 1.6;
+            background: #f3f8ff; border: 1px solid #cfe3ff; border-left: 3px solid #23ade5;
+            border-radius: 6px; padding: 6px 8px; margin-bottom: 8px; color: #555; }
+  .update[hidden] { display: none; }
+  .update b { color: #0969da; }
+  .update .up-actions { margin-left: auto; display: inline-flex; gap: 8px; white-space: nowrap; }
+  .update .up-link { color: #23ade5; text-decoration: none; cursor: pointer; }
   .close { border: none; background: #f0f3f5; border-radius: 6px; padding: 2px 10px;
            font-size: 14px; cursor: pointer; color: #666; }
   .close:hover { background: #e2e8ed; }
@@ -237,6 +246,8 @@ const PANEL_HTML = `
     <div class="tagline">把大佬的作业，改成你抄得动的作业</div>
     <!-- 公告（第十五轮 q3）：从仓库读，没读过才显示 -->
     <div class="announce" id="announceBar" hidden></div>
+    <!-- 更新提示（第十五轮 q4 方案 3）：远端 docs/version.json 比本地新才显示 -->
+    <div class="update" id="updateBar" hidden></div>
     <div class="readiness hint" style="margin-bottom:6px"></div>
     <button class="settings" data-act="settings" title="设置 API Key / 导入练度表">⚙ 设置</button>
 
@@ -653,6 +664,7 @@ async function openPanel(): Promise<void> {
   images = await readImages();
   renderThumbs();
   void renderAnnouncement();
+  void renderUpdate();
   // 恢复后台任务状态
   const resp = (await chrome.runtime.sendMessage({ type: "GET_TASK" }).catch(() => null)) as
     | { task: TaskState | null }
@@ -700,6 +712,51 @@ async function renderAnnouncement(): Promise<void> {
   bar.querySelector<HTMLAnchorElement>('[data-act="announce-read"]')?.addEventListener("click", (e) => {
     e.preventDefault();
     void dismissAnnouncement([first.id]).then(() => void renderAnnouncement());
+  });
+}
+
+/** 更新提示（q4 方案 3）：远端 docs/version.json 比 manifest.version 新就提示，可复制升级步骤/忽略 */
+async function renderUpdate(): Promise<void> {
+  const bar = q<HTMLElement>("#updateBar");
+  if (!bar) return;
+  let res: Awaited<ReturnType<typeof checkForUpdate>> | null = null;
+  try {
+    res = await checkForUpdate();
+  } catch {
+    return;
+  }
+  const info = res?.info ?? null;
+  if (!res?.hasUpdate || !info) {
+    bar.hidden = true;
+    bar.innerHTML = "";
+    return;
+  }
+  const steps = (info.steps ?? []).join("\n") || "npm run selfupdate（= git pull + 构建），再回 chrome://extensions 点刷新";
+  bar.hidden = false;
+  bar.innerHTML =
+    `<span>⬆ <b>发现新版 v${esc(info.version)}</b>` +
+    (info.notes?.length ? `<br><span class="hint">${esc(info.notes.slice(0, 2).join("；"))}</span>` : "") +
+    `</span>` +
+    `<span class="up-actions">` +
+    `<a class="up-link" href="${esc(info.releaseUrl ?? "https://github.com/tingfengsusu/Video2Team")}" ` +
+    `target="_blank" rel="noreferrer">打开仓库</a>` +
+    `<a class="up-link" href="#" data-act="copy-steps" title="复制后到仓库目录执行">复制升级步骤</a>` +
+    `<a class="up-link" href="#" data-act="ignore-update" title="这个版本不再提示（更高的版本会再提示）">忽略</a>` +
+    `</span>`;
+  bar.querySelector('[data-act="copy-steps"]')?.addEventListener("click", (e) => {
+    e.preventDefault();
+    void (async () => {
+      try {
+        await navigator.clipboard.writeText(steps);
+        q("#status").textContent = "升级步骤已复制；在仓库目录执行后，回 chrome://extensions 点「刷新」";
+      } catch {
+        q("#status").textContent = `升级步骤：${steps.split("\n").join(" ｜ ")}`;
+      }
+    })();
+  });
+  bar.querySelector('[data-act="ignore-update"]')?.addEventListener("click", (e) => {
+    e.preventDefault();
+    void ignoreVersion(String(info.version)).then(() => void renderUpdate());
   });
 }
 

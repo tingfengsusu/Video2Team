@@ -27,6 +27,7 @@ import {
 } from "../shared/feedback";
 import { FEEDBACK_MID, REPO_ISSUES_URL } from "../shared/constants";
 import { dismissAnnouncement, readAnnouncement, type AnnouncementItem } from "../shared/announcement";
+import { checkForUpdate, ignoreVersion } from "../shared/versionCheck";
 import type { TaskState } from "../shared/types";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -625,7 +626,41 @@ async function initAnnouncementSection(): Promise<void> {
   });
 }
 
+/** 版本与更新（q4 方案 3）：远端 docs/version.json 比 manifest.version 新就提示升级 */
+async function initVersionSection(): Promise<void> {
+  const box = document.getElementById("versionBox");
+  if (!box) return;
+  const current = chrome.runtime.getManifest().version;
+  let res: Awaited<ReturnType<typeof checkForUpdate>> | null = null;
+  try {
+    res = await checkForUpdate();
+  } catch {
+    res = null;
+  }
+  const info = res?.info ?? null;
+  const lines: string[] = [`当前版本：<b>v${escapeAttr(current)}</b>`];
+  if (res?.hasUpdate && info) {
+    lines.push(`<b style="color:#d29922">发现新版 v${escapeAttr(info.version)}</b>${info.date ? `（${escapeAttr(info.date)}）` : ""}`);
+    if (info.notes?.length) lines.push(`更新说明：${info.notes.map(escapeAttr).join("；")}`);
+    const steps = (info.steps ?? []).map(escapeAttr);
+    lines.push(`升级方式：${steps.length ? steps.join(" → ") : "在仓库目录执行 npm run selfupdate，再回 chrome://extensions 点刷新"}`);
+    if (info.releaseUrl) {
+      lines.push(`<a href="${escapeAttr(info.releaseUrl)}" target="_blank" rel="noreferrer">打开仓库</a>`);
+    }
+    lines.push(`<a href="#" id="ignoreVersion">这个版本不再提示</a>`);
+  } else {
+    lines.push("已是最新（远端版本文件：docs/version.json）");
+  }
+  box.innerHTML = lines.join("<br>");
+  document.getElementById("ignoreVersion")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (!info) return;
+    void ignoreVersion(info.version).then(() => void initVersionSection());
+  });
+}
+
 async function init(): Promise<void> {
+  await initVersionSection();
   await initAnnouncementSection();
   await initLlmSection();
   await initBoxSection();
