@@ -2,18 +2,27 @@
  * 开发用夹具（不参与扩展运行）：把 dist/result.html（大窗口结果页）套上 chrome stub 跑起来，
  * 用于复现「大窗口里勾选/渲染不生效」这类问题。
  *
- *   node scripts/dev-bigwindow-fixture.mjs     # 生成 dist/__fixture-bigwindow.html
+ *   node scripts/dev-bigwindow-fixture.mjs     # 生成 temp/bigwindow-fixture.html
  *   node temp/panel-fixture-server.cjs          # 静态服务（8787）
- *   浏览器打开 http://127.0.0.1:8787/dist/__fixture-bigwindow.html
+ *   浏览器打开 http://127.0.0.1:8787/temp/bigwindow-fixture.html
  *
- * 说明：夹具必须放在 dist/ 下，页面里的 `./result.js` 才能解析到真实脚本。
+ * 说明：产物放 temp/（页面里的脚本指向 `../dist/result.js`）——**不能**放 dist/：
+ * Chrome 加载扩展时遇到以 "_" 开头的文件/目录会直接拒绝整个目录
+ * （实测：`__fixture-bigwindow.html` 导致「无法加载清单」）。
  */
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 
 const root = new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
 const distHtml = join(root, "dist/result.html");
 if (!existsSync(distHtml)) throw new Error("请先 npm run build（缺少 dist/result.html）");
+
+// 旧版本把夹具写进 dist/，会让 chrome://extensions「加载已解压的扩展程序」直接失败——顺手清掉
+const legacy = join(root, "dist/__fixture-bigwindow.html");
+if (existsSync(legacy)) {
+  rmSync(legacy);
+  console.log("已清理旧夹具 dist/__fixture-bigwindow.html（下划线开头会被 Chrome 拒绝加载）");
+}
 
 // ---- 与面板夹具一致的示例结果 ----
 const scheme = (over) => ({
@@ -130,8 +139,11 @@ const stub = `
   window.__store = localStore;
 </script>`;
 
-const html = readFileSync(distHtml, "utf8").replace('<script type="module" src="./result.js"></script>', `${stub}\n    <script type="module" src="./result.js"></script>`);
+const html = readFileSync(distHtml, "utf8").replace(
+  '<script type="module" src="./result.js"></script>',
+  `${stub}\n    <script type="module" src="../dist/result.js"></script>`,
+);
 if (!html.includes("window.__store")) throw new Error("注入失败：没找到 result.js 脚本标签");
-mkdirSync(join(root, "dist"), { recursive: true });
-writeFileSync(join(root, "dist/__fixture-bigwindow.html"), html);
-console.log("大窗口夹具已生成：dist/__fixture-bigwindow.html（用 /dist/__fixture-bigwindow.html 访问）");
+mkdirSync(join(root, "temp"), { recursive: true });
+writeFileSync(join(root, "temp/bigwindow-fixture.html"), html);
+console.log("大窗口夹具已生成：temp/bigwindow-fixture.html（用 http://127.0.0.1:8787/temp/bigwindow-fixture.html 访问）");
