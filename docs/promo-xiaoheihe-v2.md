@@ -8,29 +8,20 @@
 
 ---
 
-## 图片：本地文件 ↔ 线上地址
+## 图片：就用本地文件（docs/promo-images-v2/）
 
-图片已上传到图片仓库 **`tingfengsusu/photo`**（路径 `video2team/v0.3.0/`），成稿里用的就是下面的 raw 地址。
+成稿里的图片是**仓库内相对路径**（`promo-images-v2/xx.png`）——在本地用 Typora / VSCode 预览、
+或直接看 GitHub 上的 md 都能正常显示，图就在文字该在的位置。
 
-| 成稿里的位置 | 本地参考图（docs/promo-images-v2/） | 线上地址 |
-|---|---|---|
-| 第 1 张 | `01-pool-occupied.png` | https://raw.githubusercontent.com/tingfengsusu/photo/main/video2team/v0.3.0/01-pool-occupied.png |
-| 第 2 张 | `02-overview.png` | https://raw.githubusercontent.com/tingfengsusu/photo/main/video2team/v0.3.0/02-overview.png |
-| 第 3 张 | `03-supply-picker.png` | https://raw.githubusercontent.com/tingfengsusu/photo/main/video2team/v0.3.0/03-supply-picker.png |
-| 第 4 张 | `04-big-window.png` | https://raw.githubusercontent.com/tingfengsusu/photo/main/video2team/v0.3.0/04-big-window.png |
+| 成稿里的位置 | 文件 |
+|---|---|
+| 第 1 张（封面） | `docs/promo-images-v2/01-pool-occupied.png` |
+| 第 2 张 | `docs/promo-images-v2/02-overview.png` |
+| 第 3 张 | `docs/promo-images-v2/03-supply-picker.png` |
+| 第 4 张 | `docs/promo-images-v2/04-big-window.png` |
 
-> ⚠️ 注：`cdn.jsdelivr.net/gh/tingfengsusu/photo@...` 对这个仓库只做 301 跳转到 raw（旧图也一样），
-> 所以成稿里直接用 raw 地址；如果你那边 raw 打不开（国内常见），退路是把本地这 4 张图**直接拖进小黑盒编辑器**。
-
-### 换成你的真实截图（链接不用改）
-
-```bash
-# 把真图按同名放进 docs/promo-images-v2/（覆盖同名文件），然后：
-node scripts/upload-photo.mjs docs/promo-images-v2 video2team/v0.3.0
-```
-
-脚本走 GitHub Contents API，**同名会覆盖**——所以成稿里的链接原样可用，不用动 md。
-（CDN/浏览器缓存有时会保留旧图，必要时在 URL 后面加 `?v=1009` 强制刷新。）
+**换成你的真实截图**：按同名覆盖 `docs/promo-images-v2/` 里的文件即可，md 不用改（还是相对路径）。
+（`scripts/upload-photo.mjs` 是之前为"远端图床"写的，现在用不上，留着以后想发到图床时再说。）
 
 ---
 
