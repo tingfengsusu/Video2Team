@@ -41,6 +41,19 @@ import type {
 
 const TASK_KEY = "task";
 
+// 大窗口关闭后清掉记录，下次点「⤢ 大窗口」才能重新开
+chrome.windows.onRemoved.addListener((windowId) => {
+  void chrome.storage.session
+    .get("bigWindowId")
+    .then((v) => {
+      if ((v as { bigWindowId?: number }).bigWindowId === windowId) {
+        return chrome.storage.session.remove("bigWindowId");
+      }
+      return undefined;
+    })
+    .catch(() => {});
+});
+
 // session storage 默认只对可信上下文（扩展页面/后台）开放，
 // content script（视频页面板）读截图/任务状态会报
 // "Access to storage is not allowed from this context" —— 显式放开。
@@ -288,6 +301,17 @@ async function analyzeVideo(
   stageResolution = visionResolution.resolution;
   meta = { ...meta, stage: visionResolution.displayStage };
   const dispatchCandidates = visionResolution.dispatchCandidates;
+  // 识别依据：把「模型看到的是第几格 / 格内读到什么」摊开给用户看；
+  // 识别不准时可用结果区的「不是这关」一键排除（render.ts 的 skip-stage / restore-stage）
+  const dispatchGuideEvidence: Record<string, string> = {};
+  for (const c of dispatchCandidates) {
+    const parts: string[] = [];
+    if (c.gridPosition) parts.push(`P1 网格第 ${c.gridPosition} 格`);
+    if (c.gridName) parts.push(`格内读到「${c.gridName}」`);
+    if (c.needsVerification) parts.push("与位置推算不一致，需核实");
+    dispatchGuideEvidence[c.displayCode.toUpperCase()] =
+      parts.join("，") || "来自视频标题/分P 的显示码";
+  }
   // 与下面的解析/推荐并行跑（MAA + B站查询较慢，不阻塞结果）
   let dispatchGuidesPromise: Promise<{
     pools: NonNullable<AnalysisOutput["dispatchGuides"]>;
@@ -360,6 +384,9 @@ async function analyzeVideo(
     stageResolution,
     dispatchGuides,
     dispatchGuideNote,
+    dispatchGuideEvidence: Object.keys(dispatchGuideEvidence).length
+      ? dispatchGuideEvidence
+      : undefined,
     stats,
   };
 }
@@ -422,18 +449,27 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       }
       await chrome.storage.session.set({ bigResult: { result, ts: Date.now() } });
       const url = chrome.runtime.getURL("result.html");
-      const existing = await chrome.tabs.query({ url }).catch(() => []);
-      const tab = existing.find((t) => t.id != null);
-      if (tab?.windowId != null) {
-        await chrome.tabs.update(tab.id!, { active: true }).catch(() => {});
-        await chrome.windows.update(tab.windowId, { focused: true }).catch(() => {});
-      } else {
-        await chrome.windows.create({
-          url,
-          type: "popup",
-          width: 940,
-          height: Math.min(1060, Math.max(720, Math.round((msg.height as number) || 980))),
-        });
+      // 复用已开的大窗口：用窗口 id 记录（chrome.tabs.query({url}) 需要 tabs 权限，没申请会抛错 →
+      // 之前每次点击都新开一个窗口）。这里只依赖 windows.get/update，无需额外权限。
+      const { bigWindowId } = (await chrome.storage.session.get("bigWindowId")) as {
+        bigWindowId?: number;
+      };
+      if (typeof bigWindowId === "number") {
+        const alive = await chrome.windows.get(bigWindowId).catch(() => null);
+        if (alive) {
+          await chrome.windows.update(bigWindowId, { focused: true, drawAttention: true }).catch(() => {});
+          sendResponse({ ok: true, reused: true });
+          return;
+        }
+      }
+      const created = await chrome.windows.create({
+        url,
+        type: "popup",
+        width: 940,
+        height: Math.min(1060, Math.max(720, Math.round((msg.height as number) || 980))),
+      });
+      if (created?.id != null) {
+        await chrome.storage.session.set({ bigWindowId: created.id }).catch(() => {});
       }
       sendResponse({ ok: true });
     })().catch((err: Error) => sendResponse({ ok: false, error: err.message }));

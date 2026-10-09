@@ -46,7 +46,8 @@ let colorBySource = true;
 let stageFilter: "all" | "unpicked" | "picked" = "all";
 /** 方案搜索词（匹配干员 / 标题 / 来源） */
 let query = "";
-
+/** 本页被用户手动排除的前置关（识别不准时用） */
+let excludedStages: string[] = [];
 function renderLocks(): void {
   const el = document.getElementById("locks");
   if (!el) return;
@@ -108,6 +109,8 @@ function render(): void {
     showGuidesHeading: false, // 由面板标题承担
     showSlotsHeading: false, // 同上
     plainIcons: true, // 设计 B：不用 emoji 标记（技能规范），图标走内联 SVG
+    guideEvidence: current.dispatchGuideEvidence,
+    excludedStages,
   });
   const pools = current.dispatchGuides ?? [];
   const totalSchemes = pools.reduce((n, p) => n + p.schemes.length, 0);
@@ -122,13 +125,12 @@ function render(): void {
   renderLocks();
 }
 
-/** 筛选：关卡（全部/未选/已选）+ 方案搜索词；纯前端，不改数据 */
+/** 筛选（设计 B）：关卡（全部/未选/已选）+ 方案搜索词；纯前端过滤，不改数据 */
 function applyFilters(): void {
   const q = query.trim().toLowerCase();
   document.querySelectorAll<HTMLElement>(".stagepool").forEach((pool) => {
     const picked = pool.dataset.picked === "1";
-    const stageOk =
-      stageFilter === "all" || (stageFilter === "picked" ? picked : !picked);
+    const stageOk = stageFilter === "all" || (stageFilter === "picked" ? picked : !picked);
     let rowsMatched = 0;
     pool.querySelectorAll<HTMLElement>(".schemerow").forEach((row) => {
       const hay = `${row.dataset.search ?? ""} ${row.dataset.ops ?? ""}`.toLowerCase();
@@ -138,8 +140,9 @@ function applyFilters(): void {
     });
     pool.hidden = !stageOk || (!!q && rowsMatched === 0);
   });
+  const box = document.getElementById("col-pool");
+  if (!box) return;
   const empty = [...document.querySelectorAll<HTMLElement>(".stagepool")].every((p) => p.hidden);
-  const box = $("col-pool");
   let note = document.getElementById("poolFilterNote");
   if (empty) {
     if (!note) {
@@ -208,6 +211,12 @@ async function loadLocal(): Promise<void> {
   colorBySource = advanced?.colorBySource !== false;
   picks = await loadPicks();
   overrides = await getStageKindOverrides();
+  // 本页被手动排除的前置关（识别不准时用「不是这关」写入）
+  const { dispatchStageSkips } = (await chrome.storage.local.get("dispatchStageSkips")) as {
+    dispatchStageSkips?: Record<string, string[]>;
+  };
+  const skipKey = current ? `${current.bvid}|${current.roster.page ?? 0}` : "";
+  excludedStages = skipKey ? dispatchStageSkips?.[skipKey] ?? [] : [];
 }
 
 async function loadResult(): Promise<void> {
@@ -239,6 +248,11 @@ async function init(): Promise<void> {
       render();
     })();
   });
+  // Esc / 「✕ 关闭」：popup 窗口不响应 Esc，需要自己监听
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") window.close();
+  });
+  $("closeBtn").addEventListener("click", () => window.close());
   $("clearLocks").addEventListener("click", () => {
     void chrome.storage.local.set({ lockedOps: {}, dispatchPicks: {} });
   });
@@ -273,6 +287,26 @@ async function init(): Promise<void> {
     if (target?.matches?.('input[data-pick="1"]')) void onPickChange(target as HTMLInputElement);
   });
   wireRowClick(document.body);
+  document.body.addEventListener("click", (e) => {
+    const link = (e.target as HTMLElement | null)?.closest<HTMLAnchorElement>("[data-act]");
+    const act = link?.getAttribute("data-act");
+    if (act !== "skip-stage" && act !== "restore-stage") return;
+    e.preventDefault();
+    const code = (link?.getAttribute("data-code") ?? "").toUpperCase();
+    if (!code || !current) return;
+    void (async () => {
+      const key = `${current!.bvid}|${current!.roster.page ?? 0}`;
+      const { dispatchStageSkips } = (await chrome.storage.local.get("dispatchStageSkips")) as {
+        dispatchStageSkips?: Record<string, string[]>;
+      };
+      const all = { ...(dispatchStageSkips ?? {}) };
+      const cur = new Set(all[key] ?? []);
+      if (act === "skip-stage") cur.add(code);
+      else cur.delete(code);
+      all[key] = [...cur];
+      await chrome.storage.local.set({ dispatchStageSkips: all });
+    })();
+  });
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === "session" && changes[BIG_RESULT_KEY]) {
       void (async () => {
@@ -282,7 +316,7 @@ async function init(): Promise<void> {
       return;
     }
     if (area !== "local") return;
-    if (changes.lockedOps ?? changes.dispatchPicks ?? changes.box ?? changes.advanced ?? changes.stageKindOverrides) {
+    if (changes.lockedOps ?? changes.dispatchPicks ?? changes.box ?? changes.advanced ?? changes.stageKindOverrides ?? changes.dispatchStageSkips) {
       void (async () => {
         await loadLocal();
         render();
