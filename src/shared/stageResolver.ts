@@ -360,7 +360,17 @@ export function resolveDispatchGridFromVision(
   levels: readonly MaaLevel[],
 ): DispatchGridResolution {
   const hints = vision ? collectDispatchGridHints(vision) : [];
-  if (hints.length === 0) return { candidates: [], invalidPositions: [] };
+  if (hints.length === 0) {
+    // 第十轮 q4 实测：模型读到了「当前启用补给 N」却把 gridCells 整组留空（它自己也写了"没看到明确黄格"），
+    // 这时静默返回会让人以为"这关本来就不是派遣关"。给出可见原因 + 下一步（重截图 / 手动补关）。
+    const enabled = Number(vision?.enabledSupplies);
+    const note =
+      Number.isInteger(enabled) && enabled > 0
+        ? `截图里写着「当前启用补给 ${enabled} 个」，但没有读到任何网格格位（可能不是特别战线网格，或截图里格子看不清）——` +
+          `本次未识别出派遣关；可重新截图该界面，或用结果区「＋ 补一个关…」手动补`
+        : undefined;
+    return { candidates: [], invalidPositions: [], note };
+  }
 
   const context = [
     stage,

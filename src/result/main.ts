@@ -17,6 +17,7 @@ import {
 import { loadPicks, resolvePickFromRow, togglePick, type DispatchPicks } from "../shared/dispatchPicks";
 import { putCachedResult } from "../shared/resultCache";
 import { clearStageSkip, patchStagePool, queryStagePool } from "../shared/stageRecode";
+import { wireHoverDetails } from "../shared/hoverDetails";
 import { schemeKeyOf } from "../shared/dispatchPool";
 import {
   getStageKindOverrides,
@@ -288,6 +289,7 @@ async function init(): Promise<void> {
     if (target?.matches?.('input[data-pick="1"]')) void onPickChange(target as HTMLInputElement);
   });
   wireRowClick(document.body);
+  wireHoverDetails(document.body); // 候选池折叠块：悬浮即展开（第十轮 q3）
   // 「＋ 补一个关…」：手动补漏识别的派遣关（body 委托，容器每次重渲染）
   document.body.addEventListener("change", (e) => {
     const sel = (e.target as HTMLElement | null)?.closest?.("select[data-act]") as HTMLSelectElement | null;

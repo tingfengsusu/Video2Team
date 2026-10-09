@@ -43,7 +43,7 @@ const bili = (over) => {
 const pool = {
   displayCode: "VEC-SP02", stageId: "act3break_sp02", stageName: "心中热火", counts: { maa: 8, bili: 26 },
   schemes: [
-    scheme({}),
+    scheme({ copilotId: 105144 }),
     scheme({ copilotId: 2, operators: ["黑", "机械师"], opers: [{ name: "黑" }, { name: "机械师" }], mode: "双人", title: "黑/机械师双人四号站台" }),
     bili({}),
   ],

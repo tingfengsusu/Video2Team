@@ -214,6 +214,38 @@ check("结果区被占干员变灰+删除线", pickedHtml.includes('class="occup
 check("被占干员带 🔒 徽章", /occupied[^<]*>[^<]*<\/span><span class="lockbadge"[^>]*>🔒/.test(pickedHtml));
 check("候选池内本关自己锁的干员不置灰", !/occupied[^<]*>凯尔希<\/span>/.test(poolSection(pickedHtml)));
 
+console.log("\n== 第十轮 q2/q3：已选关直链已选方案 + 悬浮展开 ==");
+const pickedPoolHeader = (pickedHtml.split('data-stage="VEC-SP02"')[1] ?? "").split("</div>")[0] ?? "";
+check(
+  "已选关的标题链接指向已选方案（不再是作业站首页）",
+  pickedPoolHeader.includes('href="https://prts.plus/operation/105144"'),
+  pickedPoolHeader.match(/href="[^"]*"/)?.[0] ?? "(无链接)",
+);
+check(
+  "总览里的已选关也带方案直链",
+  (pickedHtml.match(/href="https:\/\/prts\.plus\/operation\/105144"/g) ?? []).length >= 2,
+  String((pickedHtml.match(/href="https:\/\/prts\.plus\/operation\/105144"/g) ?? []).length),
+);
+check(
+  "未选的关仍退回作业站首页（不误指方案）",
+  /<b><a href="https:\/\/prts\.plus\/"[^>]*>VEC-SP02<\/a><\/b>/.test(guideHtml),
+);
+check(
+  "MAA 方案没有作业 id 时退回关卡链接（不谎称直达方案）",
+  (() => {
+    const noIdPool = { ...guidePool, schemes: [{ ...maaScheme, copilotId: undefined, operators: ["凯尔希"] }] };
+    const html = v43.renderResult(
+      { ...baseResult, dispatchGuides: [noIdPool] },
+      hasAll,
+      {},
+      { stageKind: "target", picks: { "VEC-SP02": { key: "maa:凯尔希", label: "VEC-SP02", ops: ["凯尔希"] } } },
+    );
+    return /<b><a href="https:\/\/prts\.plus\/"[^>]*>VEC-SP02<\/a><\/b>/.test(html) && !/打开已选方案/.test(html);
+  })(),
+);
+check("候选池折叠块带 data-hover（悬浮即展开）", pickedHtml.includes('<details data-hover="1"'));
+check("未选的关默认展开（不需要悬浮）", guideHtml.includes('<details data-hover="1" open>'));
+
 const sharedLocked = { 能天使: "VEC-SP05（校验关卡五）", 银灰: "VEC-SP05（校验关卡五）" };
 const crossed = v43.renderResult(baseResult, hasAll, sharedLocked, { stageKind: "target" });
 check("被其它关占用的方案干员同样置灰", /occupied[^<]*>银灰<\/span>/.test(poolSection(crossed)));
@@ -409,6 +441,28 @@ check(
   "格内是补给名时不影响按序号定位（文字不参与映射）",
   supplyGrid.candidates.map((c) => c.displayCode).join(",") === "VEC-SP01,VEC-SP07",
   supplyGrid.candidates.map((c) => c.displayCode).join(","),
+);
+// 第十轮 q4：模型写了「当前启用补给 6」却把 gridCells 整组留空 → 必须给可见原因，不能静默丢弃
+const noCellButSupplies = v43.resolveDispatchGridFromVision(
+  "VEC-C（全力以赴）",
+  "【矢量突破】VEC-SP10 后院死局",
+  "",
+  { explicitCode: "VEC-C", enabledSupplies: 6, gridCells: [], note: "网格内大部分为灰色禁用格，未看到明确黄色底格" },
+  levels,
+);
+check(
+  "有启用补给数但读不到格位 → 给出可见原因（不再静默当成非派遣关）",
+  noCellButSupplies.candidates.length === 0 &&
+    typeof noCellButSupplies.note === "string" &&
+    /当前启用补给 6 个/.test(noCellButSupplies.note),
+  noCellButSupplies.note,
+);
+check(
+  "没有任何网格线索时仍然静默（不误报）",
+  (() => {
+    const r = v43.resolveDispatchGridFromVision("VEC-C", "【矢量突破】VEC-C", "", { explicitCode: "VEC-C", gridCells: [] }, levels);
+    return r.candidates.length === 0 && !r.note;
+  })(),
 );
 // 名称能匹配时以名称为准（位置读数偏差被纠正）
 const namedGrid = v43.resolveDispatchGridFromVision(
@@ -754,6 +808,22 @@ check(
     return a === "黑角" && b === "凯尔希";
   })(),
 );
+console.log("\n== 第十轮 q1：长名里的短名不再重复命中 ==");
+check(
+  "「麒麟R夜刀单人…」只出 1 个干员（不再拆出「夜刀」）",
+  v43.matchOperators("矢量突破】麒麟R夜刀单人VEC-SP10后院死局", db).join("、") === "麒麟R夜刀",
+  v43.matchOperators("矢量突破】麒麟R夜刀单人VEC-SP10后院死局", db).join("、"),
+);
+check(
+  "「焰狐龙梓兰单人…」只出 1 个干员（不再拆出「梓兰」）",
+  v43.matchOperators("矢量突破[特别战线] vec-sp10 焰狐龙梓兰单人", db).join("、") === "焰狐龙梓兰",
+  v43.matchOperators("矢量突破[特别战线] vec-sp10 焰狐龙梓兰单人", db).join("、"),
+);
+check(
+  "真的分开写两个名字时仍然都识别（麒麟R夜刀、夜刀）",
+  v43.matchOperators("麒麟R夜刀、夜刀 双人 VEC-SP10", db).join("、") === "麒麟R夜刀、夜刀",
+  v43.matchOperators("麒麟R夜刀、夜刀 双人 VEC-SP10", db).join("、"),
+);
 
 /** 最小 input 桩：resolvePickFromRow 只用 getAttribute / closest */
 const fakeInput = (attrs, rowAttrs) => ({
@@ -828,7 +898,9 @@ const monoHtml = v43.renderResult(baseResult, hasAll, {}, { stageKind: "target",
 check("关闭配色开关后统一蓝色", !monoHtml.includes("#e0559b") && monoHtml.includes("#0969da"));
 check(
   "未选关默认展开、已选关默认收起（<details>）",
-  /<details open>/.test(rowHtml) && pickedHtml.includes("<details>") && !/<details open>/.test(pickedHtml),
+  /<details data-hover="1" open>/.test(rowHtml) &&
+    pickedHtml.includes('<details data-hover="1">') &&
+    !/<details data-hover="1" open>/.test(pickedHtml),
 );
 check("折叠摘要标出候选方案数", /候选方案 \d+ 套/.test(rowHtml));
 

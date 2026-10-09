@@ -244,6 +244,25 @@ function sectionHeading(text: string, sub = ""): string {
 }
 
 /**
+ * 已选方案的直达链接（第十轮 q2）：勾选后候选行会折叠，标题/总览行需要能一键打开"这套攻略"。
+ * 找不到对应方案、或 MAA 方案没有作业 id（只能回作业站首页）时返回 null，调用方退回关卡链接。
+ */
+function pickedSchemeUrl(
+  pool: MergedStagePool,
+  picked: { key: string } | undefined,
+): { url: string; label: string } | null {
+  if (!picked) return null;
+  const scheme = pool.schemes.find((s) => schemeKeyOf(s) === picked.key);
+  if (!scheme) return null;
+  const url = schemeSourceUrl(scheme);
+  if (!url || url === maaLevelUrl()) return null;
+  return {
+    url,
+    label: `${scheme.title || scheme.stageName || pool.displayCode}（${scheme.sourceLabel}）`,
+  };
+}
+
+/**
  * §10.6（q4）总览块：一屏看清三件事——
  * ① 本关（主推关）最终用哪些干员（被占用的灰+删除线）；② 各前置关选了哪套方案（或还没选）；
  * ③ 有几处替换/无解。放在结果最顶部，避免用户从长列表里自己拼。
@@ -272,8 +291,14 @@ function overviewBlock(
     const chosen = pick
       ? `✅ ${pick.ops.map((n) => esc(n)).join("·")}`
       : `<span class="dim">⬜ 未选 → 在下方候选池勾选</span>`;
+    // 已选的关：显示码本身指向**那套已选攻略**（勾选后候选行会折叠，这里是唯一的一键入口）
+    const pickedLink = pickedSchemeUrl(pool, pick);
+    const codeHtml = pickedLink
+      ? `<a href="${esc(pickedLink.url)}" target="_blank" rel="noreferrer" style="color:#0969da;text-decoration:none" ` +
+        `title="${esc(`打开已选方案：${pickedLink.label}`)}">${esc(pool.displayCode)}</a>`
+      : esc(pool.displayCode);
     return (
-      `<div style="font-size:12px;line-height:1.6"><b>${esc(pool.displayCode)}</b>` +
+      `<div style="font-size:12px;line-height:1.6"><b>${codeHtml}</b>` +
       `<span class="dim">（${esc(pool.stageName || "关卡名待核实")}）</span> ${chosen}</div>`
     );
   });
@@ -389,6 +414,13 @@ export function renderDispatchGuides(
       const pickLine = picked
         ? `<span style="color:#1a7f37">✅ ${picked.ops.map((n) => esc(n)).join("·")}</span>`
         : `<span class="dim">⬜ 未选</span>`;
+      // 第十轮 q2：已选关的标题链接直接指向**已选中的那套方案**（收起后候选行看不见，标题是唯一入口）
+      const pickedLink = pickedSchemeUrl(pool, picked);
+      const stageUrl = pickedLink?.url ?? maaLevelUrl();
+      const stageTip = pickedLink
+        ? `打开已选方案：${pickedLink.label}`
+        : `在 MAA 作业站（prts.plus）看该关作业：打开后点「关卡」筛选 ${pool.displayCode}，或把显示码/通名粘进搜索框`;
+      const stageMark = pickedLink ? "↗" : "";
       // 识别依据（网格第几格 / 格内名称 / 是否需核实）：让「识别错了」一眼可见
       const evidence = opts.evidence?.[pool.displayCode.toUpperCase()] ?? "";
       const evidenceLine = evidence
@@ -398,9 +430,9 @@ export function renderDispatchGuides(
         `<div class="stagepool" data-stage="${esc(pool.displayCode)}" data-picked="${picked ? "1" : "0"}" ` +
         `style="padding:6px 8px;margin:4px 0;background:#fffdf6;border:1px solid #eadfbd;border-radius:5px">` +
         `<div style="font-size:12px">` +
-        `<b><a href="${esc(maaLevelUrl())}" target="_blank" rel="noreferrer" style="color:#0969da;text-decoration:none" ` +
-        `title="在 MAA 作业站（prts.plus）看该关作业：打开后点「关卡」筛选 ${esc(pool.displayCode)}，或把显示码/通名粘进搜索框">` +
-        `${esc(pool.displayCode)}</a></b>` +
+        `<b><a href="${esc(stageUrl)}" target="_blank" rel="noreferrer" style="color:#0969da;text-decoration:none" ` +
+        `title="${esc(stageTip)}">` +
+        `${esc(pool.displayCode)}${stageMark}</a></b>` +
         `<span class="dim">（${esc(pool.stageName || "关卡名待核实")}）</span> ` +
         pickLine +
         `<span class="dim" style="float:right">` +
@@ -410,7 +442,7 @@ export function renderDispatchGuides(
         `style="font-size:11px" title="识别错了？把这个关从本次前置关列表移除">不是这关</a>` +
         `</span></div>` +
         evidenceLine +
-        `<details${picked ? "" : " open"}>` +
+        `<details data-hover="1"${picked ? "" : " open"}>` +
         `<summary style="font-size:11px;color:#888;cursor:pointer">候选方案 ${schemes.length} 套</summary>` +
         rows +
         `</details>` +
