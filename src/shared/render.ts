@@ -542,6 +542,9 @@ export function renderDispatchGuides(
         `<span class="dim" style="float:right">` +
         `<span title="${esc(SOURCE_TIPS.maa)}">MAA作业 ${pool.counts.maa}</span> ｜ ` +
         `<span title="${esc(SOURCE_TIPS.bili)}">B站视频 ${pool.counts.bili}</span>` +
+        (pool.counts.dup
+          ? `<span class="dim" title="与 MAA 作业（或别的实战方案）阵容相同的条数——不再重复列出，避免同一套阵容刷屏">（去重 ${pool.counts.dup}）</span>`
+          : "") +
         ` <a href="#" data-act="skip-stage" data-code="${esc(pool.displayCode)}" class="link" ` +
         `style="font-size:11px" title="识别错了？把这个关从本次前置关列表移除">不是这关</a>` +
         `</span></div>` +

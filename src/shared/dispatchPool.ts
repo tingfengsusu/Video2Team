@@ -105,7 +105,7 @@ export interface MergedStagePool {
   stageId: string;
   stageName: string;
   schemes: MergedScheme[];
-  counts: { maa: number; bili: number }; // 各来源原始条数（去重前）
+  counts: { maa: number; bili: number; dup?: number }; // 各来源原始条数（去重前）+ 被按阵容去重掉的条数
 }
 
 /** 干员集合签名：排序 + 去重 + 归一化空白（用于跨源去重） */
@@ -182,16 +182,23 @@ export function mergeStagePool(
   const merged: MergedScheme[] = [];
   const seen = new Set<string>();
   const fullPool = pool as DispatchStagePool;
+  let dup = 0; // 被"同阵容"去重掉的条数（用户实测会问"怎么比之前少了"，显示出来）
 
   for (const s of maaSorted) {
     const key = operatorSignature(s.opers.map((o) => o.name));
-    if (!key || seen.has(key)) continue;
+    if (!key || seen.has(key)) {
+      if (key) dup += 1;
+      continue;
+    }
     seen.add(key);
     merged.push(fromMaa(s, fullPool));
   }
   for (const s of biliSchemes) {
     const key = operatorSignature(s.operators);
-    if (!key || seen.has(key)) continue; // 与 MAA 作业重复的实战方案不再重复展示
+    if (!key || seen.has(key)) {
+      if (key) dup += 1; // 与 MAA 作业（或别的实战方案）重复的不再重复展示
+      continue;
+    }
     seen.add(key);
     merged.push(fromBili(s, pool));
   }
@@ -201,7 +208,7 @@ export function mergeStagePool(
     stageId: pool.stageId,
     stageName: pool.stageName,
     schemes: merged,
-    counts: { maa: pool.schemes.length, bili: biliSchemes.length },
+    counts: { maa: pool.schemes.length, bili: biliSchemes.length, dup },
   };
 }
 

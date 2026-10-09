@@ -939,6 +939,34 @@ console.log("\n== 第十二轮 p1/p3：序号归位 + 关卡名与干员名撞�
   );
 }
 
+console.log("\n== 第十四轮 q3：去重条数可见（回答「怎么比之前少了」）==");
+check(
+  "同阵容的方案会被去重，并把条数记进 counts.dup",
+  (() => {
+    const b1 = {
+      ...biliScheme,
+      operators: ["银灰"],
+      opers: [{ name: "银灰" }],
+      bvid: "BV1a",
+      url: "https://www.bilibili.com/video/BV1a",
+    };
+    const b2 = { ...b1, title: "同一套阵容再发一遍", bvid: "BV1b", url: "https://www.bilibili.com/video/BV1b" };
+    const pools = v43.mergePools(
+      [{ displayCode: "VEC-SP02", stageId: "act3break_sp02", stageName: "心中热火", schemes: [] }],
+      new Map([["VEC-SP02", [b1, b2]]]),
+    );
+    return pools[0].schemes.length === 1 && pools[0].counts.dup === 1;
+  })(),
+);
+check(
+  "候选池标题把去重条数显示出来（去重 N）",
+  (() => {
+    const pool = { ...guidePool, counts: { maa: 8, bili: 26, dup: 12 } };
+    const html = v43.renderResult({ ...baseResult, dispatchGuides: [pool] }, hasAll, {}, { stageKind: "target" });
+    return html.includes("（去重 12）");
+  })(),
+);
+
 console.log("\n== 第十四轮 q1：模型把格位写在 note 里 → 解析成序号 ==");
 check(
   "解析「4行4列 + 第2行第1、2、3格 + 第3行第2、3、4格」→ 格位 5/6/7/10/11/12",
