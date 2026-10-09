@@ -39,6 +39,14 @@ const pool = {
     bili({}),
   ],
 };
+// 第二关与 VEC-SP02 共用「凯尔希」：勾选 SP02 的方案后，本关这行要**保留并置灰**（第九轮 q2 的复现点）
+const pool2 = {
+  displayCode: "VEC-SP07", stageId: "act3break_sp07", stageName: "荒废矿道", counts: { maa: 2, bili: 1 },
+  schemes: [
+    scheme({ copilotId: 9, displayCode: "VEC-SP07", stageName: "荒废矿道", operators: ["凯尔希", "黑"], opers: [{ name: "凯尔希", skill: 3 }, { name: "黑" }], mode: "双人", title: "凯尔希+黑 荒废矿道" }),
+    bili({ displayCode: "VEC-SP07", stageName: "荒废矿道", operators: ["机械师"], opers: [{ name: "机械师" }], url: "https://www.bilibili.com/video/BV1yy", bvid: "BV1yy", title: "机械师单刷" }),
+  ],
+};
 const result = {
   roster: { stage: "VEC-C", videoId: "BV1TEST", page: 2, source: "screenshot", slots: [{ operator: "凯尔希", isKey: true }, { operator: "克洛丝" }] },
   substitutions: [],
@@ -48,8 +56,11 @@ const result = {
   ],
   videoTitle: "【全力以赴】VEC-C 大窗口夹具",
   stage: "VEC-C（全力以赴）", bvid: "BV1TEST", stageCode: "VEC-C",
-  dispatchGuides: [pool],
-  dispatchGuideEvidence: { "VEC-SP02": "特别战线网格第 5 格 → VEC-SP02，格内文字「催化装备」" },
+  dispatchGuides: [pool, pool2],
+  dispatchGuideEvidence: {
+    "VEC-SP02": "特别战线网格第 5 格 → VEC-SP02，格内文字「催化装备」",
+    "VEC-SP07": "特别战线网格第 7 格 → VEC-SP07，格内文字「缴械装备」",
+  },
   dispatchStageOptions: [
     { displayCode: "VEC-SP01", stageName: "重力危机" },
     { displayCode: "VEC-SP02", stageName: "心中热火" },
