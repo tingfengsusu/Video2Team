@@ -22,6 +22,7 @@ import {
 } from "../shared/stageKind";
 import { shrinkImage } from "../shared/img";
 import {
+  clearCachedResult,
   getCachedResult,
   normalizePage,
   putCachedResult,
@@ -30,6 +31,7 @@ import {
 import { clearStageSkip, patchStagePools, queryStagePools } from "../shared/stageRecode";
 import { wireHoverDetails } from "../shared/hoverDetails";
 import { wireGridPicker } from "../shared/gridPicker";
+import { wireShowHidden } from "../shared/toggles";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -381,11 +383,26 @@ function showCachedResult(entry: ResultCacheEntry): void {
   showResult(entry.result);
   $("status").innerHTML =
     `<span class="hint">上次分析：${formatCacheTime(entry.ts)} ｜ </span>` +
-    `<a href="#" id="reanalyze" class="settings">重新分析</a>`;
+    `<a href="#" id="reanalyze" class="settings">重新分析</a>` +
+    `<a href="#" id="clearPageCache" class="settings" style="margin-left:6px" ` +
+    `title="只清这个视频/分P的缓存结果（其它视频不受影响；设置页可清全部）">清除本页缓存</a>`;
   $("reanalyze").addEventListener("click", (e) => {
     e.preventDefault();
     $("status").textContent = "";
     triggerAnalyze();
+  });
+  $("clearPageCache").addEventListener("click", (e) => {
+    e.preventDefault();
+    void (async () => {
+      const bvid = currentCtx.bvid;
+      if (!bvid) return;
+      const removed = await clearCachedResult(bvid, currentCtx.page);
+      currentResult = null;
+      showEmptyState();
+      $("status").innerHTML = removed
+        ? `<span class="hint">已清掉「${esc(bvid)}${currentCtx.page ? ` P${currentCtx.page}` : ""}」的缓存，可以重新分析。</span>`
+        : `<span class="hint">本页本来就没有缓存。</span>`;
+    })();
   });
 }
 
@@ -543,6 +560,7 @@ async function init(): Promise<void> {
   wireRowClick($("result")); // 点整行 = 勾选该方案
   wireHoverDetails($("result")); // 候选池折叠块：悬浮即展开（第十轮 q3）
   wireGridPicker($("result"), (codes) => void applyStageCodes(codes)); // 网格选关（第十一轮 q3）
+  wireShowHidden($("result")); // 「点开查看」缺干员被隐藏的方案（第十三轮 q1）
   // 「＋ 补一个关…」：手动补漏识别的派遣关（change 委托）
   $("result").addEventListener("change", (e: Event) => {
     const sel = (e.target as HTMLElement | null)?.closest?.("select[data-act]") as HTMLSelectElement | null;

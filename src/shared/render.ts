@@ -435,12 +435,15 @@ export function renderDispatchGuides(
       // 便于跨关对比取舍（用户实测：整条消失会让 A 关看起来"没攻略了"）。
       // 设置页可关掉过滤（那时保留全部，便于浏览别人的打法）。
       const unavailable: string[] = [];
+      // 被过滤掉的"缺干员"方案也留着对象：note 上给一个「点开查看」的口子（用户可能自己搜到过它们）
+      const hiddenSchemes: MergedScheme[] = [];
       const candidates = opts.hideUnavailable
         ? pool.schemes.filter((scheme) => {
             const verdict = isSchemeUsable(scheme, hasOp, lockedOps, pool.displayCode);
             // 只隐藏"缺干员"的；"被其它关占用"的保留（置灰 + 标注，便于取舍对比）
             if (verdict.missing.length === 0) return true;
             unavailable.push(`${scheme.sourceLabel}：${verdict.reason}`);
+            hiddenSchemes.push(scheme);
             return false;
           })
         : pool.schemes;
@@ -452,11 +455,26 @@ export function renderDispatchGuides(
       const hiddenNote = [
         hidden > 0 ? `另有 ${hidden} 条方案未展示` : "",
         unavailable.length
-          ? `已隐藏 ${unavailable.length} 条不可抄（${unavailable.slice(0, 2).join("；")}${unavailable.length > 2 ? "…" : ""}）`
+          ? `已隐藏 ${unavailable.length} 条缺干员的方案（${unavailable.slice(0, 2).join("；")}${unavailable.length > 2 ? "…" : ""}）` +
+            ` <a href="#" data-act="show-hidden" class="link" style="font-size:11px" ` +
+            `title="这些方案里有你的练度表里没有的干员（缺干员才隐藏）；点开只为看一眼，勾选仍会正常占用">点开查看</a>`
           : "",
       ]
         .filter(Boolean)
         .join("；");
+      // 「点开查看」展开的内容：缺干员的方案照样按行渲染（勾选可用），只是默认折叠
+      const hiddenRows = hiddenSchemes.length
+        ? `<div data-hidden-schemes hidden style="margin-top:2px;padding-top:2px;border-top:1px dashed #e6e8eb">` +
+          `<div class="dim" style="font-size:11px">下面这些方案缺干员（只影响显示，不影响勾选）：</div>` +
+          hiddenSchemes
+            .slice(0, maxRows)
+            .map((scheme) => renderScheme(scheme, pool, hasOp, lockedOps, picked, colorBySource, opts.plainIcons))
+            .join("") +
+          (hiddenSchemes.length > maxRows
+            ? `<div class="dim" style="font-size:11px">另有 ${hiddenSchemes.length - maxRows} 条未列出</div>`
+            : "") +
+          `</div>`
+        : "";
       const rows = schemes.length
         ? schemes
             .map((scheme) => {
@@ -473,7 +491,8 @@ export function renderDispatchGuides(
               );
             })
             .join("") +
-          (hiddenNote ? `<div class="dim" style="font-size:11px;margin-top:2px">${esc(hiddenNote)}</div>` : "")
+          hiddenRows +
+          (hiddenNote ? `<div class="dim" style="font-size:11px;margin-top:2px">${hiddenNote}</div>` : "")
         : `<div class="dim" style="font-size:12px;margin-top:3px">` +
           (pool.schemes.length && opts.hideUnavailable
             ? `该关 ${pool.schemes.length} 套方案都不可抄（${esc(unavailable.slice(0, 3).join("；"))}${unavailable.length > 3 ? "…" : ""}）`

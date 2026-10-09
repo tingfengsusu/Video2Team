@@ -561,10 +561,17 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       });
       const opDB = await OperatorDB.load();
       await loadAliases();
+      // 与自动分析走**同一套设置**（第十三轮 q1：写死的 biliPages/scope 会让"手动补的关"和
+      // "自动识别到的关"结果不一样）；单关/少关请求时把 B站 挖掘的关数上限放开到请求数量
+      const { biliScope: manualScope, biliPages: manualPages, biliMaxAgeDays: manualMaxAge } =
+        await getAdvanced();
       const res = await buildDispatchGuides(candidates, opDB, {
         perStageLimit: 8,
-        biliScope: "all",
-        biliPages: 2,
+        maxBiliStages: candidates.length,
+        thinThreshold: 2,
+        biliScope: manualScope,
+        biliPages: manualPages,
+        biliMaxAgeDays: manualMaxAge,
         maxPartsVideos: 3,
         maxDescVideos: 0,
       });

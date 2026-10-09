@@ -759,9 +759,21 @@ const mixedHtml = v43.renderResult(
 );
 check(
   "默认只隐藏「缺干员」的方案（被占用的要留着，便于取舍对比）",
-  mixedHtml.includes("凯尔希") && !mixedHtml.includes(">银灰<") && mixedHtml.includes("能天使"),
+  mixedHtml.includes("凯尔希") &&
+    !mixedHtml.split("data-hidden-schemes")[0].includes(">银灰<") &&
+    mixedHtml.includes("能天使"),
 );
-check("并说明隐藏了几条、为什么（仅缺干员）", /已隐藏 1 条不可抄/.test(mixedHtml) && /缺 银灰/.test(mixedHtml));
+// 第十三轮 q1：隐藏的方案默认折叠在 [data-hidden-schemes] 里（可「点开查看」），不在可见行里
+check(
+  "缺干员的方案不在可见行里，但留在「点开查看」的折叠块里",
+  !/data-ops="银灰"/.test(mixedHtml.split('data-hidden-schemes')[0]) &&
+    /data-hidden-schemes[^>]*hidden/.test(mixedHtml) &&
+    /data-ops="银灰"/.test(mixedHtml),
+);
+check(
+  "并说明隐藏了几条、为什么，且带「点开查看」入口",
+  /已隐藏 1 条缺干员的方案/.test(mixedHtml) && /缺 银灰/.test(mixedHtml) && mixedHtml.includes('data-act="show-hidden"'),
+);
 check(
   "被其它关占用的方案保留展示并标注占用来源",
   /已被 VEC-SP05（难以相交） 占用/.test(mixedHtml),
@@ -821,7 +833,7 @@ console.log("\n== 页面元素一致性（防止「删了面板但监听还在�
   const pathx = await import("node:path");
   const here = pathx.dirname(new URL(import.meta.url).pathname.replace(/^[\\/]([A-Za-z]:)/, "$1"));
   const rootDir = pathx.join(here, "..");
-  const optional = new Set(["locks", "lockCount", "poolFilterNote", "kpis", "reanalyze"]); // 有守卫/运行时创建，可缺
+  const optional = new Set(["locks", "lockCount", "poolFilterNote", "kpis", "reanalyze", "clearPageCache"]); // 有守卫/运行时创建，可缺
   const idRe = /\bid="([A-Za-z][\w-]*)"/g;
   const useRe = /\$<[^>]*>\("([A-Za-z][\w-]*)"\)|\$\("([A-Za-z][\w-]*)"\)/g;
   for (const [htmlPath, tsPath] of [
