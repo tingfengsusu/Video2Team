@@ -341,6 +341,10 @@ check("字典可用（离线打包兜底）", db.exists("机械师"));
 check("resolve：高练机械师 → 机械师", db.resolve("高练机械师") === "机械师");
 check("exists：高练机械师 视为已识别", db.exists("高练机械师") === true);
 check("resolve：满配塞雷娅 → 塞雷娅", db.resolve("满配塞雷娅") === "塞雷娅");
+// 第十六轮新增别名（用户口径：新能 → 新约能天使、寒克 → 克洛丝）
+check("别名：新能 → 新约能天使", db.resolve("新能") === "新约能天使");
+check("别名：寒克 → 克洛丝", db.resolve("寒克") === "克洛丝");
+check("长名不受新别名影响：寒芒克洛丝 仍是寒芒克洛丝", db.resolve("寒芒克洛丝") === "寒芒克洛丝");
 
 const meta = { video: { bvid: "BV1", title: "t", desc: "", pages: [], aid: 1, cid: 1 }, page: 2, stage: "VEC-C", cid: 1 };
 const unknown = [];
@@ -1166,12 +1170,20 @@ check(
 check("折叠摘要标出候选方案数", /候选方案 \d+ 套/.test(rowHtml));
 
 console.log("\n== q4 结果可读性：总览块 + 分区标题 ==");
+/** 只取总览块（一直截到候选池分区标题之前） */
+const overviewSection = (html) => html.split("🚩 特别战线候选池")[0] ?? "";
 check("总览块：本关用这套（含人数与干员）", guideHtml.includes("🎯 本关用这套（1 人）") && guideHtml.includes("凯尔希"));
-check("总览块：未勾选时提示去候选池勾选", guideHtml.includes("🚩 前置关（派遣占用）") && guideHtml.includes("⬜ 未选 → 在下方候选池勾选"));
-check("总览块：勾选后显示该关已选方案", pickedHtml.includes("✅") && pickedHtml.includes("凯尔希·能天使"));
+// 第十六轮（2026-10-09）用户实测：总览块里的「🚩 前置关（派遣占用）」列表与候选池重复 → 已移除。
+// 前置关进度改由候选池每关行（✅ 已选什么 / ⬜ 未选）与顶部「前置关 x/y 已选」chip 承载。
+check(
+  "总览块不再重复列前置关（该列表与候选池重复，已移除）",
+  !guideHtml.includes("🚩 前置关（派遣占用）") && !guideHtml.includes("→ 在下方候选池勾选"),
+);
+check("候选池每关行承接前置关进度（未勾选时「⬜ 未选」）", poolSection(guideHtml).includes("⬜ 未选"));
+check("候选池：勾选后显示该关已选方案", pickedHtml.includes("✅") && pickedHtml.includes("凯尔希·能天使"));
 check(
   "被占用干员在总览里也置灰",
-  /occupied[^<]*>凯尔希<\/span>/.test(pickedHtml.split("🚩 P1 派遣关攻略")[0] ?? ""),
+  /occupied[^<]*>凯尔希<\/span>/.test(overviewSection(pickedHtml)),
 );
 check(
   "总览块：冲突统计（替换/无解）",
