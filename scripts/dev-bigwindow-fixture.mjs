@@ -103,7 +103,7 @@ const stub = `
   const localStore = {
     box: { operators: { 凯尔希: { name: "凯尔希" }, 黑: { name: "黑" }, 机械师: { name: "机械师" }, 克洛丝: { name: "克洛丝" }, 麒麟R夜刀: { name: "麒麟R夜刀" } }, source: "excel" },
     advanced: { hideUnavailableSchemes: true, schemeRows: 12, colorBySource: true },
-    lockedOps: {},
+    lockedOps: { 凯尔希: "VEC-SP02（心中热火）" },
     dispatchPicks: {},
   };
   const sessionStore = { bigResult: { ts: Date.now(), result: ${JSON.stringify(result)} } };
