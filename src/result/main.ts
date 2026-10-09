@@ -116,15 +116,14 @@ function render(): void {
     excludedStages,
     stageOptions: current.dispatchStageOptions,
   });
-  // 左栏：本关适配阵容（主内容）；右栏：总览 + 前置关候选池 + 占用清单
+  // 左栏：前置关候选池（主交互，第十一轮 p1 按用户口径换位）；右栏：本关用这套 + 阵容 + 占用清单
   $("col-main").innerHTML =
-    `<div class="card">${sections.intro}${sections.slots}</div>`;
-  $("col-side").innerHTML =
-    `<div class="card">${sections.overview}</div>` +
     `<div class="card">` +
     `<div class="card-title">🚩 前置关候选池 <span class="sub">勾选＝该关采用这套（点整行也能勾选）</span></div>` +
     `${sections.guides || '<div class="hint">本次没有识别到前置关。</div>'}` +
-    `</div>` +
+    `</div>`;
+  $("col-side").innerHTML =
+    `<div class="card">${sections.intro}${sections.overview}${sections.slots}</div>` +
     `<div class="card">` +
     `<div class="card-title">🔒 占用清单 <span class="sub" id="lockCount"></span></div>` +
     `<div id="locks"></div>` +

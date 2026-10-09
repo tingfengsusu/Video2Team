@@ -507,25 +507,25 @@ export function renderDispatchGuides(
       `</span></div>` +
       `</div></div>`
     : "";
-  const addStageLine =
-    addableStages.length || stageOptions.length
-      ? `<div class="hint" style="margin-top:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">` +
-        (addableStages.length
-          ? `<span class="dim" style="white-space:nowrap">漏识别了某一关？</span>` +
-            `<select class="stage-select" data-act="add-stage" aria-label="补一个关"` +
-            ` title="补一个关：现查该关的 MAA / B站 方案并加入候选池"` +
-            ` style="max-width:200px"><option value="">＋ 补一个关…</option>` +
-            addableStages
-              .map((o) => `<option value="${esc(o.displayCode)}">${esc(o.displayCode)}（${esc(o.stageName)}）</option>`)
-              .join("") +
-            `</select>`
-          : "") +
-        (stageOptions.length
-          ? `<button type="button" class="stage-select" data-act="open-grid"` +
-            ` title="像游戏里那样按序号点选派遣关：点选/长按格子，再「查询并加入候选池」">按网格选关…</button>`
-          : "") +
-        `</div>`
-      : "";
+  // 网格选关按钮放**区块顶部**（第十一轮 q3 用户反馈：放最底部不好点）
+  const pickerBtn = stageOptions.length
+    ? `<button type="button" class="stage-select" data-act="open-grid"` +
+      ` title="像游戏里那样按序号点选派遣关：点选/长按格子，再「查询并加入候选池」">按网格选关…</button>`
+    : "";
+  const topTools = pickerBtn
+    ? `<div style="display:flex;justify-content:flex-end;gap:6px;margin:2px 0 6px">${pickerBtn}</div>`
+    : "";
+  const addStageLine = addableStages.length
+    ? `<div class="hint" style="margin-top:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">` +
+      `<span class="dim" style="white-space:nowrap">漏识别了某一关？</span>` +
+      `<select class="stage-select" data-act="add-stage" aria-label="补一个关"` +
+      ` title="补一个关：现查该关的 MAA / B站 方案并加入候选池"` +
+      ` style="max-width:200px"><option value="">＋ 补一个关…</option>` +
+      addableStages
+        .map((o) => `<option value="${esc(o.displayCode)}">${esc(o.displayCode)}（${esc(o.stageName)}）</option>`)
+        .join("") +
+      `</select></div>`
+    : "";
   const excludedLine = excluded.size
     ? `<div class="hint">已排除（识别不准）：${[...excluded]
         .map(
@@ -534,7 +534,7 @@ export function renderDispatchGuides(
         )
         .join("、")}</div>`
     : "";
-  return heading + blocks + addStageLine + gridPicker + excludedLine + noteLine;
+  return heading + topTools + blocks + addStageLine + gridPicker + excludedLine + noteLine;
 }
 
 /** 结果分段（大窗口页要把「本关阵容」与「前置关候选池」分栏摆放，面板/popup 则直接拼接） */

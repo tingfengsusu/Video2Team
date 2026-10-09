@@ -109,13 +109,15 @@
                     justify-content: center; background: rgba(15,23,42,.38); }
       .gridpicker[hidden] { display: none; }
       .gp-card { background: var(--card); border-radius: 12px; padding: 14px 16px; max-width: min(92vw, 460px);
-                 box-shadow: 0 12px 40px rgba(0,0,0,.28); }
+                 box-shadow: 0 12px 40px rgba(0,0,0,.28);
+                 user-select: none; -webkit-user-select: none; }
       .gp-title { font-size: 15px; font-weight: 700; }
       .gp-sub { display: block; font-size: 12px; font-weight: 400; color: var(--ink-3); margin-top: 2px; }
       .gp-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin: 10px 0; }
       .gp-cell { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 7px 2px;
                  border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--ink);
-                 cursor: pointer; font: inherit; transition: border-color .2s, background .2s, box-shadow .2s; }
+                 cursor: pointer; font: inherit; transition: border-color .2s, background .2s, box-shadow .2s;
+             -webkit-touch-callout: none; touch-action: manipulation; -webkit-user-select: none; user-select: none; }
       .gp-cell:hover:not([disabled]) { border-color: var(--accent); background: #f3f9fd; }
       .gp-cell:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(35,173,229,.25); }
       .gp-cell b { font-size: 14px; color: #0969da; line-height: 1.2; }

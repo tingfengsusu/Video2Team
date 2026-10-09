@@ -70,7 +70,9 @@ export function wireGridPicker(root: HTMLElement | Document, onApply: (codes: st
     toggle(cell);
   });
 
-  // 长按 = 另一种选中方式（触屏没有 hover；也避免误触单击）
+  // 长按 = 另一种选中方式（触屏没有 hover；也避免误触单击）。
+  // ⚠️ 实测坑（第十一轮 q2）：不拦默认行为时长按会变成**选中文字/复制**，所以这里
+  // preventDefault()（阻止选字，但不影响后续 click），并在浮层内禁掉右键/长按菜单。
   let timer: number | undefined;
   const clearTimer = (): void => {
     if (timer != null) {
@@ -81,11 +83,15 @@ export function wireGridPicker(root: HTMLElement | Document, onApply: (codes: st
   root.addEventListener("pointerdown", (e) => {
     const cell = (e.target as HTMLElement | null)?.closest<HTMLElement>(".gp-cell");
     if (!cell || cell.hasAttribute("disabled")) return;
+    e.preventDefault();
     clearTimer();
     timer = window.setTimeout(() => {
       cell.dataset.longPressed = "1";
       toggle(cell);
     }, LONG_PRESS_MS);
+  });
+  root.addEventListener("contextmenu", (e) => {
+    if ((e.target as HTMLElement | null)?.closest(".gridpicker")) e.preventDefault();
   });
   for (const evt of ["pointerup", "pointercancel", "pointerleave"]) {
     root.addEventListener(evt, clearTimer);
