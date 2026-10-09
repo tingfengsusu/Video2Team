@@ -651,22 +651,35 @@ const mixedHtml = v43.renderResult(
   { 能天使: "VEC-SP05（难以相交）" },
   { stageKind: "target", hideUnavailable: true },
 );
-check("默认隐藏不可抄方案（缺干员/被占用）", mixedHtml.includes("凯尔希") && !mixedHtml.includes(">银灰<"));
-check("并说明隐藏了几条、为什么", /已隐藏 2 条不可抄/.test(mixedHtml) && /缺 银灰/.test(mixedHtml));
+check("缺干员的方案被隐藏", !/data-ops="银灰"/.test(mixedHtml));
+check(
+  "只隐藏缺干员的（说明里是「缺干员的方案」，不是「不可抄」）",
+  /已隐藏 1 条缺干员的方案/.test(mixedHtml) && !/已隐藏 2 条/.test(mixedHtml),
+  mixedHtml.match(/已隐藏[^<]*/)?.[0],
+);
+check(
+  "被别的关占用的方案仍显示，但干员置灰（便于跨关对比与改占用）",
+  /data-ops="能天使"/.test(mixedHtml) && /occupied[^<]*>能天使/.test(mixedHtml),
+);
+check(
+  "并标注被哪一关占用、说明勾选会把占用改过来",
+  /已被\s*<b>VEC-SP05/.test(mixedHtml) && /勾选本方案会把占用改到本关/.test(mixedHtml),
+  mixedHtml.match(/⚠[^<]*/)?.[0],
+);
 const showAllHtml = v43.renderResult(
   { ...baseResult, dispatchGuides: [poolWithMix] },
   (n) => n !== "银灰",
   { 能天使: "VEC-SP05（难以相交）" },
   { stageKind: "target", hideUnavailable: false },
 );
-check("关掉过滤后全部显示", showAllHtml.includes("银灰") && showAllHtml.includes("能天使") && !/已隐藏/.test(showAllHtml));
+check("关掉过滤后缺干员的也显示", showAllHtml.includes("银灰") && showAllHtml.includes("能天使") && !/已隐藏/.test(showAllHtml));
 const allUnusableHtml = v43.renderResult(
   { ...baseResult, dispatchGuides: [{ ...guidePool, schemes: [schemeWith({ operators: ["没练的人"] })] }] },
   () => false,
   {},
   { stageKind: "target", hideUnavailable: true },
 );
-check("整关都不可抄时说明原因（不留空白）", /该关 1 套方案都不可抄/.test(allUnusableHtml));
+check("整关都缺干员时说明原因（不留空白）", /该关 1 套方案缺干员/.test(allUnusableHtml), allUnusableHtml.match(/该关[^<]*/)?.[0]);
 const manyRows = v43.pickVisibleSchemes(
   Array.from({ length: 30 }, (_, i) => ({ source: i % 2 ? "maa" : "bili", tag: `S${i}` })),
   { total: 12, perSource: 6 },
