@@ -369,7 +369,7 @@ async function analyzeVideo(
     unknownNames,
   };
   const { pools: dispatchGuides, stats: guidesStats } = await dispatchGuidesPromise;
-  // 本活动全部派遣关：结果区「改成…／补一个关」用它做下拉选项（识别错了可手动纠正）
+  // 本活动全部派遣关：结果区「＋ 补一个关…」用它做下拉选项（识别错了可手动补关）
   let dispatchStageOptions: { displayCode: string; stageName: string }[] | undefined;
   const anyStageId = dispatchGuides[0]?.stageId ?? dispatchCandidates[0]?.stageId;
   if (anyStageId) {
@@ -494,7 +494,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     })().catch((err: Error) => sendResponse({ ok: false, error: err.message }));
     return true;
   }
-  // 结果区「改成…／补一个关」：按单个显示码现查该关候选池（MAA + B站）
+  // 结果区「＋ 补一个关…」：按单个显示码现查该关候选池（MAA + B站）
   if (msg?.type === "DISPATCH_QUERY_STAGE") {
     void (async () => {
       const displayCode = String(msg.displayCode ?? "").trim().toUpperCase();

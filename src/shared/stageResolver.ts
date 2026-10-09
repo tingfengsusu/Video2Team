@@ -415,7 +415,7 @@ export function resolveDispatchGridFromVision(
   const enabled = Number(vision?.enabledSupplies);
   const countNote =
     Number.isInteger(enabled) && enabled > 0 && enabled !== hints.length && hints.length > 0
-      ? `画面「当前启用补给」显示 ${enabled} 个，网格里识别到 ${hints.length} 个黄格——可能有遗漏或错位，请用「改成…／补一个关」核对`
+      ? `画面「当前启用补给」显示 ${enabled} 个，网格里识别到 ${hints.length} 个黄格——可能有遗漏或错位，请用结果区「＋ 补一个关…」核对`
       : "";
 
   return {

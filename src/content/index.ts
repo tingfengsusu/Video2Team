@@ -451,8 +451,9 @@ async function onPickChange(input: HTMLInputElement): Promise<void> {
 }
 
 /**
- * 手动纠正识别：把某关「改成…」另一关，或「补一个关」——
- * 后台现查该关的 MAA/B站 方案，替换/追加进当前结果，并写入结果缓存（刷新后仍保留）。
+ * 手动纠正识别：结果区「＋ 补一个关…」——后台现查该关的 MAA/B站 方案并追加进当前结果，
+ * 同时写入结果缓存（刷新后仍保留，无需重新分析）。
+ * act="recode-stage"（整关替换）为兼容保留：当前 UI 已不再提供「改成…」入口。
  */
 async function onStageRecode(sel: HTMLSelectElement): Promise<void> {
   if (!currentResult) return;
@@ -711,7 +712,7 @@ function wireRowClick(container: HTMLElement): void {
     if (target?.matches?.('input[data-pick="1"]')) void onPickChange(target as HTMLInputElement);
   });
   wireRowClick(q<HTMLElement>("#result")); // 点整行 = 勾选该方案
-  // 「改成…／补一个关」：手动纠正派遣关识别
+  // 「＋ 补一个关…」：手动补漏识别的派遣关（change 委托）
   q("#result").addEventListener("change", (e: Event) => {
     const sel = (e.target as HTMLElement | null)?.closest?.("select[data-act]") as HTMLSelectElement | null;
     if (sel) void onStageRecode(sel);

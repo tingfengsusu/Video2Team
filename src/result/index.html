@@ -109,7 +109,7 @@
       .search input::placeholder { color: #94a3b8; }
 
       /* ---------- 渲染层（renderResultSections 输出）样式 ---------- */
-      .video-title { font-size: 13px; color: var(--muted-fg); margin: 0 0 2px; }
+      .video-title { font-size: 12px; color: var(--muted-fg); margin: 0 0 2px; }
       .stage { font-size: 19px; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 6px; color: var(--primary); }
       .slot {
         font-size: 15px; line-height: 1.7; padding: 9px 11px; border-radius: var(--radius-md);
@@ -140,17 +140,18 @@
       .schemerow { transition: background var(--speed); }
       .schemerow:hover { background: #eff6ff; border-radius: var(--radius-sm); }
       .quote { color: #94a3b8; }
-      .dim { color: var(--muted-fg); font-size: 13px; }
-      /* 候选池行/表头：比小面板略大，远看也清楚（用户反馈大窗口偏小） */
+      /* 第九轮 q3：大窗口整体比小面板放大一档（方案行/表头/下拉 13px、辅助文字 12px）——
+         渲染层带行内 12px/11px，需页面级 !important 覆盖 */
       .schemerow { font-size: 13px !important; }
       .stagepool > div:first-child { font-size: 13px !important; }
-      details summary { font-size: 13px; }
+      .dim { color: var(--muted-fg); font-size: 12px !important; }
+      .hint { font-size: 12px; color: var(--muted-fg); line-height: 1.75; }
       .err { color: var(--destructive); }
-      .hint { font-size: 13px; color: var(--muted-fg); line-height: 1.75; }
       a { color: var(--primary); text-decoration: none; }
       a:hover { text-decoration: underline; }
       details { margin-top: 6px; }
-      details summary { color: var(--muted-fg); font-size: 12px; cursor: pointer; }
+      /* 折叠摘要（渲染层带行内 11px，需 !important 才提得上来） */
+      details summary { color: var(--muted-fg); font-size: 12px !important; cursor: pointer; }
       details summary:hover { color: var(--primary); }
 
       /* 候选池：关卡块做成数据卡片，带左侧状态条（已选=绿 / 未选=琥珀） */

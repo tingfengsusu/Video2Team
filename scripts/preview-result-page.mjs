@@ -100,10 +100,16 @@ const result = {
   stage: "VEC-C（全力以赴）", bvid: "BV1TEST", stageCode: "VEC-C", dispatchGuides: pools,
   dispatchGuideNote: "B站挖掘：3 关 · 命中 12 条 ｜ 去重 3 条（与 MAA 同阵容）、过滤 158 条（合集或其它关卡）、忽略 7 条（超出 180 天）",
   dispatchGuideEvidence: {
-    "VEC-SP02": "P1 网格第 5 格，格内读到「催化装备」",
-    "VEC-SP07": "P1 网格第 7 格，格内读到「缴械装备」",
-    "VEC-SP12": "P1 网格第 12 格，格内读到「净血装备」",
+    "VEC-SP02": "特别战线网格第 5 格 → VEC-SP02，格内读到「催化装备」",
+    "VEC-SP07": "特别战线网格第 7 格 → VEC-SP07，格内读到「缴械装备」",
+    "VEC-SP12": "特别战线网格第 12 格 → VEC-SP12，格内读到「净血装备」",
   },
+  // 「＋ 补一个关…」下拉：只列候选池里还没出现的关（这里 VEC-SP01 未出现，会进下拉；SP02/SP12 已在池里，不列）
+  dispatchStageOptions: [
+    { displayCode: "VEC-SP01", stageName: "重力危机" },
+    { displayCode: "VEC-SP02", stageName: "心中热火" },
+    { displayCode: "VEC-SP12", stageName: "四号站台" },
+  ],
   stats: { danmakuTotal: 320, commentCandidates: 42, danmakuCandidates: 18 },
 };
 const lockedOps = { 凯尔希: "VEC-SP02（心中热火）", 能天使: "VEC-SP02（心中热火）", 泥岩: "VEC-SP02（心中热火）" };
@@ -111,7 +117,8 @@ const picks = {
   "VEC-SP02": { key: "maa:105144", label: "VEC-SP02（心中热火）", ops: ["凯尔希", "能天使"] },
   "VEC-SP07": { key: "bili:BV1zz", label: "VEC-SP07（荒废矿道）", ops: ["令"] },
 };
-const hasOp = (n) => !["银灰", "史尔特尔"].includes(n);
+// 只缺「银灰」：缺干员的方案隐藏，而被其它关占用的方案保留展示（第九轮 q2 的验收点）
+const hasOp = (n) => n !== "银灰";
 
 const sections = m.renderResultSections(result, hasOp, lockedOps, {
   stageKind: "target",
@@ -123,6 +130,7 @@ const sections = m.renderResultSections(result, hasOp, lockedOps, {
   showSlotsHeading: false,
   plainIcons: true,
   guideEvidence: result.dispatchGuideEvidence,
+  stageOptions: result.dispatchStageOptions,
 });
 
 const esc = (s) =>
