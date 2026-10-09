@@ -50,6 +50,11 @@ const result = {
   stage: "VEC-C（全力以赴）", bvid: "BV1TEST", stageCode: "VEC-C",
   dispatchGuides: [pool],
   dispatchGuideEvidence: { "VEC-SP02": "特别战线网格第 5 格 → VEC-SP02，格内文字「催化装备」" },
+  dispatchStageOptions: [
+    { displayCode: "VEC-SP01", stageName: "重力危机" },
+    { displayCode: "VEC-SP02", stageName: "心中热火" },
+    { displayCode: "VEC-SP12", stageName: "四号站台" },
+  ],
   stats: { danmakuTotal: 320, commentCandidates: 42, danmakuCandidates: 18 },
 };
 
@@ -80,7 +85,29 @@ const stub = `
     remove: async () => {},
   });
   globalThis.chrome = {
-    runtime: { getManifest: () => ({ version: "0.0.0-fixture" }), getURL: (p) => "/" + p },
+    runtime: {
+      getManifest: () => ({ version: "0.0.0-fixture" }),
+      getURL: (p) => "/" + p,
+      sendMessage: async (msg) => {
+        if (msg && msg.type === "DISPATCH_QUERY_STAGE") {
+          const code = String(msg.displayCode).toUpperCase();
+          return {
+            ok: true,
+            pool: {
+              displayCode: code, stageId: "act3break_fixture", stageName: "夹具关",
+              counts: { maa: 2, bili: 1 },
+              schemes: [{
+                source: "maa", sourceLabel: "MAA作业", displayCode: code, stageName: "夹具关",
+                operators: ["凯尔希"], opers: [{ name: "凯尔希", skill: 3 }], mode: "单人",
+                title: "夹具方案", details: "", author: "fixture", url: "", bvid: "",
+                views: 0, hotScore: 0,
+              }],
+            },
+          };
+        }
+        return { ok: true };
+      },
+    },
     storage: {
       local: mk(localStore, "local"),
       session: Object.assign(mk(sessionStore, "session"), { setAccessLevel: async () => {} }),

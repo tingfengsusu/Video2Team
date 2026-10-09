@@ -188,16 +188,19 @@ export function buildWebCombinedMessages(
   const candidates = buildCandidates(comments, danmaku, caps);
   const outputSchema =
     `【最终输出】仅输出一个 JSON：\n` +
-    `{"stageResolution":{"explicitCode":"","matchedName":"","gridPosition":0,"gridRow":0,"gridColumn":0,"gridColumns":0,"gridName":"","gridCells":[{"position":0,"row":0,"column":0,"columns":0,"name":""}],"note":""},"roster":{"operators":[{"name":"","support":false,"isKey":false,"keyReason":""}]},"substitutions":[{"removed":"","replacement":"","kind":"","evidence":"","commentIndex":编号}]}\n` +
+    `{"stageResolution":{"explicitCode":"","matchedName":"","gridRows":0,"gridColumnsTotal":0,"enabledSupplies":0,"gridPosition":0,"gridRow":0,"gridColumn":0,"gridColumns":0,"gridName":"","gridCells":[{"position":0,"row":0,"column":0,"columns":0,"name":""}],"note":""},"roster":{"operators":[{"name":"","support":false,"isKey":false,"keyReason":""}]},"substitutions":[{"removed":"","replacement":"","kind":"","evidence":"","commentIndex":编号}]}\n` +
     `- stageResolution：只在截图/文字里有关卡识别证据时填写，没有证据时保留空串/0\n` +
     `  · explicitCode：当前关（P2/最后一张阵容图或文字）明确写出的显示码，VEC-C 或 VEC-SPxx 都要填；不要按数字猜\n` +
     `  · matchedName：当前关读到的中文通名（只读关卡名文字；「特别战线」这类界面标题不是通名，不要填）\n` +
     `  · gridPosition：仅在 P1 只有一个明确黄色格时填写，按“从上到下、从左到右”从 1 编号\n` +
     `  · 若更易判断，可填 gridRow/gridColumn/gridColumns，由插件换算；gridName 填该格中文通名供交叉校验\n` +
+    `  · gridRows / gridColumnsTotal：**先数清完整网格有多少行、多少列**（含未选中的白格与灰色禁用格），把这两个数字填上，再按行列定位黄色格（这是识别错位的根源，务必先数格子）\n` +
+    `  · enabledSupplies：画面「当前启用补给 N/M」里的 **N**（没有这个数字就填 0）\n` +
     `  · gridCells：P1 特别战线选择界面（常见为左侧补给/图标网格）中的**全部黄色底格**，即使 P2 已识别出 VEC-C 也必须独立填写；白色、灰色、蓝色或仅边框高亮都不算\n` +
     `  · gridCells.position 是按完整网格从上到下、从左到右的序号，不是“第几个黄色格”；行列也按完整网格计算，上方第一行/左侧第一列为 1，columns 填总列数，并尽量填该格通名\n` +
     `  · 行列计数要点：**白色/灰色/未解锁格同样占行号和列号**，从画面最上方一行、最左侧一列开始数，不要跳过任何行或列（实测常见错误：漏掉最上面一排未选中的白格，导致整串行号偏移）\n` +
     `  · 格内文字照实识别：格内写的是补给/装备名（如「催化装备」）就**原样填写**，不要改写成关卡名，也不要凭位置猜关卡名；读不清就留空\n` +
+    `  · 填完后自检：gridCells 的数量应等于 enabledSupplies（当它 >0 时）；不一致就重新数一遍行列再填，不要直接交\n` +
     `  · 例：四列网格中第一行第二格 position=2，第二行第一格 position=5，第三行第四格 position=12；不要把黄色格重新排成 1、2、3…\n` +
     `  · 通名 OCR 只读**黄色格内部**的名称文字区域，不读格子外的界面标题/栏目名/按钮文案（「特别战线」「矢量突破」「选择关卡」「作战」等一律不算通名，宁可留空）\n` +
     `- roster.operators：第一步识别出的全部干员（含助战干员）；name 只取干员名本体，练度修饰词（高练/低练/满练/满配/专三/专二/专一/满潜/满级/精二/精一/模组/XX级 等）剥离后填写\n` +

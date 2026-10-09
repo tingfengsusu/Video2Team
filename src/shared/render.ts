@@ -137,7 +137,10 @@ export interface ResultRenderOptions {
   /** 每关识别依据（特别战线网格位置 / 格内名称），让「识别错了」可见可纠 */
   guideEvidence?: Record<string, string>;
   /** 用户手动排除的关卡显示码 */
-  excludedStages?: string[]}
+  excludedStages?: string[];
+  /** 本活动全部派遣关（供「改成…／补一个关」下拉） */
+  stageOptions?: { displayCode: string; stageName: string }[];
+}
 
 /** 一条候选方案的干员列表（本关自己锁定的干员不置灰——它们是这一关要用的） */
 function renderSchemeOperators(
@@ -342,7 +345,10 @@ export function renderDispatchGuides(
     /** 每关识别依据（显示码 → 「网格第 5 格（格内「催化装备」）」） */
     evidence?: Record<string, string>;
     /** 用户手动排除的关卡显示码（识别不准时改） */
-    excludedStages?: string[]  } = {},
+    excludedStages?: string[];
+    /** 本活动全部派遣关：供「改成…／补一个关」下拉（不传则不显示纠正入口） */
+    stageOptions?: { displayCode: string; stageName: string }[];
+  } = {},
 ): string {
   const picks = opts.picks ?? {};
   const excluded = new Set((opts.excludedStages ?? []).map((c) => c.toUpperCase()));
@@ -417,8 +423,18 @@ export function renderDispatchGuides(
         `<span class="dim" style="float:right">` +
         `<span title="${esc(SOURCE_TIPS.maa)}">MAA作业 ${pool.counts.maa}</span> ｜ ` +
         `<span title="${esc(SOURCE_TIPS.bili)}">B站视频 ${pool.counts.bili}</span>` +
-        ` · <a href="#" data-act="skip-stage" data-code="${esc(pool.displayCode)}" class="link" ` +
-        `style="font-size:11px" title="识别错了？把这个关从本次前置关列表移除">不是这关</a></span></div>` +
+        ` <a href="#" data-act="skip-stage" data-code="${esc(pool.displayCode)}" class="link" ` +
+        `style="font-size:11px" title="识别错了？把这个关从本次前置关列表移除">不是这关</a>` +
+        (opts.stageOptions?.length
+          ? ` <select data-act="recode-stage" data-from="${esc(pool.displayCode)}" title="识别错了？把这一关改成列表里的正确关卡（会现查该关方案）" ` +
+            `style="font-size:11px;max-width:120px;vertical-align:middle"><option value="">改成…</option>` +
+            opts.stageOptions
+              .filter((o) => o.displayCode.toUpperCase() !== pool.displayCode.toUpperCase())
+              .map((o) => `<option value="${esc(o.displayCode)}">${esc(o.displayCode)}（${esc(o.stageName)}）</option>`)
+              .join("") +
+            `</select>`
+          : "") +
+        `</span></div>` +
         evidenceLine +
         `<details${picked ? "" : " open"}>` +
         `<summary style="font-size:11px;color:#888;cursor:pointer">候选方案 ${schemes.length} 套</summary>` +
@@ -431,6 +447,16 @@ export function renderDispatchGuides(
   const noteLine = opts.note
     ? `<div class="hint" style="color:#b8860b">${esc(opts.note)}</div>`
     : "";
+  // 漏识别时的补关入口（只在下拉有数据时出现）
+  const addStageLine = opts.stageOptions?.length
+    ? `<div class="hint" style="margin-top:4px">漏识别了某一关？` +
+      ` <select data-act="add-stage" title="补一个关：现查该关的 MAA/B站 方案并加入候选池"` +
+      ` style="font-size:11px;max-width:150px;vertical-align:middle"><option value="">＋ 补一个关…</option>` +
+      opts.stageOptions
+        .map((o) => `<option value="${esc(o.displayCode)}">${esc(o.displayCode)}（${esc(o.stageName)}）</option>`)
+        .join("") +
+      `</select></div>`
+    : "";
   const excludedLine = excluded.size
     ? `<div class="hint">已排除（识别不准）：${[...excluded]
         .map(
@@ -439,7 +465,7 @@ export function renderDispatchGuides(
         )
         .join("、")}</div>`
     : "";
-  return heading + blocks + excludedLine + noteLine;
+  return heading + blocks + addStageLine + excludedLine + noteLine;
 }
 
 /** 结果分段（大窗口页要把「本关阵容」与「前置关候选池」分栏摆放，面板/popup 则直接拼接） */
@@ -495,7 +521,9 @@ export function renderResultSections(
     showHeading: options.showGuidesHeading,
     plainIcons: options.plainIcons,
     evidence: options.guideEvidence,
-    excludedStages: options.excludedStages,  });
+    excludedStages: options.excludedStages,
+    stageOptions: options.stageOptions,
+  });
   return {
     intro:
       `<div class="video-title">${esc(out.videoTitle)}</div>` +

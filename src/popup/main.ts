@@ -25,8 +25,10 @@ import { shrinkImage } from "../shared/img";
 import {
   getCachedResult,
   normalizePage,
+  putCachedResult,
   type ResultCacheEntry,
 } from "../shared/resultCache";
+import { clearStageSkip, patchStagePool, queryStagePool } from "../shared/stageRecode";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -263,6 +265,7 @@ function showResult(result: AnalysisOutput): void {
     colorBySource,
     guideEvidence: result.dispatchGuideEvidence,
     excludedStages,
+    stageOptions: result.dispatchStageOptions,
   });
 
   const switchLink = $("result").querySelector<HTMLAnchorElement>('[data-act="mark-dispatch"]');
@@ -350,6 +353,36 @@ async function onPickChange(input: HTMLInputElement): Promise<void> {
   } catch (err) {
     $("status").innerHTML = `<span class="err">勾选处理失败：${esc((err as Error)?.message ?? String(err))}</span>`;
   }
+}
+
+/**
+ * 手动纠正识别：把某关「改成…」另一关，或「补一个关」——
+ * 后台现查该关的 MAA/B站 方案，替换/追加进当前结果，并写入结果缓存（刷新后仍保留）。
+ */
+async function onStageRecode(sel: HTMLSelectElement): Promise<void> {
+  if (!currentResult) return;
+  const act = sel.getAttribute("data-act");
+  const code = sel.value.trim().toUpperCase();
+  if (!act || !code) return;
+  const from = act === "recode-stage" ? sel.getAttribute("data-from") : null;
+  const page = currentCtx.page;
+  sel.disabled = true;
+  $("status").textContent = `正在查询 ${code} 的候选方案（MAA + B站，约 3-10 秒）…`;
+  const pool = await queryStagePool(code);
+  if (!pool) {
+    $("status").innerHTML = `<span class="err">查询 ${code} 失败（无网络或该关暂无数据），可稍后重试</span>`;
+    sel.disabled = false;
+    sel.value = "";
+    return;
+  }
+  const next = patchStagePool(currentResult, from, pool);
+  currentResult = next;
+  await putCachedResult(next, page);
+  await clearStageSkip(stageSkipKey(), code);
+  sel.value = "";
+  sel.disabled = false;
+  $("status").textContent = `已更新 ${code} 的候选方案（${pool.schemes.length} 套）`;
+  showResult(next);
 }
 
 function showCachedResult(entry: ResultCacheEntry): void {
@@ -516,6 +549,11 @@ async function init(): Promise<void> {
     if (target?.matches?.('input[data-pick="1"]')) void onPickChange(target as HTMLInputElement);
   });
   wireRowClick($("result")); // 点整行 = 勾选该方案
+  // 「改成…／补一个关」：手动纠正派遣关识别
+  $("result").addEventListener("change", (e: Event) => {
+    const sel = (e.target as HTMLElement | null)?.closest?.("select[data-act]") as HTMLSelectElement | null;
+    if (sel) void onStageRecode(sel);
+  });
   // 「不是这关 / 恢复」：识别不准时手动纠正前置关列表
   $("result").addEventListener("click", (e) => {
     const link = (e.target as HTMLElement | null)?.closest<HTMLAnchorElement>("[data-act]");

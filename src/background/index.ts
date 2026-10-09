@@ -25,7 +25,14 @@ import {
   parseJsonLoose,
 } from "../shared/llm";
 import { normalizePage, putCachedResult } from "../shared/resultCache";
-import { buildDispatchPool, listDispatchStages, queryCopilots, resolveEventPrefix } from "../shared/maa";
+import {
+  buildDispatchPool,
+  eventPrefixFromStageId,
+  getLevelDb,
+  listDispatchStages,
+  queryCopilots,
+  resolveEventPrefix,
+} from "../shared/maa";
 import { mineStageWithLlm, type BiliScheme } from "../shared/biliDig";
 import { mergePools } from "../shared/dispatchPool";
 import { biliMiningNote, buildDispatchGuides, type DispatchGuidesStats } from "../shared/dispatchGuides";
@@ -362,6 +369,16 @@ async function analyzeVideo(
     unknownNames,
   };
   const { pools: dispatchGuides, stats: guidesStats } = await dispatchGuidesPromise;
+  // 本活动全部派遣关：结果区「改成…／补一个关」用它做下拉选项（识别错了可手动纠正）
+  let dispatchStageOptions: { displayCode: string; stageName: string }[] | undefined;
+  const anyStageId = dispatchGuides[0]?.stageId ?? dispatchCandidates[0]?.stageId;
+  if (anyStageId) {
+    const prefix = eventPrefixFromStageId(anyStageId);
+    dispatchStageOptions = (prefix ? await listDispatchStages(prefix).catch(() => []) : []).map(
+      (l) => ({ displayCode: l.displayCode, stageName: l.name }),
+    );
+    if (dispatchStageOptions.length === 0) dispatchStageOptions = undefined;
+  }
   const dispatchGuideNote = [
     visionResolution.dispatchGridNote,
     dispatchCandidates.length > 0 &&
@@ -388,6 +405,7 @@ async function analyzeVideo(
     dispatchGuideEvidence: Object.keys(dispatchGuideEvidence).length
       ? dispatchGuideEvidence
       : undefined,
+    dispatchStageOptions,
     stats,
   };
 }
@@ -473,6 +491,33 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         await chrome.storage.session.set({ bigWindowId: created.id }).catch(() => {});
       }
       sendResponse({ ok: true });
+    })().catch((err: Error) => sendResponse({ ok: false, error: err.message }));
+    return true;
+  }
+  // 结果区「改成…／补一个关」：按单个显示码现查该关候选池（MAA + B站）
+  if (msg?.type === "DISPATCH_QUERY_STAGE") {
+    void (async () => {
+      const displayCode = String(msg.displayCode ?? "").trim().toUpperCase();
+      const stageName = msg.stageName ? String(msg.stageName) : undefined;
+      if (!/^VEC-SP\d{1,2}$/.test(displayCode)) {
+        sendResponse({ ok: false, error: "只支持 VEC-SPxx 形式的派遣关" });
+        return;
+      }
+      const levels = await getLevelDb().catch(() => []);
+      const level = levels.find((l) => l.displayCode.toUpperCase() === displayCode);
+      const opDB = await OperatorDB.load();
+      await loadAliases();
+      const res = await buildDispatchGuides(
+        [{
+          gridPosition: 0,
+          displayCode,
+          stageId: level?.stageId ?? "",
+          stageName: level?.name ?? stageName ?? "",
+        }],
+        opDB,
+        { perStageLimit: 8, biliScope: "all", biliPages: 2, maxPartsVideos: 3, maxDescVideos: 0 },
+      );
+      sendResponse({ ok: true, pool: res.pools[0] ?? null, stats: res.stats });
     })().catch((err: Error) => sendResponse({ ok: false, error: err.message }));
     return true;
   }

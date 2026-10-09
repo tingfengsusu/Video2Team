@@ -113,6 +113,9 @@ export interface StageGridCellHint {
 
 export interface StageVisionHints {
   explicitCode?: string; // 画面中明确写出的 VEC-SPxx
+  gridRows?: number; // 完整网格的总行数（含未选中的白格与灰色禁用格）
+  gridColumnsTotal?: number; // 完整网格的总列数（与 gridColumns 同义，模型可能填任一个）
+  enabledSupplies?: number; // 画面「当前启用补给 N/M」里的 N，用于与实际识别到的黄格数量对账
   matchedName?: string; // 画面中读到的关卡通名
   gridPosition?: number; // 选择界面网格阅读顺序位置（1-based）
   gridRow?: number; // 网格行（1-based）
@@ -167,6 +170,8 @@ export interface AnalysisOutput extends StageResult {
   dispatchGuideNote?: string; // P1 识别成功但攻略查询失败时的降级说明
   /** 每关的识别依据（显示码 → 「P1 网格第 5 格，格内读到「催化装备」」）：识别错了可见可纠 */
   dispatchGuideEvidence?: Record<string, string>;
+  /** 本活动全部派遣关（显示码 + 关名）：供结果区「改成…／补一个关」手动纠正识别错误 */
+  dispatchStageOptions?: { displayCode: string; stageName: string }[];
   stats?: {
     danmakuTotal: number; // 抓取到的弹幕总数（XML 接口返回）
     commentCandidates: number; // 进入候选池的评论数
