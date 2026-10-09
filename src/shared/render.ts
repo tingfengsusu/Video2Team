@@ -134,7 +134,7 @@ export interface ResultRenderOptions {
   showSlotsHeading?: boolean;
   /** 不用 emoji 标记（大窗口「设计 B」按技能规范改用文字/SVG） */
   plainIcons?: boolean;
-  /** 每关识别依据（P1 网格位置 / 格内名称），让「识别错了」可见可纠 */
+  /** 每关识别依据（特别战线网格位置 / 格内名称），让「识别错了」可见可纠 */
   guideEvidence?: Record<string, string>;
   /** 用户手动排除的关卡显示码 */
   excludedStages?: string[]}
@@ -355,7 +355,7 @@ export function renderDispatchGuides(
     opts.showHeading === false
       ? ""
       : sectionHeading(
-          "🚩 P1 派遣关攻略",
+          "🚩 特别战线候选池",
           `按黄色格位置识别 · ${visiblePools.length} 关 ${totalSchemes} 套（勾选＝本关采用；点整行也能勾选）`,
         );
   const blocks = visiblePools
@@ -399,11 +399,12 @@ export function renderDispatchGuides(
       const pickLine = picked
         ? `<span style="color:#1a7f37">${opts.plainIcons ? "已选" : "✅"} ${picked.ops.map((n) => esc(n)).join("·")}</span>`
         : `<span class="dim">${opts.plainIcons ? "未选" : "⬜ 未选"}</span>`;
-      // 识别依据（P1 网格第几格 / 格内名称 / 是否需核实）：让「识别错了」一眼可见
+      // 识别依据（特别战线网格第几格 / 格内名称 / 是否需核实）：让「识别错了」一眼可见
       const evidence = opts.evidence?.[pool.displayCode.toUpperCase()] ?? "";
       const evidenceLine = evidence
         ? `<div class="hint" style="margin-top:1px">识别依据：${esc(evidence)}</div>`
-        : "";      return (
+        : "";
+      return (
         `<div class="stagepool" data-stage="${esc(pool.displayCode)}" ` +
         `data-picked="${picked ? "1" : "0"}" ` +
         `style="padding:6px 8px;margin:4px 0;background:#fffdf6;border:1px solid #eadfbd;border-radius:5px">` +

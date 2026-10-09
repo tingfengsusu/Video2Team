@@ -409,11 +409,11 @@ export function resolveDispatchGridFromVision(
         `P1 格内名称“${hint.name}”与网格位置推算的 ${mapped.positionLevel.displayCode}（${mapped.positionLevel.name}）不一致，已按名称采用 ${mapped.level.displayCode}`,
       );
     } else if (!mapped.byName && hint.name) {
-      mismatchNotes.push(`P1 通名“${hint.name}”不在关卡库中，已按网格位置采用 ${mapped.level.displayCode}`);
+      mismatchNotes.push(`网格内文字“${hint.name}”不在关卡库中，已按网格位置采用 ${mapped.level.displayCode}`);
     }
   }
   const invalidNote = invalidPositions.length
-    ? `P1 网格位置 ${invalidPositions.join("、")} 超出该活动的派遣关范围`
+    ? `网格位置 ${invalidPositions.join("、")} 超出该活动的派遣关范围`
     : "";
 
   return {
