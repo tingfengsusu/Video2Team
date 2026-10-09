@@ -412,22 +412,31 @@ function showResult(result: AnalysisOutput): void {
  */
 async function onPickChange(input: HTMLInputElement): Promise<void> {
   if (!currentResult) return;
-  const pick = resolvePickFromRow(input, currentResult);
-  if (!pick) {
-    // 解析不出方案（DOM 与结果对不上）：给出可见原因，并把视觉勾选态纠正回真实状态
-    q("#status").innerHTML = `<span class="err">勾选未生效：这一行不在当前结果里（可能是旧结果缓存），请点「重新分析」后再试</span>`;
+  try {
+    const pick = resolvePickFromRow(input, currentResult);
+    if (!pick) {
+      q("#status").innerHTML = `<span class="err">勾选未生效：这一行不在当前结果里（可能是旧结果缓存），请重新分析后再试</span>`;
+      showResult(currentResult);
+      return;
+    }
+    // ① 先改内存状态并重渲染——不等存储写入：即使存储失败，界面也照常更新
+    const outcome = togglePick(lockedOps, dispatchPicks, pick);
+    lockedOps = outcome.lockedOps;
+    dispatchPicks = outcome.picks;
+    renderLocks();
     showResult(currentResult);
-    return;
+    // ② 再持久化；失败要显式告知（此前 await 抛错会跳过渲染，表现成「勾了没反应」）
+    try {
+      await chrome.storage.local.set({ lockedOps, dispatchPicks });
+      q("#status").textContent = outcome.checked
+        ? `已占用 ${pick.ops.length} 名干员（${pick.stageCode}）——下方结果已实时置灰`
+        : `已取消 ${pick.stageCode} 的占用`;
+    } catch (err) {
+      q("#status").innerHTML = `<span class="err">勾选已生效，但写入本地存储失败：${esc((err as Error)?.message ?? String(err))}（刷新后可能丢失；可到设置页清空分析缓存）</span>`;
+    }
+  } catch (err) {
+    q("#status").innerHTML = `<span class="err">勾选处理失败：${esc((err as Error)?.message ?? String(err))}</span>`;
   }
-  const outcome = togglePick(lockedOps, dispatchPicks, pick);
-  lockedOps = outcome.lockedOps;
-  dispatchPicks = outcome.picks;
-  await chrome.storage.local.set({ lockedOps, dispatchPicks });
-  renderLocks();
-  q("#status").textContent = outcome.checked
-    ? `已占用 ${pick.ops.length} 名干员（${pick.stageCode}）——下方结果已实时置灰`
-    : `已取消 ${pick.stageCode} 的占用`;
-  showResult(currentResult);
 }
 
 function showCachedResult(entry: ResultCacheEntry): void {

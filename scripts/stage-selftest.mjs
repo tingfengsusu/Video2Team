@@ -127,10 +127,10 @@ const conflict = stage.resolveStageWithVision(
   levels,
 );
 check(
-  // v4.3 二次实测修正：位置读数不可靠（实测把 r2c1/r2c3/r3c4 报成 10/11/16），
-  // 因此格内名称能匹配关卡库时以名称为准，位置降为交叉校验
-  "网格名称与位置冲突时按名称采用（位置读数不可靠）",
-  conflict.displayCode === "VEC-SP07" && conflict.needsVerification === true,
+  // 用户实测取捨（2026-10-09）：格内文字多是补给名，定位意义不大；**序号**才是依据
+  // （位置越界时才退回文字），文字与序号矛盾时按序号并给核实提示
+  "网格文字与序号冲突时按序号采用（文字仅作交叉校验）",
+  conflict.displayCode === "VEC-SP01" && conflict.needsVerification === true,
   conflict.displayCode,
 );
 check("冲突结果带核实提示", /请核实/.test(conflict.note ?? ""), conflict.note);

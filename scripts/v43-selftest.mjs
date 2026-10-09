@@ -384,8 +384,8 @@ const realConflict = v43.resolveStageWithVision(
   levels,
 );
 check(
-  "格内名称与位置冲突时按名称采用（位置读数实测不可靠）",
-  realConflict.displayCode === "VEC-SP07" && realConflict.needsVerification === true && /按名称采用/.test(realConflict.note ?? ""),
+  "文字与序号冲突时按序号采用（文字仅作交叉校验，见 stage 自测同项）",
+  realConflict.displayCode === "VEC-SP01" && realConflict.needsVerification === true && /已按序号采用/.test(realConflict.note ?? ""),
   `${realConflict.displayCode}｜${realConflict.note}`,
 );
 
@@ -399,18 +399,16 @@ const supplyGrid = v43.resolveDispatchGridFromVision(
     explicitCode: "VEC-C",
     gridColumns: 4,
     gridCells: [
-      { row: 2, column: 1, name: "催化装备" },
-      { row: 2, column: 3, name: "缴械装备" },
-      { row: 3, column: 4, name: "净血装备" },
+      { position: 1, name: "催化装备" }, // 格内是补给名（不在关卡库）→ 只按序号
+      { position: 3, name: "缴械装备" },
     ],
   },
   levels,
 );
-check("补给/配置界面不产出派遣候选", supplyGrid.candidates.length === 0, JSON.stringify(supplyGrid.candidates));
 check(
-  "并说明原因（名称不属于本活动关卡）",
-  /不属于本活动任何关卡/.test(supplyGrid.note ?? "") && /催化装备/.test(supplyGrid.note ?? ""),
-  supplyGrid.note,
+  "格内是补给名时不影响按序号定位（文字不参与映射）",
+  supplyGrid.candidates.map((c) => c.displayCode).join(",") === "VEC-SP01,VEC-SP07",
+  supplyGrid.candidates.map((c) => c.displayCode).join(","),
 );
 // 名称能匹配时以名称为准（位置读数偏差被纠正）
 const namedGrid = v43.resolveDispatchGridFromVision(
@@ -426,13 +424,13 @@ const namedGrid = v43.resolveDispatchGridFromVision(
   levels,
 );
 check(
-  "格内名称优先于位置推算",
-  namedGrid.candidates.map((c) => c.displayCode).join(",") === "VEC-SP07,VEC-SP02",
+  "序号优先：文字与序号冲突时仍按序号（文字只进提示）",
+  namedGrid.candidates.map((c) => c.displayCode).join(",") === "VEC-SP01,VEC-SP07",
   namedGrid.candidates.map((c) => c.displayCode).join(","),
 );
 check(
-  "名称与位置不一致时给出核实提示",
-  /已按名称采用/.test(namedGrid.note ?? "") && namedGrid.candidates.every((c) => c.needsVerification),
+  "文字与序号不一致时给出核实提示",
+  /已按序号采用，请核实/.test(namedGrid.note ?? ""),
   namedGrid.note,
 );
 

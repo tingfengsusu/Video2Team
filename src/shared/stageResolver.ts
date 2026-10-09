@@ -274,15 +274,14 @@ function collectCurrentGridHints(vision: StageVisionHints): NormalizedGridHint[]
 function candidateFromLevel(
   hint: NormalizedGridHint,
   level: MaaLevel,
-  crossCheck?: { byName?: boolean; positionLevel?: MaaLevel },
+  crossCheck?: { byName?: boolean; nameLevel?: MaaLevel },
 ): StageGridCandidate {
   const nameMismatch =
     !!hint.name && normalizeName(hint.name) !== normalizeName(level.name);
   // 名称优先时若位置推算指向另一关，标记待核实（note 由调用方拼接）
   const positionConflict =
     !!crossCheck?.byName &&
-    !!crossCheck.positionLevel &&
-    crossCheck.positionLevel.displayCode !== level.displayCode;
+    !!crossCheck.nameLevel && crossCheck.nameLevel.displayCode !== level.displayCode;
   return {
     gridPosition: hint.position,
     gridRow: hint.row,
@@ -302,17 +301,25 @@ function candidateFromLevel(
  * 因此**格内名称优先**：名称能在本活动派遣关列表里精确匹配就用它，位置推算降级为交叉校验
  * （不一致时保留核实提示）；名称缺失或不在库中才回退位置规则。
  */
+/**
+ * 把一格网格提示映射到关卡：**序号（位置）为准**。
+ *
+ * 用户实测取捨（2026-10-09）：黄格里的文字是**补给名**（催化装备/缴械装备…），不在关卡库里，
+ * 对定位意义不大；真正可靠的是「从上到下、从左到右」的**序号**。故位置优先，
+ * 文字仅在与关卡库对上时做交叉校验（不一致给提示，不覆盖位置结论），位置越界时才退回文字。
+ */
 function mapHintToLevel(
   hint: NormalizedGridHint,
   stages: readonly MaaLevel[],
-): { level: MaaLevel; byName: boolean; positionLevel?: MaaLevel } | null {
+): { level: MaaLevel; byName: boolean; nameLevel?: MaaLevel } | null {
   const byPosition = codeFromGridPosition(hint.position, stages);
-  if (hint.name) {
-    const wanted = normalizeName(hint.name);
-    const byName = stages.find((s) => normalizeName(s.name) === wanted);
-    if (byName) return { level: byName, byName: true, positionLevel: byPosition ?? undefined };
-  }
-  return byPosition ? { level: byPosition, byName: false } : null;
+  const hintName = hint.name ?? "";
+  const nameLevel = hintName
+    ? stages.find((s) => normalizeName(s.name) === normalizeName(hintName))
+    : undefined;
+  if (byPosition) return { level: byPosition, byName: false, nameLevel };
+  if (nameLevel) return { level: nameLevel, byName: true };
+  return null;
 }
 
 function resolutionFromGridCandidate(
@@ -377,20 +384,6 @@ export function resolveDispatchGridFromVision(
 
   const candidates: StageGridCandidate[] = [];
   const invalidPositions: number[] = [];
-  // 全部格都读到名称、却没有一个能在本活动关卡库里匹配 → 多半是补给/配置界面
-  // （实测黄格内是「催化装备」这类补给名）：不按位置硬猜关卡，避免污染候选池。
-  const namedHints = hints.filter((h) => !!h.name);
-  const anyNameMatched = hints.some((h) => mapHintToLevel(h, stages)?.byName);
-  if (namedHints.length > 0 && namedHints.length === hints.length && !anyNameMatched) {
-    return {
-      candidates: [],
-      invalidPositions: [],
-      prefix,
-      note:
-        `P1 网格内读到的名称（${namedHints.map((h) => h.name).join("、")}）不属于本活动任何关卡，` +
-        `可能是补给/配置界面：本次未按网格位置推算派遣关（避免识别错误）`,
-    };
-  }
   const mismatchNotes: string[] = [];
   for (const hint of hints) {
     const mapped = mapHintToLevel(hint, stages);
@@ -401,15 +394,18 @@ export function resolveDispatchGridFromVision(
     candidates.push(
       candidateFromLevel(hint, mapped.level, {
         byName: mapped.byName,
-        positionLevel: mapped.positionLevel,
+        nameLevel: mapped.nameLevel,
       }),
     );
-    if (mapped.byName && mapped.positionLevel && mapped.positionLevel.displayCode !== mapped.level.displayCode) {
+    if (mapped.byName) {
       mismatchNotes.push(
-        `P1 格内名称“${hint.name}”与网格位置推算的 ${mapped.positionLevel.displayCode}（${mapped.positionLevel.name}）不一致，已按名称采用 ${mapped.level.displayCode}`,
+        `网格第 ${hint.position} 格超出派遣关范围，已按格内文字“${hint.name}”采用 ${mapped.level.displayCode}`,
       );
-    } else if (!mapped.byName && hint.name) {
-      mismatchNotes.push(`网格内文字“${hint.name}”不在关卡库中，已按网格位置采用 ${mapped.level.displayCode}`);
+    } else if (mapped.nameLevel && mapped.nameLevel.displayCode !== mapped.level.displayCode) {
+      mismatchNotes.push(
+        `网格第 ${hint.position} 格的文字“${hint.name}”对应 ${mapped.nameLevel.displayCode}（${mapped.nameLevel.name}），` +
+          `与序号推算的 ${mapped.level.displayCode} 不一致，已按序号采用，请核实`,
+      );
     }
   }
   const invalidNote = invalidPositions.length
@@ -497,12 +493,15 @@ export function resolveStageWithVision(
     candidates.push(
       candidateFromLevel(hint, mapped.level, {
         byName: mapped.byName,
-        positionLevel: mapped.positionLevel,
+        nameLevel: mapped.nameLevel,
       }),
     );
-    if (mapped.byName && mapped.positionLevel && mapped.positionLevel.displayCode !== mapped.level.displayCode) {
+    if (mapped.byName) {
+      gridNotes.push(`网格第 ${hint.position} 格超出派遣关范围，已按格内文字“${hint.name}”采用 ${mapped.level.displayCode}`);
+    } else if (mapped.nameLevel && mapped.nameLevel.displayCode !== mapped.level.displayCode) {
       gridNotes.push(
-        `格内名称“${hint.name}”与网格位置推算的 ${mapped.positionLevel.displayCode}（${mapped.positionLevel.name}）不一致，已按名称采用 ${mapped.level.displayCode}`,
+        `网格第 ${hint.position} 格的文字“${hint.name}”对应 ${mapped.nameLevel.displayCode}（${mapped.nameLevel.name}），` +
+          `与序号推算的 ${mapped.level.displayCode} 不一致，已按序号采用，请核实`,
       );
     }
   }
