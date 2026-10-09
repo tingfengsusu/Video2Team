@@ -56,33 +56,7 @@ function renderLocks(): void {
   if (count) count.textContent = `${Object.keys(lockedOps).length} 人`;
 }
 
-/** KPI 条：数据可见性优先（技能风格的关键要素） */
-function renderKpis(): void {
-  const el = $("kpis");
-  if (!current) {
-    el.innerHTML = "";
-    return;
-  }
-  const roster = current.roster.slots.length;
-  const subs = current.recommendations.filter((s) => s.status === "substituted").length;
-  const unresolved = current.recommendations.filter((s) => s.status === "unresolved").length;
-  const guides = current.dispatchGuides ?? [];
-  const pickedN = guides.filter((p) => picks[p.displayCode.toUpperCase()]).length;
-  const locks = Object.keys(lockedOps).length;
-  const cell = (label: string, value: string, unit = "", tone = "") =>
-    `<div class="kpi ${tone}"><div class="k-label">${esc(label)}</div>` +
-    `<div class="k-value">${esc(value)}${unit ? `<span class="k-unit"> ${esc(unit)}</span>` : ""}</div></div>`;
-  el.innerHTML = [
-    cell("本关阵容", String(roster), "人"),
-    cell("已替换", String(subs), "处", subs ? "warn" : ""),
-    cell("无解", String(unresolved), "处", unresolved ? "bad" : ""),
-    cell("前置关已选", `${pickedN}/${guides.length}`),
-    cell("占用干员", String(locks), "人", locks ? "warn" : ""),
-  ].join("");
-}
-
 function render(): void {
-  renderKpis();
   if (!current) {
     $("stageName").textContent = "";
     $("poolCount").textContent = "";
@@ -120,7 +94,7 @@ function render(): void {
     sections.guides || `<div class="hint">本次没有识别到前置关（未检测到特别战线网格）。</div>`;
   const ctx = document.getElementById("context");
   if (ctx) ctx.innerHTML = sections.intro; // 视频标题 / 关卡类型提示 / 「其实是派遣关」切换链接
-  $("col-main").innerHTML = sections.overview + sections.slots;
+  $("col-main").innerHTML = sections.slots; // 右栏只留阵容：总览/占用清单与候选池重复（用户反馈）
   applyFilters();
   renderLocks();
 }

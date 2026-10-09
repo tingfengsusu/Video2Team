@@ -416,7 +416,7 @@ export function renderDispatchGuides(
         `<span class="dim" style="float:right">` +
         `<span title="${esc(SOURCE_TIPS.maa)}">MAA作业 ${pool.counts.maa}</span> ｜ ` +
         `<span title="${esc(SOURCE_TIPS.bili)}">B站视频 ${pool.counts.bili}</span>` +
-        ` <a href="#" data-act="skip-stage" data-code="${esc(pool.displayCode)}" class="link" ` +
+        ` · <a href="#" data-act="skip-stage" data-code="${esc(pool.displayCode)}" class="link" ` +
         `style="font-size:11px" title="识别错了？把这个关从本次前置关列表移除">不是这关</a></span></div>` +
         evidenceLine +
         `<details${picked ? "" : " open"}>` +

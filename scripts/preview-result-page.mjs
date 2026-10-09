@@ -1,10 +1,15 @@
 /**
  * 大窗口结果页的「静态预览」生成器（设计评审用，不影响扩展运行）：
  *
- *   node scripts/preview-result-page.mjs   →  temp/big-preview-b.html（用浏览器直接打开）
+ *   node scripts/preview-result-page.mjs   →  temp/preview-result.html（用浏览器直接打开）
  *
- * 骨架与 CSS 直接取自 src/result/index.html，数据用真实 renderResultSections 生成，
- * 因此预览与真页面（chrome.windows.create 打开的 result.html）除数据源外一致。
+ * 骨架与 CSS 直接取自 src/result/index.html（当前分支的版本），
+ * 内容用真实 renderResultSections 拼装并按容器 id 注入，因此预览与真页面（result.html）
+ * 除数据源（chrome.* storage）外一致。
+ *
+ * 兼容两种页面结构：
+ * - 设计 A（main）：#stageName / #chips / #col-side / #locks
+ * - 设计 B（design 分支）：#context / #col-pool / #col-main / #poolCount / #slotCount
  */
 import * as esbuild from "esbuild";
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -13,12 +18,12 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const root = new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
-const outfile = join(mkdtempSync(join(tmpdir(), "v2t-b-")), "m.mjs");
+const outfile = join(mkdtempSync(join(tmpdir(), "v2t-preview-")), "m.mjs");
 await esbuild.build({
   stdin: {
     contents: `export * from "../src/shared/render.ts";`,
     resolveDir: join(root, "scripts"),
-    sourcefile: "tmp-b-entry.ts",
+    sourcefile: "preview-entry.ts",
     loader: "ts",
   },
   bundle: true,
@@ -30,17 +35,26 @@ await esbuild.build({
 });
 const m = await import(pathToFileURL(outfile).href);
 
-const maa = (o) => ({
-  source: "maa", sourceLabel: "MAA作业", displayCode: "VEC-SP02", stageName: "心中热火",
-  operators: ["凯尔希"], opers: [{ name: "凯尔希", skill: 3 }], mode: "单人", title: "", details: "",
-  author: "", url: "", bvid: "", views: 0, hotScore: 0, ...o,
-});
-const bili = (o) => ({
-  source: "bili", sourceLabel: "B站视频", displayCode: "VEC-SP02", stageName: "心中热火",
-  operators: ["泥岩"], opers: [{ name: "泥岩" }], mode: "挂机", title: "", details: "",
-  author: "", url: "https://www.bilibili.com/video/BV1cuHe6DEF9", bvid: "BV1cuHe6DEF9",
-  views: 0, hotScore: 0, ...o,
-});
+// ---------------- 示例数据（贴近实测：推图关 + 3 个前置关 + 勾选/占用/替换/无解） ----------------
+const maa = (o) => {
+  const merged = {
+    source: "maa", sourceLabel: "MAA作业", displayCode: "VEC-SP02", stageName: "心中热火",
+    operators: ["凯尔希"], opers: [{ name: "凯尔希", skill: 3 }], mode: "单人", title: "", details: "",
+    author: "", url: "", bvid: "", views: 0, hotScore: 0, ...o,
+  };
+  if (o.operators) merged.opers = o.operators.map((n, i) => ({ name: n, skill: i === 0 ? merged.opers[0]?.skill : undefined }));
+  return merged;
+};
+const bili = (o) => {
+  const merged = {
+    source: "bili", sourceLabel: "B站视频", displayCode: "VEC-SP02", stageName: "心中热火",
+    operators: ["泥岩"], opers: [{ name: "泥岩" }], mode: "挂机", title: "", details: "",
+    author: "", url: "https://www.bilibili.com/video/BV1cuHe6DEF9", bvid: "BV1cuHe6DEF9",
+    views: 0, hotScore: 0, ...o,
+  };
+  if (o.operators) merged.opers = o.operators.map((n) => ({ name: n }));
+  return merged;
+};
 const pools = [
   {
     displayCode: "VEC-SP02", stageId: "act3break_sp02", stageName: "心中热火", counts: { maa: 5, bili: 3 },
@@ -85,6 +99,11 @@ const result = {
   videoTitle: "【全力以赴】VEC-C 矢量突破#3 拟生态 挂机攻略",
   stage: "VEC-C（全力以赴）", bvid: "BV1TEST", stageCode: "VEC-C", dispatchGuides: pools,
   dispatchGuideNote: "B站挖掘：3 关 · 命中 12 条 ｜ 去重 3 条（与 MAA 同阵容）、过滤 158 条（合集或其它关卡）、忽略 7 条（超出 180 天）",
+  dispatchGuideEvidence: {
+    "VEC-SP02": "P1 网格第 5 格，格内读到「催化装备」",
+    "VEC-SP07": "P1 网格第 7 格，格内读到「缴械装备」",
+    "VEC-SP12": "P1 网格第 12 格，格内读到「净血装备」",
+  },
   stats: { danmakuTotal: 320, commentCandidates: 42, danmakuCandidates: 18 },
 };
 const lockedOps = { 凯尔希: "VEC-SP02（心中热火）", 能天使: "VEC-SP02（心中热火）", 泥岩: "VEC-SP02（心中热火）" };
@@ -92,71 +111,57 @@ const picks = {
   "VEC-SP02": { key: "maa:105144", label: "VEC-SP02（心中热火）", ops: ["凯尔希", "能天使"] },
   "VEC-SP07": { key: "bili:BV1zz", label: "VEC-SP07（荒废矿道）", ops: ["令"] },
 };
-const hasOp = (n) => !["银灰", "史尔特尔", "伯塔尼"].includes(n);
+const hasOp = (n) => !["银灰", "史尔特尔"].includes(n);
 
 const sections = m.renderResultSections(result, hasOp, lockedOps, {
-  stageKind: "target", picks, hideUnavailable: true, maxSchemeRows: 12, colorBySource: true, showGuidesHeading: false, showSlotsHeading: false, plainIcons: true,
+  stageKind: "target",
+  picks,
+  hideUnavailable: true,
+  maxSchemeRows: 12,
+  colorBySource: true,
+  showGuidesHeading: false,
+  showSlotsHeading: false,
+  plainIcons: true,
+  guideEvidence: result.dispatchGuideEvidence,
 });
-const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+const esc = (s) =>
+  String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const guides = result.dispatchGuides;
 const pickedN = guides.filter((p) => picks[p.displayCode.toUpperCase()]).length;
-const kpi = (label, value, unit = "", tone = "") =>
-  `<div class="kpi ${tone}"><div class="k-label">${esc(label)}</div><div class="k-value">${esc(value)}${unit ? `<span class="k-unit"> ${esc(unit)}</span>` : ""}</div></div>`;
 
-// 骨架与 CSS 取自真实页面
-const page = readFileSync(join(root, "src/result/index.html"), "utf8");
-const style = page.match(/<style>[\s\S]*?<\/style>/)?.[0] ?? "";
-const symbols = page.match(/<svg style="display: none">[\s\S]*?<\/svg>/)?.[0] ?? "";
-const html = `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>Video2Team 结果（设计B）</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-${style}</head><body>
-${symbols}
-<header class="topbar">
-  <span class="brand"><svg class="icon" aria-hidden="true"><use href="#i-target"/></svg>Video2Team</span>
-  <span class="stage-chip mono">${esc(result.stage)}</span>
-  <span class="grow"></span>
-  <button class="btn"><svg class="icon" aria-hidden="true"><use href="#i-refresh"/></svg>刷新</button>
-  <button class="btn danger"><svg class="icon" aria-hidden="true"><use href="#i-trash"/></svg>清除占用</button>
-</header>
-<main>
-  <div class="kpis">
-    ${kpi("本关阵容", "6", "人")}
-    ${kpi("已替换", "1", "处", "warn")}
-    ${kpi("无解", "1", "处", "bad")}
-    ${kpi("前置关已选", `${pickedN}/${guides.length}`)}
-    ${kpi("占用干员", String(Object.keys(lockedOps).length), "人", "warn")}
-  </div>
-  <section class="panel" id="context" style="margin-bottom:16px;padding:10px 14px">
-    ${sections.intro}
-  </section>
-  <div class="grid">
-    <section class="panel">
-      <div class="panel-head"><svg class="icon"><use href="#i-flag"/></svg>前置关候选池<span class="count">${guides.length} 关 · ${guides.reduce((n, p) => n + p.schemes.length, 0)} 套</span></div>
-      <div class="toolrow">
-        <div class="seg" role="group" aria-label="按选择状态筛选关卡">
-          <button data-filter="all" aria-pressed="true">全部</button>
-          <button data-filter="unpicked" aria-pressed="false">未选</button>
-          <button data-filter="picked" aria-pressed="false">已选</button>
-        </div>
-        <label class="search"><svg class="icon"><use href="#i-search"/></svg><input type="search" placeholder="过滤方案（干员 / 标题 / 来源）"></label>
-      </div>
-      <div class="panel-body tight">${sections.guides}</div>
-    </section>
-    <aside class="side">
-      <div class="panel">
-        <div class="panel-head"><svg class="icon"><use href="#i-target"/></svg>本关适配阵容<span class="count">6 槽位</span></div>
-        <div class="panel-body">${sections.overview}${sections.slots}</div>
-      </div>
-      <div class="panel">
-        <div class="panel-head"><svg class="icon"><use href="#i-lock"/></svg>占用清单<span class="count">${Object.keys(lockedOps).length} 人</span></div>
-        <div class="panel-body">${m.renderLockedSection(lockedOps, true)}</div>
-      </div>
-    </aside>
-  </div>
-</main>
-</body></html>`;
+/** 按 id 注入内容（只替换该元素的首段文本/子节点，保持标签自身属性不变） */
+const fill = (html, id, content) => {
+  const re = new RegExp(`(<[^>]*\\bid="${id}"[^>]*>)([\\s\\S]*?)(</[a-zA-Z]+>)`);
+  return re.test(html) ? html.replace(re, (_m, open, _old, close) => `${open}${content}${close}`) : html;
+};
+
+let page = readFileSync(join(root, "src/result/index.html"), "utf8");
+page = fill(page, "stageName", esc(result.stage));
+page = fill(page, "poolCount", `${guides.length} 关 · ${guides.reduce((n, p) => n + p.schemes.length, 0)} 套`);
+page = fill(page, "slotCount", `${result.recommendations.length} 槽位`);
+page = fill(page, "context", sections.intro);
+page = fill(page, "col-pool", sections.guides);
+page = fill(page, "col-main", sections.slots);
+page = fill(page, "col-side", sections.overview + sections.guides);
+page = fill(page, "locks", m.renderLockedSection(lockedOps, true));
+page = fill(page, "lockCount", `${Object.keys(lockedOps).length} 人`);
+page = fill(
+  page,
+  "chips",
+  [
+    `阵容 ${result.roster.slots.length} 人`,
+    `替换 ${result.recommendations.filter((x) => x.status === "substituted").length} 处`,
+    `无解 ${result.recommendations.filter((x) => x.status === "unresolved").length} 处`,
+    `前置关 ${pickedN}/${guides.length} 已选`,
+    `占用 ${Object.keys(lockedOps).length} 人`,
+  ]
+    .map((c) => `<span class="chip">${esc(c)}</span>`)
+    .join(" "),
+);
+page = fill(page, "kpis", "");
+page = fill(page, "headline", esc(`${result.stage} ｜ ${result.videoTitle}`));
 
 mkdirSync(join(root, "temp"), { recursive: true });
-writeFileSync(join(root, "temp/big-preview-b.html"), html);
-console.log("预览已生成：temp/big-preview-b.html");
+writeFileSync(join(root, "temp/preview-result.html"), page);
+console.log("预览已生成：temp/preview-result.html");
