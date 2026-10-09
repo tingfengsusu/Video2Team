@@ -72,6 +72,37 @@ export function patchStagePools(
   };
 }
 
+/** 把这些关标成「不是这关」（写排除记录）——网格选关里取消勾选 = 识别错了（第十五轮 q2） */
+export async function excludeStages(key: string, codes: readonly string[]): Promise<void> {
+  const list = codes.map((c) => String(c ?? "").trim().toUpperCase()).filter(Boolean);
+  if (!list.length || !key) return;
+  try {
+    const stored = (await chrome.storage.local.get(STAGE_SKIPS_KEY)) as Record<
+      string,
+      Record<string, string[]> | undefined
+    >;
+    const all = { ...(stored[STAGE_SKIPS_KEY] ?? {}) };
+    const cur = new Set(all[key] ?? []);
+    for (const c of list) cur.add(c);
+    all[key] = [...cur];
+    await chrome.storage.local.set({ [STAGE_SKIPS_KEY]: all });
+  } catch {
+    /* 忽略：排除记录写入失败不影响主流程 */
+  }
+}
+
+/** 从结果里拿掉这些关的候选池，并重算关卡链（网格选关里"取消勾选"的另一半） */
+export function dropStagePools(result: AnalysisOutput, codes: readonly string[]): AnalysisOutput {
+  const drop = new Set(codes.map((c) => String(c ?? "").trim().toUpperCase()).filter(Boolean));
+  if (!drop.size) return result;
+  const guides = (result.dispatchGuides ?? []).filter((p) => !drop.has(p.displayCode.toUpperCase()));
+  return {
+    ...result,
+    dispatchGuides: guides,
+    dispatchStageChain: chainMapFor(guides.map((p) => p.displayCode)),
+  };
+}
+
 /** 取消某关的「不是这关」排除记录（改/补关后应能正常显示） */
 export async function clearStageSkip(key: string, displayCode: string): Promise<void> {
   try {

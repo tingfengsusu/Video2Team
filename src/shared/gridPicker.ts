@@ -6,10 +6,17 @@
  * - 点「选择补给关…」打开；「取消」/ 点浮层背景 / Esc 关闭；
  * - **单击**切换一格；**按住拖动**连续点选（滑过哪些格就选哪些，拖过已选的还能整段取消）；
  * - 已在候选池的格子默认勾着（`data-in-pool`），可以取消勾选，但**应用时不会重复查询**；
- * - 「查询并加入候选池」只把"新选中且不在池里"的关交给 onApply；
+ * - 「应用」：新选中的关现查并入，**被取消勾选的关从候选池移除**（识别错了就取消它）；
  * - 长按/拖动不会变成选中文字（pointerdown preventDefault + 浮层内拦 contextmenu + CSS user-select:none）。
  */
-export function wireGridPicker(root: HTMLElement, onApply: (codes: string[]) => void): void {
+export interface GridPickerSelection {
+  /** 新选中、需要现查并入的关 */
+  add: string[];
+  /** 原来在候选池里、这次被取消勾选的关（识别错了 → 从候选池移除） */
+  remove: string[];
+}
+
+export function wireGridPicker(root: HTMLElement, onApply: (sel: GridPickerSelection) => void): void {
   const doc = root.ownerDocument;
   const pickersIn = (): HTMLElement[] => [...root.querySelectorAll<HTMLElement>(".gridpicker")];
   const cellOf = (t: EventTarget | null): HTMLElement | null =>
@@ -17,22 +24,33 @@ export function wireGridPicker(root: HTMLElement, onApply: (codes: string[]) => 
   const pickerOf = (el: HTMLElement | null): HTMLElement | null =>
     el?.closest<HTMLElement>(".gridpicker") ?? null;
 
+  /** 当前选择 → {要查的、要移除的}：已在池里但被取消勾选 = 识别错了，应用时从候选池移除 */
+  const selectionOf = (picker: HTMLElement): GridPickerSelection => {
+    const cells = [...picker.querySelectorAll<HTMLElement>(".gp-cell")];
+    const on = cells.filter((c) => c.classList.contains("on"));
+    const off = cells.filter((c) => !c.classList.contains("on") && c.dataset.inPool === "1");
+    return {
+      add: [...new Set(on.filter((c) => c.dataset.inPool !== "1").map((c) => c.dataset.code ?? ""))].filter(Boolean),
+      remove: [...new Set(off.map((c) => c.dataset.code ?? ""))].filter(Boolean),
+    };
+  };
+
   const sync = (picker: HTMLElement): void => {
     const cells = [...picker.querySelectorAll<HTMLElement>(".gp-cell")];
     const on = cells.filter((c) => c.classList.contains("on"));
-    const fresh = on.filter((c) => c.dataset.inPool !== "1");
+    const { add, remove } = selectionOf(picker);
     const count = picker.querySelector<HTMLElement>(".gp-count b");
     if (count) count.textContent = String(on.length);
     const extra = picker.querySelector<HTMLElement>(".gp-new");
     if (extra) {
-      extra.textContent = fresh.length
-        ? `（其中 ${fresh.length} 关将查询）`
-        : on.length
-          ? "（都已在候选池）"
-          : "";
+      const parts = [
+        add.length ? `将查询 ${add.length} 关` : "",
+        remove.length ? `将移除 ${remove.length} 关` : "",
+      ].filter(Boolean);
+      extra.textContent = parts.length ? `（${parts.join("，")}）` : on.length ? "（无变化）" : "";
     }
     const apply = picker.querySelector<HTMLButtonElement>('[data-act="apply-grid"]');
-    if (apply) apply.disabled = fresh.length === 0;
+    if (apply) apply.disabled = add.length === 0 && remove.length === 0;
   };
 
   // 按住拖动 = 连续点选：pointerdown 定方向（该格原来开着就整段取消，否则整段选中），
@@ -96,13 +114,10 @@ export function wireGridPicker(root: HTMLElement, onApply: (codes: string[]) => 
       return;
     }
     if (t.closest('[data-act="apply-grid"]')) {
-      const codes = [...picker.querySelectorAll<HTMLElement>(".gp-cell.on:not([data-in-pool])")].map(
-        (c) => c.dataset.code ?? "",
-      );
-      const list = [...new Set(codes.filter(Boolean))];
-      if (!list.length) return;
+      const sel = selectionOf(picker);
+      if (!sel.add.length && !sel.remove.length) return;
       picker.hidden = true;
-      onApply(list);
+      onApply(sel);
       return;
     }
     // 格子本身：切换已经在 pointerdown 里做过，这里不再切（避免一次点击切两下）

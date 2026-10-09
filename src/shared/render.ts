@@ -372,6 +372,7 @@ export function renderDispatchGuides(
   }
   const maxRows = Math.max(2, opts.maxRows ?? 12);
   const colorBySource = opts.colorBySource !== false; // 默认开：MAA 蓝 / B站 粉
+  const presentCodes = new Set(pools.map((p) => p.displayCode.toUpperCase()));
   const totalSchemes = visiblePools.reduce((n, pool) => n + pool.schemes.length, 0);
   const heading =
     opts.showHeading === false
@@ -455,8 +456,12 @@ export function renderDispatchGuides(
       const dependents = Object.entries(opts.chain ?? {})
         .filter(([, prev]) => prev === code)
         .map(([dep]) => dep);
+      // 前置关可能被用户从候选池里移除了（第十五轮 q2）——那就别再说"已加入候选池"
+      const needFirstInPool = !!needFirst && presentCodes.has(needFirst);
       const chainLine = needFirst
-        ? `<div class="hint" style="color:#b8860b">关卡链：本关需要先打 <b>${esc(needFirst)}</b>（已自动加入候选池，它的占用也要算上）</div>`
+        ? `<div class="hint" style="color:#b8860b">关卡链：本关需要先打 <b>${esc(needFirst)}</b>（` +
+          (needFirstInPool ? "已自动加入候选池，它的占用也要算上" : "不在候选池里，需要时可从「选择补给关…」补回来") +
+          `）</div>`
         : dependents.length
           ? `<div class="hint" style="color:#b8860b">关卡链：<b>${esc(dependents.join("、"))}</b> 需要先打本关</div>`
           : "";
@@ -495,7 +500,6 @@ export function renderDispatchGuides(
   // 漏识别时的补关入口：只列"当前候选池里还没出现的关"（已经在列表里的不用补；
   // 被手动「不是这关」排除的关走它自己的「恢复」链接，也不在这里重复出现）。
   // 样式走 .stage-select 类，各界面 CSS 按自己的设计上色（hover/focus 可见、200ms 过渡）。
-  const presentCodes = new Set(pools.map((p) => p.displayCode.toUpperCase()));
   const addableStages = (opts.stageOptions ?? []).filter(
     (o) => !presentCodes.has(o.displayCode.toUpperCase()),
   );
@@ -509,7 +513,7 @@ export function renderDispatchGuides(
       `<div class="gp-card" role="dialog" aria-label="选择补给关">` +
       `<div class="gp-title">特别战线 · 选择补给关` +
       `<span class="gp-sub">序号 = 从上到下、从左到右（灰格/白格也占号），与识别依据是同一套编号；` +
-      `按住拖动可连续点选（滑过哪些格就选哪些），已在候选池的关默认勾着、不会重复查询</span></div>` +
+      `按住拖动可连续点选（滑过哪些格就选哪些）；已在候选池的关默认勾着（取消它 = 这一关识别错了，应用后会移除）</span></div>` +
       `<div class="gp-grid">` +
       stageOptions
         .map((o, i) => {
@@ -527,7 +531,8 @@ export function renderDispatchGuides(
       `<span class="gp-count dim">已选 <b>${inPoolCount}</b> 关<span class="gp-new"></span></span>` +
       `<span class="gp-actions">` +
       `<button type="button" class="stage-select" data-act="close-grid">取消</button>` +
-      `<button type="button" class="stage-select gp-apply" data-act="apply-grid" disabled>查询并加入候选池</button>` +
+      `<button type="button" class="stage-select gp-apply" data-act="apply-grid" disabled` +
+      ` title="新勾选的关会现查并入；取消勾选的关（识别错的）会从候选池移除">应用</button>` +
       `</span></div>` +
       `</div></div>`
     : "";
