@@ -168,7 +168,8 @@ check(
   "计数带 title 悬停说明",
   guideHtml.includes("MAA 作业站（prts.plus）的结构化方案") && guideHtml.includes("B站攻略视频挖掘"),
 );
-check("方案前缀标签同步改名", guideHtml.includes(">MAA作业</a>") && guideHtml.includes(">B站视频</a>"));
+check("方案前缀标签同步改名", guideHtml.includes(">MAA作业") && guideHtml.includes(">B站视频"));
+check("每行只留一个链接（来源标签本身，不再有重复的「视频页↗」）", !guideHtml.includes("视频页↗") && !guideHtml.includes("作业页↗"));
 
 console.log("\n== §9.2 可点击链接 ==");
 check("工具函数：作业页链接", v43.maaOperationUrl(105144) === "https://prts.plus/operation/105144");
@@ -497,7 +498,7 @@ check(
     return (
       html.includes('href="https://www.bilibili.com/video/BV1TEST?p=12"') &&
       html.includes("VEC-SP12（蕾缪安二技能）") &&
-      html.includes("分P12页↗") &&
+      html.includes("B站视频 P12") &&
       html.includes("合集：【特别战线】攻略合集VEC-SP-01~16（P12）")
     );
   })(),
@@ -673,6 +674,29 @@ const manyRows = v43.pickVisibleSchemes(
   { total: 12, perSource: 6 },
 );
 check("显示上限放宽到 12 条（不再是 3+3）", manyRows.shown.length === 12, String(manyRows.shown.length));
+
+console.log("\n== 前置关识别依据 + 「不是这关」排除 ==");
+const withEvidence = v43.renderResult(baseResult, hasAll, {}, {
+  stageKind: "target",
+  guideEvidence: { "VEC-SP02": "P1 网格第 5 格，格内读到「催化装备」" },
+});
+check(
+  "显示每关的识别依据（网格第几格 / 格内读到什么）",
+  withEvidence.includes("识别依据：P1 网格第 5 格，格内读到「催化装备」"),
+);
+check(
+  "提供「不是这关」入口",
+  withEvidence.includes('data-act="skip-stage"') && withEvidence.includes('data-code="VEC-SP02"'),
+);
+const excludedHtml = v43.renderResult(baseResult, hasAll, {}, {
+  stageKind: "target",
+  excludedStages: ["VEC-SP02"],
+});
+check("被排除的关不再出现在候选池", !excludedHtml.includes('data-pick-row="1"'));
+check(
+  "并给出「恢复」入口",
+  excludedHtml.includes('data-act="restore-stage"') && excludedHtml.includes("已排除（识别不准）"),
+);
 
 console.log("\n== 候选池交互（第五轮）：整行可点选 / 悬浮详情 / 来源配色 / 折叠 ==");
 const rowHtml = v43.renderResult(baseResult, hasAll, {}, { stageKind: "target", hideUnavailable: false });

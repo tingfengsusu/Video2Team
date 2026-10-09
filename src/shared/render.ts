@@ -111,6 +111,10 @@ export interface ResultRenderOptions {
   colorBySource?: boolean;
   /** 是否输出渲染层的分区标题（大窗口页用卡片标题时置 false） */
   showGuidesHeading?: boolean;
+  /** 每关识别依据（P1 网格位置 / 格内名称），让「识别错了」可见可纠 */
+  guideEvidence?: Record<string, string>;
+  /** 用户手动排除的关卡显示码 */
+  excludedStages?: string[];
 }
 
 /** 一条候选方案的干员列表（本关自己锁定的干员不置灰——它们是这一关要用的） */
@@ -159,13 +163,13 @@ function renderScheme(
     .filter(Boolean)
     .join(" ｜ ");
   const tip = `${scheme.sourceLabel} · ${SOURCE_TIPS[scheme.source]}${detail ? `\n${detail}` : ""}`;
+  const labelText = `${scheme.sourceLabel}${isPart ? ` P${scheme.page}` : ""}`;
   const label = url
     ? `<a href="${esc(url)}" target="_blank" rel="noreferrer" style="color:${color};font-weight:700" ` +
-      `title="${esc(`${tip}｜点击打开该${unit}页`)}">${esc(scheme.sourceLabel)}</a>`
-    : `<span style="color:${color};font-weight:700" title="${esc(tip)}">${esc(scheme.sourceLabel)}</span>`;
-  const openLink = url
-    ? ` <a href="${esc(url)}" target="_blank" rel="noreferrer" class="dim" title="${esc(tip)}">${unit}页↗</a>`
-    : "";
+      `aria-label="${esc(`打开${unit}页：${scheme.title || scheme.stageName}`)}" ` +
+      `title="${esc(`${tip}｜点击打开该${unit}页`)}">${esc(labelText)}↗</a>`
+    : `<span style="color:${color};font-weight:700" title="${esc(tip)}">${esc(labelText)}</span>`;
+  // 每行只留**一个链接**（来源标签本身）：原先尾部的「视频页↗/作业页↗」与它重复，两处链接容易误点
   const mode = scheme.mode ? `<b>${esc(scheme.mode)}</b> ` : "";
   const box =
     `<input type="checkbox" class="pickbox" data-pick="1" data-stage="${esc(pool.displayCode)}" ` +
@@ -176,7 +180,7 @@ function renderScheme(
     `style="font-size:12px;line-height:1.65;margin-top:3px;display:flex;gap:5px;align-items:baseline;cursor:pointer" ` +
     `title="${esc(tip)}">` +
     `<span style="flex:none">${box}</span>` +
-    `<span style="flex:auto">${label} ${mode}${renderSchemeOperators(scheme, hasOp, lockedOps, pool.displayCode)}${openLink}</span>` +
+    `<span style="flex:auto">${label} ${mode}${renderSchemeOperators(scheme, hasOp, lockedOps, pool.displayCode)}</span>` +
     `</div>`
   );
 }
@@ -296,21 +300,27 @@ export function renderDispatchGuides(
     colorBySource?: boolean;
     /** 大窗口页自己有卡片标题时，关掉渲染层的分区标题（避免重复） */
     showHeading?: boolean;
+    /** 每关识别依据（显示码 → 「网格第 5 格（格内「催化装备」）」） */
+    evidence?: Record<string, string>;
+    /** 用户手动排除的关卡显示码（识别不准时改） */
+    excludedStages?: string[];
   } = {},
 ): string {
   const picks = opts.picks ?? {};
-  if (pools.length === 0 && !opts.note) return "";
+  const excluded = new Set((opts.excludedStages ?? []).map((c) => c.toUpperCase()));
+  const visiblePools = pools.filter((pool) => !excluded.has(pool.displayCode.toUpperCase()));
+  if (visiblePools.length === 0 && !opts.note && excluded.size === 0) return "";
   const maxRows = Math.max(2, opts.maxRows ?? 12);
   const colorBySource = opts.colorBySource !== false; // 默认开：MAA 蓝 / B站 粉
-  const totalSchemes = pools.reduce((n, pool) => n + pool.schemes.length, 0);
+  const totalSchemes = visiblePools.reduce((n, pool) => n + pool.schemes.length, 0);
   const heading =
     opts.showHeading === false
       ? ""
       : sectionHeading(
           "🚩 P1 派遣关攻略",
-          `按黄色格位置识别 · ${pools.length} 关 ${totalSchemes} 套（勾选＝本关采用；点整行也能勾选）`,
+          `按黄色格位置识别 · ${visiblePools.length} 关 ${totalSchemes} 套（勾选＝本关采用；点整行也能勾选）`,
         );
-  const blocks = pools
+  const blocks = visiblePools
     .map((pool: MergedStagePool) => {
       // 「不可抄」的方案（缺干员 / 已被别的关占用）默认隐藏——列表更长也更可用；
       // 设置页可关掉过滤（那时保留全部，便于浏览别人的打法）。
@@ -347,6 +357,11 @@ export function renderDispatchGuides(
       const pickLine = picked
         ? `<span style="color:#1a7f37">✅ ${picked.ops.map((n) => esc(n)).join("·")}</span>`
         : `<span class="dim">⬜ 未选</span>`;
+      // 识别依据（P1 网格第几格 / 格内名称 / 是否需核实）：让「识别错了」一眼可见
+      const evidence = opts.evidence?.[pool.displayCode.toUpperCase()] ?? "";
+      const evidenceLine = evidence
+        ? `<div class="hint" style="margin-top:1px">识别依据：${esc(evidence)}</div>`
+        : "";
       return (
         `<div style="padding:6px 8px;margin:4px 0;background:#fffdf6;border:1px solid #eadfbd;border-radius:5px">` +
         `<div style="font-size:12px">` +
@@ -357,7 +372,10 @@ export function renderDispatchGuides(
         pickLine +
         `<span class="dim" style="float:right">` +
         `<span title="${esc(SOURCE_TIPS.maa)}">MAA作业 ${pool.counts.maa}</span> ｜ ` +
-        `<span title="${esc(SOURCE_TIPS.bili)}">B站视频 ${pool.counts.bili}</span></span></div>` +
+        `<span title="${esc(SOURCE_TIPS.bili)}">B站视频 ${pool.counts.bili}</span>` +
+        ` <a href="#" data-act="skip-stage" data-code="${esc(pool.displayCode)}" class="link" ` +
+        `style="font-size:11px" title="识别错了？把这个关从本次前置关列表移除">不是这关</a></span></div>` +
+        evidenceLine +
         `<details${picked ? "" : " open"}>` +
         `<summary style="font-size:11px;color:#888;cursor:pointer">候选方案 ${schemes.length} 套</summary>` +
         rows +
@@ -369,7 +387,15 @@ export function renderDispatchGuides(
   const noteLine = opts.note
     ? `<div class="hint" style="color:#b8860b">${esc(opts.note)}</div>`
     : "";
-  return heading + blocks + noteLine;
+  const excludedLine = excluded.size
+    ? `<div class="hint">已排除（识别不准）：${[...excluded]
+        .map(
+          (code) =>
+            `${esc(code)} <a href="#" data-act="restore-stage" data-code="${esc(code)}" class="link">恢复</a>`,
+        )
+        .join("、")}</div>`
+    : "";
+  return heading + blocks + excludedLine + noteLine;
 }
 
 /** 结果分段（大窗口页要把「本关阵容」与「前置关候选池」分栏摆放，面板/popup 则直接拼接） */
@@ -423,6 +449,8 @@ export function renderResultSections(
     maxRows: options.maxSchemeRows,
     colorBySource: options.colorBySource,
     showHeading: options.showGuidesHeading,
+    evidence: options.guideEvidence,
+    excludedStages: options.excludedStages,
   });
   return {
     intro:

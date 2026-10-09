@@ -40,6 +40,8 @@ let hasOp: HasOp = () => false;
 let hideUnavailable = true;
 let maxRows = 12;
 let colorBySource = true;
+/** 本页被用户手动排除的前置关（识别不准时用） */
+let excludedStages: string[] = [];
 
 function renderLocks(): void {
   const el = document.getElementById("locks");
@@ -92,6 +94,8 @@ function render(): void {
     maxSchemeRows: maxRows,
     colorBySource,
     showGuidesHeading: false, // 大窗口里由卡片标题承担，避免重复
+    guideEvidence: current.dispatchGuideEvidence,
+    excludedStages,
   });
   // 左栏：本关适配阵容（主内容）；右栏：总览 + 前置关候选池 + 占用清单
   $("col-main").innerHTML =
@@ -126,6 +130,11 @@ async function loadLocal(): Promise<void> {
   colorBySource = advanced?.colorBySource !== false; // 默认：MAA 蓝 / B站 粉
   picks = await loadPicks();
   overrides = await getStageKindOverrides();
+  const { dispatchStageSkips } = (await chrome.storage.local.get("dispatchStageSkips")) as {
+    dispatchStageSkips?: Record<string, string[]>;
+  };
+  const skipKey = current ? `${current.bvid}|${current.roster.page ?? 0}` : "";
+  excludedStages = skipKey ? dispatchStageSkips?.[skipKey] ?? [] : [];
 }
 
 async function loadResult(): Promise<void> {
@@ -195,6 +204,11 @@ async function init(): Promise<void> {
       render();
     })();
   });
+  // Esc / 「✕ 关闭」：popup 窗口不响应 Esc，需要自己监听
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") window.close();
+  });
+  $("closeBtn").addEventListener("click", () => window.close());
   $("clearLocks").addEventListener("click", () => {
     void chrome.storage.local.set({ lockedOps: {}, dispatchPicks: {} });
   });
@@ -214,6 +228,26 @@ async function init(): Promise<void> {
     if (target?.matches?.('input[data-pick="1"]')) void onPickChange(target as HTMLInputElement);
   });
   wireRowClick(document.body);
+  document.body.addEventListener("click", (e) => {
+    const link = (e.target as HTMLElement | null)?.closest<HTMLAnchorElement>("[data-act]");
+    const act = link?.getAttribute("data-act");
+    if (act !== "skip-stage" && act !== "restore-stage") return;
+    e.preventDefault();
+    const code = (link?.getAttribute("data-code") ?? "").toUpperCase();
+    if (!code || !current) return;
+    void (async () => {
+      const key = `${current!.bvid}|${current!.roster.page ?? 0}`;
+      const { dispatchStageSkips } = (await chrome.storage.local.get("dispatchStageSkips")) as {
+        dispatchStageSkips?: Record<string, string[]>;
+      };
+      const all = { ...(dispatchStageSkips ?? {}) };
+      const cur = new Set(all[key] ?? []);
+      if (act === "skip-stage") cur.add(code);
+      else cur.delete(code);
+      all[key] = [...cur];
+      await chrome.storage.local.set({ dispatchStageSkips: all });
+    })();
+  });
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === "session" && changes[BIG_RESULT_KEY]) {
       void (async () => {
@@ -223,7 +257,7 @@ async function init(): Promise<void> {
       return;
     }
     if (area !== "local") return;
-    if (changes.lockedOps ?? changes.dispatchPicks ?? changes.box ?? changes.advanced ?? changes.stageKindOverrides) {
+    if (changes.lockedOps ?? changes.dispatchPicks ?? changes.box ?? changes.advanced ?? changes.stageKindOverrides ?? changes.dispatchStageSkips) {
       void (async () => {
         await loadLocal();
         render();

@@ -89,6 +89,8 @@ let schemeRows = 12;
 let colorBySource = true;
 let pollTimer: number | undefined;
 let stageKindOverrides: StageKindOverrides = {};
+/** 本页被用户手动排除的前置关（识别不准时用；按 bvid|page 存） */
+let excludedStages: string[] = [];
 let currentResult: AnalysisOutput | null = null;
 
 function taskMatchesCurrent(task: TaskState): boolean {
@@ -234,6 +236,20 @@ async function readImages(): Promise<string[]> {
   }
 }
 
+/** 排除列表的存储键（按视频+分P，不影响别的分析） */
+export function stageSkipKey(bvid: string, page: number | null): string {
+  return `${bvid}|${page ?? 0}`;
+}
+
+async function loadExcluded(): Promise<void> {
+  const { bvid, page } = parseContext();
+  if (!bvid) return;
+  const { dispatchStageSkips } = (await chrome.storage.local.get("dispatchStageSkips")) as {
+    dispatchStageSkips?: Record<string, string[]>;
+  };
+  excludedStages = dispatchStageSkips?.[stageSkipKey(bvid, page)] ?? [];
+}
+
 async function loadBox(): Promise<void> {
   const { box, advanced } = (await chrome.storage.local.get(["box", "advanced"])) as {
     box?: Box;
@@ -343,6 +359,8 @@ function showResult(result: AnalysisOutput): void {
     hideUnavailable,
     maxSchemeRows: schemeRows,
     colorBySource,
+    guideEvidence: result.dispatchGuideEvidence,
+    excludedStages,
   });
 
   const switchLink = shadow?.querySelector<HTMLAnchorElement>('[data-act="mark-dispatch"]');
@@ -521,6 +539,7 @@ async function openPanel(): Promise<void> {
   q(".panel").classList.add("open");
   // 先加载 box（local storage，内容脚本恒可访问）——决定红绿着色的 hasOp
   await loadBox();
+  await loadExcluded();
   await loadLocks();
   stageKindOverrides = await getStageKindOverrides();
   await renderReadiness();
@@ -646,11 +665,39 @@ function wireRowClick(container: HTMLElement): void {
     if (target?.matches?.('input[data-pick="1"]')) void onPickChange(target as HTMLInputElement);
   });
   wireRowClick(q<HTMLElement>("#result")); // 点整行 = 勾选该方案
+  // 「不是这关 / 恢复」：识别不准时手动纠正前置关列表
+  q("#result").addEventListener("click", (e: Event) => {
+    const link = (e.target as HTMLElement | null)?.closest<HTMLAnchorElement>("[data-act]");
+    const act = link?.getAttribute("data-act");
+    if (act !== "skip-stage" && act !== "restore-stage") return;
+    e.preventDefault();
+    const code = (link?.getAttribute("data-code") ?? "").toUpperCase();
+    if (!code) return;
+    void (async () => {
+      const key = (() => { const { bvid, page } = parseContext(); return bvid ? stageSkipKey(bvid, page) : ""; })();
+      if (!key) return;
+      const { dispatchStageSkips } = (await chrome.storage.local.get("dispatchStageSkips")) as {
+        dispatchStageSkips?: Record<string, string[]>;
+      };
+      const all = { ...(dispatchStageSkips ?? {}) };
+      const cur = new Set(all[key] ?? []);
+      if (act === "skip-stage") cur.add(code);
+      else cur.delete(code);
+      all[key] = [...cur];
+      await chrome.storage.local.set({ dispatchStageSkips: all });
+    })();
+  });
   // popup 侧改动截图时同步（互通）
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === "session" && changes[IMG_KEY] && panelOpen) {
       images = (changes[IMG_KEY].newValue as string[] | undefined) ?? [];
       renderThumbs();
+    }
+    if (area === "local" && changes.dispatchStageSkips) {
+      void (async () => {
+        await loadExcluded();
+        if (currentResult) showResult(currentResult);
+      })();
     }
     if (area === "local" && (changes.lockedOps || changes.dispatchPicks)) {
       if (changes.lockedOps) lockedOps = (changes.lockedOps.newValue as LockedOps | undefined) ?? {};

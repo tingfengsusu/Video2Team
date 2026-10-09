@@ -46,6 +46,8 @@ let lockedOps: LockedOps = {};
 /** §9.3 候选池勾选态（关卡显示码 → 已勾选方案） */
 let dispatchPicks: DispatchPicks = {};
 let stageKindOverrides: StageKindOverrides = {};
+/** 本页被用户手动排除的前置关（识别不准时用；按 bvid|page 存） */
+let excludedStages: string[] = [];
 /** 候选池过滤（设置页可调）：默认只列可抄方案、每关最多 12 条 */
 let hideUnavailable = true;
 let schemeRows = 12;
@@ -219,6 +221,17 @@ function setWebUi(status: string | undefined): void {
 
 // ---------- 占用清单（派遣锁定，矢量突破类活动） ----------
 
+function stageSkipKey(): string {
+  return `${currentCtx.bvid ?? ""}|${normalizePage(currentCtx.page)}`;
+}
+
+async function loadExcluded(): Promise<void> {
+  const { dispatchStageSkips } = (await chrome.storage.local.get("dispatchStageSkips")) as {
+    dispatchStageSkips?: Record<string, string[]>;
+  };
+  excludedStages = dispatchStageSkips?.[stageSkipKey()] ?? [];
+}
+
 async function loadLocks(): Promise<void> {
   const { lockedOps: lo } = (await chrome.storage.local.get("lockedOps")) as { lockedOps?: LockedOps };
   lockedOps = lo ?? {};
@@ -247,6 +260,8 @@ function showResult(result: AnalysisOutput): void {
     hideUnavailable,
     maxSchemeRows: schemeRows,
     colorBySource,
+    guideEvidence: result.dispatchGuideEvidence,
+    excludedStages,
   });
 
   const switchLink = $("result").querySelector<HTMLAnchorElement>('[data-act="mark-dispatch"]');
@@ -468,6 +483,7 @@ async function restoreState(): Promise<void> {
 async function init(): Promise<void> {
   await renderChecklist();
   await loadLocks();
+  await loadExcluded();
   stageKindOverrides = await getStageKindOverrides();
   wireImageInputs();
   $("analyzeBtn").addEventListener("click", triggerAnalyze);
@@ -495,7 +511,35 @@ async function init(): Promise<void> {
     if (target?.matches?.('input[data-pick="1"]')) void onPickChange(target as HTMLInputElement);
   });
   wireRowClick($("result")); // 点整行 = 勾选该方案
+  // 「不是这关 / 恢复」：识别不准时手动纠正前置关列表
+  $("result").addEventListener("click", (e) => {
+    const link = (e.target as HTMLElement | null)?.closest<HTMLAnchorElement>("[data-act]");
+    const act = link?.getAttribute("data-act");
+    if (act !== "skip-stage" && act !== "restore-stage") return;
+    e.preventDefault();
+    const code = (link?.getAttribute("data-code") ?? "").toUpperCase();
+    if (!code) return;
+    void (async () => {
+      const key = currentCtx.bvid ? stageSkipKey() : "";
+      if (!key) return;
+      const { dispatchStageSkips } = (await chrome.storage.local.get("dispatchStageSkips")) as {
+        dispatchStageSkips?: Record<string, string[]>;
+      };
+      const all = { ...(dispatchStageSkips ?? {}) };
+      const cur = new Set(all[key] ?? []);
+      if (act === "skip-stage") cur.add(code);
+      else cur.delete(code);
+      all[key] = [...cur];
+      await chrome.storage.local.set({ dispatchStageSkips: all });
+    })();
+  });
   chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "local" && changes.dispatchStageSkips) {
+      void (async () => {
+        await loadExcluded();
+        if (currentResult) showResult(currentResult);
+      })();
+    }
     if (area === "local" && (changes.lockedOps || changes.dispatchPicks)) {
       if (changes.lockedOps) lockedOps = (changes.lockedOps.newValue as LockedOps | undefined) ?? {};
       if (changes.dispatchPicks) {
