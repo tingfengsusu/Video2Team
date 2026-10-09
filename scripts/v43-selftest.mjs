@@ -1195,6 +1195,28 @@ check(
   guideHtml.includes("🚩 特别战线候选池") && guideHtml.includes("1 关 2 套") && guideHtml.includes("按黄色格位置识别") && !guideHtml.includes("P1 派遣关攻略"),
 );
 check("分区标题：本关适配阵容", guideHtml.includes("🎯 本关适配阵容"));
+const rosterKai = {
+  ...baseResult,
+  roster: { ...baseResult.roster, slots: [{ operator: "凯尔希", isKey: true }] },
+};
+check(
+  "候选方案里标出「本关也用」的干员（第十五轮 q2）",
+  (() => {
+    const html = v43.renderResult(rosterKai, hasAll, {}, { stageKind: "target" });
+    return html.includes("本关也用") && /本关也要用：<b>凯尔希<\/b>/.test(html);
+  })(),
+);
+check(
+  "有了本关那位的替换建议就一并给出（凯尔希 → 可换成 闪灵）",
+  (() => {
+    const sub = {
+      removed: "凯尔希", replacement: "闪灵", stage: "VEC-C", evidence: "闪灵可以替凯尔希",
+      source: "danmaku", kind: "operator_swap", likes: 9, verified: true,
+    };
+    const html = v43.renderResult({ ...rosterKai, substitutions: [sub] }, hasAll, {}, { stageKind: "target" });
+    return /本关也要用：<b>凯尔希<\/b> → 可换成 <b>闪灵<\/b>/.test(html) && html.includes("照本关的替换建议改");
+  })(),
+);
 check(
   "替换建议的「来源+原文」另起一行（第十五轮 q3）",
   (() => {

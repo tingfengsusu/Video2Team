@@ -146,12 +146,45 @@ export interface ResultRenderOptions {
 }
 
 /** 一条候选方案的干员列表（本关自己锁定的干员不置灰——它们是这一关要用的） */
+const OWN_TAG_STYLE =
+  "color:#b8860b;border:1px solid #e8d48a;background:#fffdf6;border-radius:3px;padding:0 3px;margin-left:2px;font-size:10px";
+const OWN_TAG_TITLE = "本关（目标关）阵容也要用这个干员——勾到别的关会跟本关互相占用";
+
+/**
+ * 本关（目标关）也要用的干员 → 顺带给出"本关那位的替换建议"（第十五轮 q2）。
+ * 用户口径：这个干员本关本来就用了（不显示很怪），既然他可能想勾到别的关，就把替换建议一并给出来。
+ */
+function ownSubsLine(
+  scheme: MergedScheme,
+  own?: Set<string>,
+  subsByOp?: Map<string, Substitution>,
+): string {
+  if (!own?.size) return "";
+  const overlap = [...new Set(scheme.operators)].filter((n) => own.has(n));
+  if (!overlap.length) return "";
+  const parts = overlap.map((n) => {
+    const sub = subsByOp?.get(n);
+    if (!sub) return `<b>${esc(n)}</b>`;
+    return (
+      `<b>${esc(n)}</b> → 可换成 <b>${esc(sub.replacement)}</b>` +
+      `<span class="dim" title="${esc(`${srcLabel(sub)}：${sub.evidence}`)}">（${esc(srcLabel(sub))}）</span>`
+    );
+  });
+  const hasSub = overlap.some((n) => subsByOp?.get(n));
+  return (
+    `<div class="dim" style="margin-top:1px">本关也要用：${parts.join("；")}` +
+    (hasSub ? "（照本关的替换建议改，就不占本关的人了）" : "（本关阵容里也在用，勾到别的关会互相占用）") +
+    `</div>`
+  );
+}
+
 function renderSchemeOperators(
   scheme: MergedScheme,
   hasOp: HasOp,
   lockedOps: LockedOps,
   stageCode: string,
   plainIcons = false,
+  own?: Set<string>,
 ): string {
   const scopedLocks: LockedOps = {};
   for (const [name, label] of Object.entries(lockedOps)) {
@@ -165,7 +198,11 @@ function renderSchemeOperators(
     .map(
       (oper) =>
         nameSpan(oper.name, hasOp, scopedLocks, plainIcons) +
-        (oper.skill ? `<span class="dim">${oper.skill}技</span>` : ""),
+        (oper.skill ? `<span class="dim">${oper.skill}技</span>` : "") +
+        // 第十五轮 q2：本关（目标关）阵容里也要用的干员，明确标出来
+        (own?.has(oper.name)
+          ? `<span class="own-tag" style="${OWN_TAG_STYLE}" title="${esc(OWN_TAG_TITLE)}">本关也用</span>`
+          : ""),
     );
   return items.join("、");
 }
@@ -184,6 +221,10 @@ function renderScheme(
   plainIcons = false,
   /** 该方案被其它关占用时传入来源标签（行尾标注，便于取舍对比） */
   occupiedFrom?: string,
+  /** 本关（目标关）阵容用到的干员 */
+  own?: Set<string>,
+  /** 本关那位的替代建议（干员名 → 建议） */
+  subsByOp?: Map<string, Substitution>,
 ): string {
   const key = schemeKeyOf(scheme);
   const url = schemeSourceUrl(scheme);
@@ -223,10 +264,11 @@ function renderScheme(
     `style="font-size:12px;line-height:1.65;margin-top:3px;display:flex;gap:5px;align-items:baseline;cursor:pointer" ` +
     `title="${esc(tip)}">` +
     `<span style="flex:none">${box}</span>` +
-    `<span style="flex:auto">${label} ${mode}${renderSchemeOperators(scheme, hasOp, lockedOps, pool.displayCode, plainIcons)}` +
+    `<span style="flex:auto">${label} ${mode}${renderSchemeOperators(scheme, hasOp, lockedOps, pool.displayCode, plainIcons, own)}` +
     (occupiedFrom
       ? ` <span class="dim" style="white-space:nowrap">（已被 ${esc(occupiedFrom)} 占用，勾选本方案会把占用改到本关）</span>`
       : "") +
+    ownSubsLine(scheme, own, subsByOp) +
     `</span>` +
     `</div>`
   );
@@ -414,6 +456,10 @@ export function renderDispatchGuides(
     stageOptions?: { displayCode: string; stageName: string }[];
     /** 关卡链（第十一轮 q4）：依赖关 → 前置关，如 VEC-SP10 → VEC-SP09（前置关已自动纳入候选池） */
     chain?: Record<string, string>;
+    /** 本关（目标关）阵容用到的干员：候选方案里标「本关也用」并给出替换建议（第十五轮 q2） */
+    ownLineup?: string[];
+    /** 本关那位的替代建议（removed → Substitution），随 ownLineup 一起用 */
+    subs?: Substitution[];
   } = {},
 ): string {
   const picks = opts.picks ?? {};
@@ -427,6 +473,13 @@ export function renderDispatchGuides(
   const colorBySource = opts.colorBySource !== false; // 默认开：MAA 蓝 / B站 粉
   // 已在候选池里的显示码（关卡链说明、网格选关、补关下拉共用）——必须在 blocks 之前声明
   const presentCodes = new Set(pools.map((p) => p.displayCode.toUpperCase()));
+  // 第十五轮 q2：本关（目标关）阵容用到的干员 + 本关那位的替换建议
+  const ownSet = new Set((opts.ownLineup ?? []).map((n) => String(n ?? "").trim()).filter(Boolean));
+  const subsByOp = new Map<string, Substitution>();
+  for (const sub of opts.subs ?? []) {
+    if (sub?.removed && !subsByOp.has(sub.removed)) subsByOp.set(sub.removed, sub);
+  }
+
   const totalSchemes = visiblePools.reduce((n, pool) => n + pool.schemes.length, 0);
   const heading =
     opts.showHeading === false
@@ -474,7 +527,7 @@ export function renderDispatchGuides(
           `<div class="dim" style="font-size:11px">下面这些方案缺干员（只影响显示，不影响勾选）：</div>` +
           hiddenSchemes
             .slice(0, maxRows)
-            .map((scheme) => renderScheme(scheme, pool, hasOp, lockedOps, picked, colorBySource, opts.plainIcons))
+            .map((scheme) => renderScheme(scheme, pool, hasOp, lockedOps, picked, colorBySource, opts.plainIcons, undefined, ownSet, subsByOp))
             .join("") +
           (hiddenSchemes.length > maxRows
             ? `<div class="dim" style="font-size:11px">另有 ${hiddenSchemes.length - maxRows} 条未列出</div>`
@@ -494,6 +547,8 @@ export function renderDispatchGuides(
                 colorBySource,
                 opts.plainIcons,
                 verdict.occupied.length ? verdict.occupiedFrom : undefined,
+                ownSet,
+                subsByOp,
               );
             })
             .join("") +
@@ -693,6 +748,8 @@ export function renderResultSections(
     evidence: options.guideEvidence,
     excludedStages: options.excludedStages,
     stageOptions: options.stageOptions,
+    ownLineup: out.roster.slots.map((s) => s.operator),
+    subs: out.substitutions,
   });
   return {
     intro:

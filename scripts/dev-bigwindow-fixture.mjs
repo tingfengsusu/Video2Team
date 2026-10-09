@@ -67,7 +67,9 @@ const pool3 = {
 };
 const result = {
   roster: { stage: "VEC-C", videoId: "BV1TEST", page: 2, source: "screenshot", slots: [{ operator: "凯尔希", isKey: true }, { operator: "克洛丝" }] },
-  substitutions: [],
+  substitutions: [
+    { removed: "凯尔希", replacement: "闪灵", stage: "VEC-C", evidence: "闪灵可以替凯尔希，练度够就行", source: "danmaku", kind: "operator_swap", likes: 9, verified: true },
+  ],
   recommendations: [
     { original: { operator: "凯尔希", isKey: true }, finalOperator: "凯尔希", status: "keep", via: null, alternatives: [], risk: "low", evidenceUrl: "", note: "" },
     { original: { operator: "克洛丝" }, finalOperator: "克洛丝", status: "keep", via: null, alternatives: [], risk: "low", evidenceUrl: "", note: "" },
