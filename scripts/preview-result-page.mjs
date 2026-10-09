@@ -1,6 +1,10 @@
 /**
- * 临时预览（用完即删）：设计 B 大窗口页的可视检查页。
- * 骨架与 CSS 直接取自 src/result/index.html，数据用真实 renderResultSections 生成。
+ * 大窗口结果页的「静态预览」生成器（设计评审用，不影响扩展运行）：
+ *
+ *   node scripts/preview-result-page.mjs   →  temp/big-preview-b.html（用浏览器直接打开）
+ *
+ * 骨架与 CSS 直接取自 src/result/index.html，数据用真实 renderResultSections 生成，
+ * 因此预览与真页面（chrome.windows.create 打开的 result.html）除数据源外一致。
  */
 import * as esbuild from "esbuild";
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
