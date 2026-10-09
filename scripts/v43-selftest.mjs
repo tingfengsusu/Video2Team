@@ -912,8 +912,10 @@ check(
     ],
   });
   check(
-    "候选池底部有「按网格选关…」按钮",
-    gridHtml.includes('data-act="open-grid"') && gridHtml.includes("按网格选关…"),
+    "「按网格选关…」按钮在候选池**顶部**（第一个关卡块之前，第十一轮 p3）",
+    gridHtml.includes('data-act="open-grid"') &&
+      gridHtml.includes("按网格选关…") &&
+      gridHtml.indexOf('data-act="open-grid"') < gridHtml.indexOf('class="stagepool"'),
   );
   check(
     "浮层按序号渲染格子（含 1/3 号）",
