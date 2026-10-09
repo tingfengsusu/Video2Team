@@ -37,7 +37,8 @@ v4.3 覆盖内容（见 §9，全部 ✅）：
 - **第九轮 q1/q2/q3：✅ 两个分支均已补齐（2026-10-09）**：设计 A（main）= `d14969b`；设计 B（design/big-window-dashboard）= `2aa8c12`（第九轮 ①②③ 均已落地，五套自测全绿）。
   ⚠️ 这几笔是**经 GitHub REST API 推送**的（github.com:443 被阻断，`git push`/`git fetch` 均直接失败），因此**远端 sha 与本地不同、tree 完全一致**。
   网络恢复后：`git fetch` 成功 → 先确认 `origin/<分支>` 的 tree 与本地相同 → 再 `git reset --hard origin/<分支>` 对齐；**fetch 失败时不要 reset**。
-  离线夹具复现（各分支各自）：`npm run build` → `node scripts/dev-bigwindow-fixture.mjs` → `node temp/panel-fixture-server.cjs` → 大窗口 `http://127.0.0.1:8787/dist/__fixture-bigwindow.html`、面板 `http://127.0.0.1:8787/video/BV1TEST?p=2`
+  离线夹具复现（各分支各自）：`npm run build` → `node scripts/dev-bigwindow-fixture.mjs` → `node temp/panel-fixture-server.cjs` → 大窗口 `http://127.0.0.1:8787/temp/bigwindow-fixture.html`、面板 `http://127.0.0.1:8787/video/BV1TEST?p=2`
+  ⚠️ 夹具产物一律放 `temp/`，**不要**放进 `dist/`：Chrome「加载已解压的扩展程序」遇到以 `_` 开头的文件会拒绝整个目录（实测 `dist/__fixture-bigwindow.html` → 「无法加载清单」）；生成脚本已内置旧文件清理。
 - 构建命令：`npm run build`（esbuild，秒级）｜类型检查：`npx tsc --noEmit`
 - 共享工作区注意：另有会话可能同时编辑本仓库，动手前先 `git status` + `git pull`；编辑 core 文件（如 content/index.ts、background/index.ts）前先 `Read` 再改，避免撞车
 
