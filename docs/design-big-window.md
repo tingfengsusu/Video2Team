@@ -2,7 +2,7 @@
 
 同一份数据（`renderResultSections` 输出），两种视觉/信息架构。用于挑选后再合并。
 
-> 本文件写在 `design/big-window-dashboard` 分支上；`main` 上是设计 A。
+> 两版并存：`main` 上是**设计 A**，`design/big-window-dashboard` 分支上是**设计 B**（本文件在两侧都有，内容一致）。
 
 ## 设计 A ——「卡片面板」（main 分支）
 
