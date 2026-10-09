@@ -25,6 +25,7 @@ import {
 } from "../shared/stageKind";
 import { shrinkImage } from "../shared/img";
 import {
+  clearCachedResult,
   getCachedResult,
   normalizePage,
   putCachedResult,
@@ -33,6 +34,7 @@ import {
 import { clearStageSkip, patchStagePools, queryStagePools } from "../shared/stageRecode";
 import { wireHoverDetails } from "../shared/hoverDetails";
 import { wireGridPicker } from "../shared/gridPicker";
+import { wireShowHidden } from "../shared/toggles";
 
 // ---------- 基础能力 ----------
 
@@ -501,11 +503,26 @@ function showCachedResult(entry: ResultCacheEntry): void {
   showResult(entry.result);
   q("#status").innerHTML =
     `<span class="hint">上次分析：${formatCacheTime(entry.ts)} ｜ </span>` +
-    `<a href="#" data-act="reanalyze" class="link">重新分析</a>`;
+    `<a href="#" data-act="reanalyze" class="link">重新分析</a>` +
+    `<a href="#" data-act="clear-cache" class="link" style="margin-left:6px" ` +
+    `title="只清这个视频/分P的缓存结果（其它视频不受影响；设置页可清全部）">清除本页缓存</a>`;
   q('[data-act="reanalyze"]').addEventListener("click", (e) => {
     e.preventDefault();
     q("#status").textContent = "";
     void triggerAnalyze();
+  });
+  q('[data-act="clear-cache"]').addEventListener("click", (e) => {
+    e.preventDefault();
+    void (async () => {
+      const { bvid, page } = parseContext();
+      if (!bvid) return;
+      const removed = await clearCachedResult(bvid, page);
+      currentResult = null;
+      showEmptyState();
+      q("#status").innerHTML = removed
+        ? `<span class="hint">已清掉「${esc(bvid)}${page ? ` P${page}` : ""}」的缓存，可以重新分析。</span>`
+        : `<span class="hint">本页本来就没有缓存。</span>`;
+    })();
   });
 }
 
@@ -730,6 +747,7 @@ function wireRowClick(container: HTMLElement): void {
   wireRowClick(q<HTMLElement>("#result")); // 点整行 = 勾选该方案
   wireHoverDetails(q<HTMLElement>("#result")); // 候选池折叠块：悬浮即展开（第十轮 q3）
   wireGridPicker(q<HTMLElement>("#result"), (codes) => void applyStageCodes(codes)); // 网格选关（第十一轮 q3）
+  wireShowHidden(q<HTMLElement>("#result")); // 「点开查看」缺干员被隐藏的方案（第十三轮 q1）
   // 「＋ 补一个关…」：手动补漏识别的派遣关（change 委托）
   q("#result").addEventListener("change", (e: Event) => {
     const sel = (e.target as HTMLElement | null)?.closest?.("select[data-act]") as HTMLSelectElement | null;
@@ -792,5 +810,41 @@ function syncVisibility(): void {
   if (on) mount();
   if (shadow) host.style.display = on ? "" : "none";
 }
+
+/**
+ * 换视频 / 换分P（B站是 SPA，不刷新页面）：面板里还挂着上一个视频的结果 → 必须丢掉重来，
+ * 否则 B 视频里会显示 A 视频的分析结果（第十三轮 q2 实测的 bug）。
+ */
+function contextKeyOf(): string {
+  const { bvid, page } = parseContext();
+  return bvid ? `${bvid}:${page ?? 1}` : "";
+}
+let contextKey = contextKeyOf();
+
+async function syncContext(): Promise<void> {
+  const key = contextKeyOf();
+  if (!key || key === contextKey) return;
+  contextKey = key;
+  currentResult = null;
+  if (pollTimer) {
+    window.clearInterval(pollTimer);
+    pollTimer = undefined;
+  }
+  sawMatchingTask = false;
+  setWebUi(undefined);
+  // 上一个视频的截图/待分析状态也一并清掉，避免用旧图分析新视频
+  images = [];
+  renderThumbs();
+  void chrome.storage.session?.remove?.(IMG_KEY);
+  if (!panelOpen) return; // 面板没开：等打开时 openPanel 会按当前视频重新取缓存
+  q("#result").innerHTML = "";
+  q("#status").textContent = "";
+  const { bvid, page } = parseContext();
+  const cached = bvid ? await getCachedResult(bvid, page) : null;
+  if (cached) showCachedResult(cached);
+  else showEmptyState();
+}
+
 setInterval(syncVisibility, 1000);
+setInterval(() => void syncContext(), 1000);
 syncVisibility();

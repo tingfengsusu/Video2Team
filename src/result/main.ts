@@ -19,6 +19,7 @@ import { putCachedResult } from "../shared/resultCache";
 import { clearStageSkip, patchStagePools, queryStagePools } from "../shared/stageRecode";
 import { wireHoverDetails } from "../shared/hoverDetails";
 import { wireGridPicker } from "../shared/gridPicker";
+import { wireShowHidden } from "../shared/toggles";
 import { schemeKeyOf } from "../shared/dispatchPool";
 import {
   getStageKindOverrides,
@@ -295,6 +296,7 @@ async function init(): Promise<void> {
   wireRowClick(document.body);
   wireHoverDetails(document.body); // 候选池折叠块：悬浮即展开（第十轮 q3）
   wireGridPicker(document.body, (codes) => void applyStageCodes(codes)); // 网格选关（第十一轮 q3）
+  wireShowHidden(document.body); // 「点开查看」缺干员被隐藏的方案（第十三轮 q1）
   // 「＋ 补一个关…」：手动补漏识别的派遣关（body 委托，容器每次重渲染）
   document.body.addEventListener("change", (e) => {
     const sel = (e.target as HTMLElement | null)?.closest?.("select[data-act]") as HTMLSelectElement | null;

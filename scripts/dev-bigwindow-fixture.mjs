@@ -45,6 +45,8 @@ const pool = {
   schemes: [
     scheme({ copilotId: 105144 }),
     scheme({ copilotId: 2, operators: ["黑", "机械师"], opers: [{ name: "黑" }, { name: "机械师" }], mode: "双人", title: "黑/机械师双人四号站台" }),
+    // 练度表里没有的干员 → 默认被「缺干员」过滤，点「点开查看」能看到（第十三轮 q1 的复现点）
+    scheme({ copilotId: 7, operators: ["稀音", "梅尔"], opers: [{ name: "稀音" }, { name: "梅尔" }], mode: "双人", title: "稀音+梅尔 挂机" }),
     bili({}),
   ],
 };

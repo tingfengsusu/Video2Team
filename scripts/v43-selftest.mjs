@@ -757,7 +757,17 @@ const mixedHtml = v43.renderResult(
   { 能天使: "VEC-SP05（难以相交）" },
   { stageKind: "target", hideUnavailable: true },
 );
-check("缺干员的方案被隐藏", !/data-ops="银灰"/.test(mixedHtml));
+// 第十三轮 q1：缺干员的方案默认折叠在 [data-hidden-schemes] 里（可「点开查看」），不在可见行里
+check(
+  "缺干员的方案不在可见行里，但留在「点开查看」的折叠块里",
+  !/data-ops="银灰"/.test(mixedHtml.split('data-hidden-schemes')[0]) &&
+    /data-hidden-schemes[^>]*hidden/.test(mixedHtml) &&
+    /data-ops="银灰"/.test(mixedHtml),
+);
+check(
+  "「已隐藏 N 条缺干员的方案」旁边给了「点开查看」入口",
+  /已隐藏 1 条缺干员的方案/.test(mixedHtml) && mixedHtml.includes('data-act="show-hidden"'),
+);
 check(
   "只隐藏缺干员的（说明里是「缺干员的方案」，不是「不可抄」）",
   /已隐藏 1 条缺干员的方案/.test(mixedHtml) && !/已隐藏 2 条/.test(mixedHtml),
@@ -823,7 +833,7 @@ console.log("\n== 页面元素一致性（防止「删了面板但监听还在�
   const pathx = await import("node:path");
   const here = pathx.dirname(new URL(import.meta.url).pathname.replace(/^[\\/]([A-Za-z]:)/, "$1"));
   const rootDir = pathx.join(here, "..");
-  const optional = new Set(["locks", "lockCount", "poolFilterNote", "kpis", "reanalyze"]); // 有守卫/运行时创建，可缺
+  const optional = new Set(["locks", "lockCount", "poolFilterNote", "kpis", "reanalyze", "clearPageCache"]); // 有守卫/运行时创建，可缺
   const idRe = /\bid="([A-Za-z][\w-]*)"/g;
   const useRe = /\$<[^>]*>\("([A-Za-z][\w-]*)"\)|\$\("([A-Za-z][\w-]*)"\)/g;
   for (const [htmlPath, tsPath] of [

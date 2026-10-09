@@ -94,3 +94,16 @@ export async function putCachedResult(
 export async function clearResultCache(): Promise<void> {
   await chrome.storage.local.remove(RESULT_CACHE_KEY);
 }
+
+/** 只清一个视频/分P的缓存（面板上的「清除本页缓存」）：换视频或想重新分析时用得上 */
+export async function clearCachedResult(
+  bvid: string,
+  page: number | null | undefined,
+): Promise<boolean> {
+  const key = resultCacheKey(bvid, normalizePage(page));
+  const cache = await readCache();
+  if (!(key in cache)) return false;
+  delete cache[key];
+  await chrome.storage.local.set({ [RESULT_CACHE_KEY]: cache });
+  return true;
+}
