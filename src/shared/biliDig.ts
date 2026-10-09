@@ -210,9 +210,33 @@ interface NameIndex {
 function buildNameIndex(dict: NameDict): NameIndex {
   const aliases = Object.keys(aliasesForPrompt());
   const all = new Set<string>();
-  for (const n of dict.names()) if (n.length >= 2 || /^[A-Za-z]$/.test(n)) all.add(n);
-  for (const a of aliases) if (a.length >= 2) all.add(a);
+  // 单字名也要进索引（黑/令/黍/红/陈/山…共 24 个干员），
+  // 但匹配时要求**两侧不是中文/字母/数字**（见 singleCharPositions），避免「指令」「黑角」误伤
+  for (const n of dict.names()) if (n.trim()) all.add(n);
+  for (const a of aliases) if (a.trim()) all.add(a);
   return { names: [...all].sort((a, b) => b.length - a.length) };
+}
+
+/** 中文/字母/数字（用于判断单字名是否"独立"出现） */
+const WORDY_CHAR = /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaffA-Za-z0-9]/;
+
+/**
+ * 单字名后面紧跟这些词时，也算"独立出现"（标题常写成「黍单核」「黑挂机」而不带分隔符）；
+ * 但「黑角」「指令」这类真词不会被误切（跟上的是普通汉字，不在表内）。
+ */
+const FOLLOW_WORDS = /^(?:单核|双核|三核|无核|单人|双人|三人|四人|单刷|满潜|低配|低星|中配|高配|挂机|半挂|速刷|速通|借新|攻略|打法|阵容|通关|作业|技能|模组|专三|专二|专一|精二|精一|满级|练度|替代|平替)/;
+
+/** 单字名的全部命中位置：两侧是分隔符/边界，或后面紧跟模式词 */
+function singleCharPositions(text: string, name: string): number[] {
+  const out: number[] = [];
+  for (let i = 0; i < text.length; i += 1) {
+    if (text[i] !== name) continue;
+    const prev = text[i - 1] ?? "";
+    const next = text[i + 1] ?? "";
+    const afterOk = !WORDY_CHAR.test(next) || FOLLOW_WORDS.test(text.slice(i + 1));
+    if (!WORDY_CHAR.test(prev) && afterOk) out.push(i);
+  }
+  return out;
 }
 
 /** 文本中出现的干员（字典 + 纠错集 → 标准全名），按出现顺序去重 */
@@ -220,8 +244,9 @@ export function matchOperators(text: string, dict: NameDict, index: NameIndex = 
   const found: Array<{ full: string; pos: number }> = [];
   const seen = new Set<string>();
   for (const name of index.names) {
-    const pos = text.indexOf(name);
-    if (pos < 0) continue;
+    const positions = name.length === 1 ? singleCharPositions(text, name) : [text.indexOf(name)];
+    const pos = positions.find((p) => p >= 0);
+    if (pos == null) continue;
     const full = dict.resolve(name);
     if (!dict.exists(full) || seen.has(full)) continue;
     seen.add(full);

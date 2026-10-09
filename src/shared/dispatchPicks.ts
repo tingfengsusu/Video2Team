@@ -11,6 +11,7 @@
  */
 
 import type { LockedOps } from "./types";
+import { schemeKeyOf, type MergedStagePool } from "./dispatchPool";
 
 export const PICKS_KEY = "dispatchPicks";
 
@@ -44,6 +45,48 @@ function uniqueOps(ops: readonly string[]): string[] {
     if (name && !out.includes(name)) out.push(name);
   }
   return out;
+}
+
+export interface RowPickInfo {
+  stageCode: string;
+  key: string;
+  ops: string[];
+  stageName?: string;
+  /** 是否从结果对象里找到了对应方案（false = 走了 data-ops 兜底） */
+  fromResult: boolean;
+}
+
+/**
+ * 从候选池某一行的 DOM 解析勾选信息（三端共用）。
+ *
+ * 关键点：**不依赖"能在当前结果里查到方案"**——行上的 data-stage / data-scheme / data-ops 已足够完成勾选。
+ * 之前只按 schemeKeyOf 查表，查不到就静默 return，会出现「勾选框被勾上但占用/置灰没变化」的假象
+ * （旧结果缓存、键漂移等情况下都会命中）。
+ */
+export function resolvePickFromRow(
+  input: HTMLElement,
+  result: { dispatchGuides?: MergedStagePool[] } | null | undefined,
+): RowPickInfo | null {
+  const stageCode = (input.getAttribute("data-stage") ?? "").trim();
+  const key = (input.getAttribute("data-scheme") ?? "").trim();
+  if (!stageCode || !key) return null;
+  const pool = (result?.dispatchGuides ?? []).find(
+    (p) => p.displayCode.toUpperCase() === stageCode.toUpperCase(),
+  );
+  const scheme = pool?.schemes.find((s) => schemeKeyOf(s) === key);
+  const rowOps = (input.closest("[data-pick-row='1']")?.getAttribute("data-ops") ?? "")
+    .split("、")
+    .map((x) => x.trim())
+    .filter(Boolean);
+  const ops = scheme?.operators?.length ? scheme.operators : rowOps;
+  if (!ops.length) return null;
+  return {
+    stageCode: pool?.displayCode ?? stageCode,
+    key,
+    ops,
+    stageName: pool?.stageName ?? scheme?.stageName,
+    fromResult: !!scheme,
+  };
 }
 
 export interface PickToggleInput {

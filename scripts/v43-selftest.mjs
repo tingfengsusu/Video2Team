@@ -675,6 +675,55 @@ const manyRows = v43.pickVisibleSchemes(
 );
 check("显示上限放宽到 12 条（不再是 3+3）", manyRows.shown.length === 12, String(manyRows.shown.length));
 
+console.log("\n== 单字干员名（黑/令/黍…）与勾选兜底 ==");
+check(
+  "单字干员名可识别（黑/机械师 双人）",
+  v43.matchOperators("黑/机械师双人四号站台 VEC-SP12", db).join("、") === "黑、机械师",
+);
+check(
+  "单字干员名：紧贴模式词也识别（黍单核）",
+  v43.matchOperators("黍单核 挂机 VEC-SP02", db).join("、") === "黍",
+);
+check(
+  "单字干员名：不误伤真词（黑角 / 指令）",
+  (() => {
+    const a = v43.matchOperators("黑角 单人 VEC-SP01", db).join("、");
+    const b = v43.matchOperators("凯尔希可以替askl（指令区）", db).join("、");
+    return a === "黑角" && b === "凯尔希";
+  })(),
+);
+
+/** 最小 input 桩：resolvePickFromRow 只用 getAttribute / closest */
+const fakeInput = (attrs, rowAttrs) => ({
+  getAttribute: (k) => attrs[k] ?? null,
+  closest: () => ({ getAttribute: (k) => rowAttrs[k] ?? null }),
+});
+const pickResult = { dispatchGuides: [guidePool] };
+check(
+  "勾选解析：正常命中结果里的方案",
+  (() => {
+    const info = v43.resolvePickFromRow(
+      fakeInput({ "data-stage": "VEC-SP02", "data-scheme": "maa:105144" }, {}),
+      pickResult,
+    );
+    return info?.fromResult === true && info.ops.join("+") === "凯尔希+能天使";
+  })(),
+);
+check(
+  "勾选解析：结果里查不到时用行内 data-ops 兜底（不再静默失败）",
+  (() => {
+    const info = v43.resolvePickFromRow(
+      fakeInput({ "data-stage": "VEC-SP02", "data-scheme": "maa:不存在的作业" }, { "data-ops": "黑、机械师" }),
+      pickResult,
+    );
+    return info?.fromResult === false && info.ops.join("+") === "黑+机械师" && info.stageCode === "VEC-SP02";
+  })(),
+);
+check(
+  "勾选解析：行内数据也没有时返回 null（上层给可见提示）",
+  v43.resolvePickFromRow(fakeInput({ "data-stage": "VEC-SP02", "data-scheme": "x" }, {}), pickResult) === null,
+);
+
 console.log("\n== 前置关识别依据 + 「不是这关」排除 ==");
 const withEvidence = v43.renderResult(baseResult, hasAll, {}, {
   stageKind: "target",
