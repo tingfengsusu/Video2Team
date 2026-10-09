@@ -651,8 +651,15 @@ const mixedHtml = v43.renderResult(
   { 能天使: "VEC-SP05（难以相交）" },
   { stageKind: "target", hideUnavailable: true },
 );
-check("默认隐藏不可抄方案（缺干员/被占用）", mixedHtml.includes("凯尔希") && !mixedHtml.includes(">银灰<"));
-check("并说明隐藏了几条、为什么", /已隐藏 2 条不可抄/.test(mixedHtml) && /缺 银灰/.test(mixedHtml));
+check(
+  "默认只隐藏「缺干员」的方案（被占用的要留着，便于取舍对比）",
+  mixedHtml.includes("凯尔希") && !mixedHtml.includes(">银灰<") && mixedHtml.includes("能天使"),
+);
+check("并说明隐藏了几条、为什么（仅缺干员）", /已隐藏 1 条不可抄/.test(mixedHtml) && /缺 银灰/.test(mixedHtml));
+check(
+  "被其它关占用的方案保留展示并标注占用来源",
+  /已被 VEC-SP05（难以相交） 占用/.test(mixedHtml),
+);
 const showAllHtml = v43.renderResult(
   { ...baseResult, dispatchGuides: [poolWithMix] },
   (n) => n !== "银灰",

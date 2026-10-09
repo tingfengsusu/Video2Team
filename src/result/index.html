@@ -41,7 +41,7 @@
       body {
         margin: 0; background: var(--bg); color: var(--fg);
         font-family: "Fira Sans", system-ui, "Microsoft YaHei", sans-serif;
-        font-size: 14px; line-height: 1.6;
+        font-size: 15px; line-height: 1.65;
         font-variant-numeric: tabular-nums;
       }
       .mono { font-family: "Fira Code", ui-monospace, Consolas, monospace; }
@@ -112,7 +112,7 @@
       .video-title { font-size: 13px; color: var(--muted-fg); margin: 0 0 2px; }
       .stage { font-size: 19px; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 6px; color: var(--primary); }
       .slot {
-        font-size: 14px; line-height: 1.65; padding: 8px 10px; border-radius: var(--radius-md);
+        font-size: 15px; line-height: 1.7; padding: 9px 11px; border-radius: var(--radius-md);
         margin-bottom: 6px; background: #fbfcfe; border: 1px solid var(--border); border-left: 3px solid var(--border);
         transition: background var(--speed);
       }
@@ -128,13 +128,25 @@
       .own { color: var(--ok); font-weight: 600; }
       .miss { color: var(--destructive); font-weight: 600; }
       .occupied { color: #94a3b8; text-decoration: line-through; }
+      /* 「＋ 补一个关」下拉：与设计 B 的 token 一致 */
+      .stage-select {
+        font: inherit; font-size: 13px; line-height: 1.4; padding: 5px 10px; min-height: 32px;
+        border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--card);
+        color: var(--fg); cursor: pointer; transition: border-color var(--speed), box-shadow var(--speed);
+      }
+      .stage-select:hover { border-color: var(--secondary); }
+      .stage-select:focus-visible { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px rgba(30,64,175,.18); }
       .pickbox { cursor: pointer; margin: 2px 0 0; accent-color: var(--primary); }
       .schemerow { transition: background var(--speed); }
       .schemerow:hover { background: #eff6ff; border-radius: var(--radius-sm); }
       .quote { color: #94a3b8; }
       .dim { color: var(--muted-fg); font-size: 13px; }
+      /* 候选池行/表头：比小面板略大，远看也清楚（用户反馈大窗口偏小） */
+      .schemerow { font-size: 13px !important; }
+      .stagepool > div:first-child { font-size: 13px !important; }
+      details summary { font-size: 13px; }
       .err { color: var(--destructive); }
-      .hint { font-size: 12px; color: var(--muted-fg); line-height: 1.7; }
+      .hint { font-size: 13px; color: var(--muted-fg); line-height: 1.75; }
       a { color: var(--primary); text-decoration: none; }
       a:hover { text-decoration: underline; }
       details { margin-top: 6px; }

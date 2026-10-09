@@ -179,6 +179,8 @@ function renderScheme(
   picked: { key: string } | undefined,
   colorBySource: boolean,
   plainIcons = false,
+  /** 该方案被其它关占用时传入来源标签（行尾标注，便于取舍对比） */
+  occupiedFrom?: string,
 ): string {
   const key = schemeKeyOf(scheme);
   const url = schemeSourceUrl(scheme);
@@ -218,7 +220,9 @@ function renderScheme(
     `style="font-size:12px;line-height:1.65;margin-top:3px;display:flex;gap:5px;align-items:baseline;cursor:pointer" ` +
     `title="${esc(tip)}">` +
     `<span style="flex:none">${box}</span>` +
-    `<span style="flex:auto">${label} ${mode}${renderSchemeOperators(scheme, hasOp, lockedOps, pool.displayCode, plainIcons)}</span>` +
+    `<span style="flex:auto">${label} ${mode}${renderSchemeOperators(scheme, hasOp, lockedOps, pool.displayCode, plainIcons)}` +
+    (occupiedFrom ? ` <span class="dim" style="white-space:nowrap">（已被 ${esc(occupiedFrom)} 占用）</span>` : "") +
+    `</span>` +
     `</div>`
   );
 }
@@ -227,21 +231,50 @@ function renderScheme(
  * 方案是否"可抄"：干员都在你的练度表里，且没有被**别的关**占用。
  * （"被别的关占用"= lockedOps 指向另一关；本关自己勾选的不算，见 isLockLabelOfStage）
  */
+export interface SchemeUsability {
+  usable: boolean;
+  /** 你练度表里没有的干员（这类方案留不下来，直接隐藏） */
+  missing: string[];
+  /** 被**其它关**占用的干员（这类方案仍然展示，只置灰——便于对比取舍） */
+  occupied: string[];
+  /** 被其它关占用的关卡标签（行尾标注「已被 XX 占用」） */
+  occupiedFrom?: string;
+  reason?: string;
+}
+
+/**
+ * 方案可用性判定。
+ *
+ * 用户实测反馈（2026-10-09）：**被其它关占用的方案不应隐藏**——否则看不到「A 关只有这一套、
+ * B 关还有别的选择」这种取舍信息，容易选了 B 导致 A 无解。因此：
+ *   - 缺干员（练度表里没有）→ 隐藏（本来就抄不了）；
+ *   - 被其它关占用 → 保留展示，干员名置灰+删除线+🔒，行尾标注占用来源。
+ */
 export function isSchemeUsable(
   scheme: MergedScheme,
   hasOp: HasOp,
   lockedOps: LockedOps,
   stageCode: string,
-): { usable: boolean; reason?: string } {
+): SchemeUsability {
   const ops = scheme.operators.length ? scheme.operators : scheme.opers.map((o) => o.name);
   const missing = ops.filter((n) => !hasOp(n));
-  if (missing.length) return { usable: false, reason: `缺 ${missing.join("、")}` };
-  const occupied = ops.filter((n) => {
+  const occupiedOps = ops.filter((n) => {
     const label = lockedOps[n];
     return !!label && !isLockLabelOfStage(label, stageCode);
   });
-  if (occupied.length) return { usable: false, reason: `已占用 ${occupied.join("、")}` };
-  return { usable: true };
+  const occupiedFrom = occupiedOps.length ? lockedOps[occupiedOps[0]!] : undefined;
+  const reason = missing.length
+    ? `缺 ${missing.join("、")}`
+    : occupiedOps.length
+      ? `已占用 ${occupiedOps.join("、")}`
+      : undefined;
+  return {
+    usable: missing.length === 0 && occupiedOps.length === 0,
+    missing,
+    occupied: occupiedOps,
+    occupiedFrom,
+    reason,
+  };
 }
 
 /** 分区标题（q4：结果区一眼能分出「本关阵容 / 前置关候选池」） */
@@ -372,8 +405,10 @@ export function renderDispatchGuides(
       const candidates = opts.hideUnavailable
         ? pool.schemes.filter((scheme) => {
             const verdict = isSchemeUsable(scheme, hasOp, lockedOps, pool.displayCode);
-            if (!verdict.usable) unavailable.push(`${scheme.sourceLabel}：${verdict.reason}`);
-            return verdict.usable;
+            // 只隐藏"缺干员"的；"被其它关占用"的保留（置灰 + 标注，便于取舍对比）
+            if (verdict.missing.length === 0) return true;
+            unavailable.push(`${scheme.sourceLabel}：${verdict.reason}`);
+            return false;
           })
         : pool.schemes;
       const { shown: schemes, hidden } = pickVisibleSchemes(candidates, {
@@ -391,9 +426,19 @@ export function renderDispatchGuides(
         .join("；");
       const rows = schemes.length
         ? schemes
-            .map((scheme) =>
-              renderScheme(scheme, pool, hasOp, lockedOps, picked, colorBySource, opts.plainIcons),
-            )
+            .map((scheme) => {
+              const verdict = isSchemeUsable(scheme, hasOp, lockedOps, pool.displayCode);
+              return renderScheme(
+                scheme,
+                pool,
+                hasOp,
+                lockedOps,
+                picked,
+                colorBySource,
+                opts.plainIcons,
+                verdict.occupied.length ? verdict.occupiedFrom : undefined,
+              );
+            })
             .join("") +
           (hiddenNote ? `<div class="dim" style="font-size:11px;margin-top:2px">${esc(hiddenNote)}</div>` : "")
         : `<div class="dim" style="font-size:12px;margin-top:3px">` +
@@ -425,15 +470,6 @@ export function renderDispatchGuides(
         `<span title="${esc(SOURCE_TIPS.bili)}">B站视频 ${pool.counts.bili}</span>` +
         ` <a href="#" data-act="skip-stage" data-code="${esc(pool.displayCode)}" class="link" ` +
         `style="font-size:11px" title="识别错了？把这个关从本次前置关列表移除">不是这关</a>` +
-        (opts.stageOptions?.length
-          ? ` <select data-act="recode-stage" data-from="${esc(pool.displayCode)}" title="识别错了？把这一关改成列表里的正确关卡（会现查该关方案）" ` +
-            `style="font-size:11px;max-width:120px;vertical-align:middle"><option value="">改成…</option>` +
-            opts.stageOptions
-              .filter((o) => o.displayCode.toUpperCase() !== pool.displayCode.toUpperCase())
-              .map((o) => `<option value="${esc(o.displayCode)}">${esc(o.displayCode)}（${esc(o.stageName)}）</option>`)
-              .join("") +
-            `</select>`
-          : "") +
         `</span></div>` +
         evidenceLine +
         `<details${picked ? "" : " open"}>` +
@@ -447,11 +483,13 @@ export function renderDispatchGuides(
   const noteLine = opts.note
     ? `<div class="hint" style="color:#b8860b">${esc(opts.note)}</div>`
     : "";
-  // 漏识别时的补关入口（只在下拉有数据时出现）
+  // 漏识别时的补关入口（仅在有可选关列表时出现；样式走 .stage-select，各界面 CSS 上色）
   const addStageLine = opts.stageOptions?.length
-    ? `<div class="hint" style="margin-top:4px">漏识别了某一关？` +
-      ` <select data-act="add-stage" title="补一个关：现查该关的 MAA/B站 方案并加入候选池"` +
-      ` style="font-size:11px;max-width:150px;vertical-align:middle"><option value="">＋ 补一个关…</option>` +
+    ? `<div class="hint" style="margin-top:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">` +
+      `<span class="dim" style="white-space:nowrap">漏识别了某一关？</span>` +
+      `<select class="stage-select" data-act="add-stage" aria-label="补一个关"` +
+      ` title="补一个关：现查该关的 MAA / B站 方案并加入候选池"` +
+      ` style="max-width:200px"><option value="">＋ 补一个关…</option>` +
       opts.stageOptions
         .map((o) => `<option value="${esc(o.displayCode)}">${esc(o.displayCode)}（${esc(o.stageName)}）</option>`)
         .join("") +

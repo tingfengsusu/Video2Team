@@ -36,6 +36,14 @@
       .miss { color: #c0392b; font-weight: 700; }
       /* §9.3 被占用：灰色 + 删除线（+ 🔒 徽章） */
       .occupied { color: #999; text-decoration: line-through; }
+      /* 「＋ 补一个关」下拉：紧凑但可点（skill：紧凑标签不换行、焦点可见、触控目标足够） */
+      .stage-select {
+        font: inherit; font-size: 12px; line-height: 1.4; padding: 4px 8px; min-height: 28px;
+        border: 1px solid #d0d7de; border-radius: 6px; background: #fff; color: #333;
+        cursor: pointer; transition: border-color .2s, box-shadow .2s;
+      }
+      .stage-select:hover { border-color: #23ade5; }
+      .stage-select:focus-visible { outline: none; border-color: #23ade5; box-shadow: 0 0 0 3px rgba(35,173,229,.25); }
       .pickbox { cursor: pointer; margin: 2px 0 0; }
       .quote { color: #999; }
       .dim { color: #888; font-size: 12px; }
