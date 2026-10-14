@@ -247,8 +247,16 @@ function singleCharPositions(text: string, name: string): number[] {
  * 文本里真的分开写了两个名字（如「麒麟R夜刀、夜刀」）仍然都能识别。
  */
 export function matchOperators(text: string, dict: NameDict, index: NameIndex = buildNameIndex(dict)): string[] {
-  const found: Array<{ full: string; pos: number }> = [];
-  const seen = new Set<string>();
+  return [...new Set(matchOperatorsDetailed(text, dict, index).map((m) => m.full))];
+}
+
+/** 同上，但**不去重、并给出命中位置**（供「替代建议」抽取判断名字在动词的哪一侧）。 */
+export function matchOperatorsDetailed(
+  text: string,
+  dict: NameDict,
+  index: NameIndex = buildNameIndex(dict),
+): Array<{ full: string; pos: number; len: number }> {
+  const found: Array<{ full: string; pos: number; len: number }> = [];
   const covered: Array<[number, number]> = []; // 已被更长名字占用的区间 [start, end)
   const taken = (p: number, len: number) => covered.some(([s, e]) => p >= s && p + len <= e);
   const positionsOf = (name: string): number[] => {
@@ -258,17 +266,17 @@ export function matchOperators(text: string, dict: NameDict, index: NameIndex = 
     return out;
   };
   for (const name of index.names) {
-    const pos = positionsOf(name).find((p) => !taken(p, name.length));
-    if (pos == null) continue;
-    const full = dict.resolve(name);
-    if (!dict.exists(full) || seen.has(full)) continue;
-    seen.add(full);
-    found.push({ full, pos });
-    covered.push([pos, pos + name.length]);
+    for (const pos of positionsOf(name)) {
+      if (taken(pos, name.length)) continue;
+      const full = dict.resolve(name);
+      if (!dict.exists(full)) continue;
+      found.push({ full, pos, len: name.length });
+      covered.push([pos, pos + name.length]);
+    }
   }
   // 按命中词在文本中的位置排序（别名命中时用别名位置，不能用全名再查一次）
   found.sort((a, b) => a.pos - b.pos);
-  return found.map((f) => f.full);
+  return found;
 }
 
 // ---------- LLM 精筛（一次调用处理全部语料） ----------
