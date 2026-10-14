@@ -1,21 +1,27 @@
 /**
  * ②a 实战替代挖掘（L3）：从弹幕/评论区提取「XX 可以用 YY 代替」的映射对。
  *
- * 流程：抓取（bilibili.ts）→ 正则粗筛（+置顶/高赞兜底）→ AI 精筛出「X→Y」映射对
- *      → 干员名字典校验（防幻觉）。
+ * 流程：抓取（bilibili.ts）→ 正则粗筛（+置顶）→ **程序预抽「X→Y」对**（pairExtract）+
+ *      AI 判定/补充 → 干员名字典校验（防幻觉）→ 程序对与 AI 结果合并（AI 可否决误读）。
+ *
  * 弹幕与评论双源（2026-09-13 验收修订）：实测弹幕中替代建议密度高于评论
  * （「老玛可以替askl」「大姨可以换杰哥」）；弹幕量大且无点赞信号 → 仅正则命中的
- * 弹幕进入候选；评论沿用 置顶/正则命中/高赞兜底。
+ * 弹幕进入候选；评论只保留**置顶 + 正则命中**。
+ * 第十六轮 q2（2026-10-09）**移除「高赞前20兜底」**：那是给"本关资料太少"设计的老逻辑，
+ * 实测它塞进来的 20 条全是发帖吐槽（一条都没命中替代语义），却占了候选表三分之一、
+ * 还排在最前面，把模型注意力引向闲聊（两份日志对比可见：昨天模型只覆盖了 3 个干员）。
  * 黑话缩写三层防线：aliases 注入 prompt → AI 还原全名 → 字典校验拦截。
- * 本模块拆分为 buildCandidates / prepareMining（API）/ buildWebCombinedMessages（网页版合并）
- * / parseMiningReply 四段，供两种调用模式复用。
+ * 本模块拆分为 buildCandidates / collectProgramPairs / prepareMining（API）/
+ * buildWebCombinedMessages（网页版合并）/ parseMiningReply + mergeProgramPairs。
  */
 
 import { callLLM, parseJsonLoose, type AskFn, type ChatMessage } from "./llm";
 import { replyUrl, type CommentItem } from "./bilibili";
 import type { OperatorDB } from "./operatorDB";
+import type { NameDict } from "./biliDig";
 import type { Roster, Substitution } from "./types";
 import { aliasesForPrompt, recordUnknownName } from "./aliases";
+import { extractPairs, stripDanmakuPrefix } from "./pairExtract";
 
 /** 正则粗筛：命中替代语义关键词的候选（宽松，宁可多送 AI） */
 const SUB_HINTS = [
@@ -59,6 +65,8 @@ function normalizeToRoster(removed: string, rosterNames: string[]): string | nul
 export interface MiningPrepared {
   messages: ChatMessage[];
   candidates: Candidate[];
+  /** 程序预抽的候选替代对（第十六轮 q2）：模型漏项时的召回兜底，见 mergeProgramPairs */
+  pairs: ProgramPair[];
 }
 
 export interface CandidateCaps {
@@ -66,7 +74,7 @@ export interface CandidateCaps {
   danmaku?: number; // 弹幕候选上限（默认 60，设置页可配）
 }
 
-/** 候选集构建：评论（置顶∪正则命中∪高赞前20）与弹幕（仅正则命中）分开配额，互不挤占 */
+/** 候选集构建：评论（置顶 ∪ 正则命中）与弹幕（仅正则命中）分开配额，互不挤占 */
 export function buildCandidates(
   comments: CommentItem[],
   danmaku: Array<{ time: number; text: string }>,
@@ -74,27 +82,18 @@ export function buildCandidates(
 ): Candidate[] {
   const commentCap = caps.comments ?? 60;
   const danmakuCap = caps.danmaku ?? 60;
-  // —— 评论候选 ——
+  // —— 评论候选（置顶 + 命中替代语义的）——
+  // 第十六轮 q2：**不再用"高赞前 20 兜底"**。本步只提取替代建议，
+  // 与替代无关的高赞评论对本任务零信息量，只稀释注意力（实测那 20 条全是吐槽）。
   const commentCands: Candidate[] = [];
-  const commentFlags = comments.map((c) => SUB_HINTS.some((re) => re.test(c.text)));
   comments.forEach((c) => {
-    const idx = comments.indexOf(c);
-    if (c.isPinned || commentFlags[idx]) {
+    if (c.isPinned || SUB_HINTS.some((re) => re.test(c.text))) {
       commentCands.push({
         i: 0, text: c.text, likes: c.likes, isPinned: c.isPinned,
         source: c.isPinned ? "pinned" : "comment", rpid: c.rpid,
       });
     }
   });
-  const pickedTexts = new Set(commentCands.map((c) => c.text));
-  [...comments]
-    .sort((a, b) => b.likes - a.likes)
-    .slice(0, 20)
-    .forEach((c) => {
-      if (!pickedTexts.has(c.text)) {
-        commentCands.push({ i: 0, text: c.text, likes: c.likes, isPinned: false, source: "comment", rpid: c.rpid });
-      }
-    });
   if (commentCands.length > commentCap) {
     commentCands.sort((a, b) => Number(b.isPinned) - Number(a.isPinned) || b.likes - a.likes);
     commentCands.length = commentCap;
@@ -120,6 +119,86 @@ export function buildCandidates(
   return candidates;
 }
 
+// ---------- 程序预抽的替代对（第十六轮 q2：把"召回"从模型手里拿回来） ----------
+
+/** 程序按「X 替/换 Y」句式抽出的候选对，附带它的来源候选（供 evidence / 来源 / 赞数） */
+export interface ProgramPair {
+  from: string;
+  to: string;
+  /** 原文（已去掉 `[弹幕 mm:ss]` 前缀，作 evidence 用） */
+  text: string;
+  candidateIndex: number;
+  source: Candidate["source"];
+  likes: number;
+  rpid?: number;
+}
+
+/**
+ * 对候选列表跑一遍程序抽取（零 token）。同一 `from→to` 只留一条（优先留"有赞/可溯源"的那条）。
+ * 这一步只是**召回兜底**：模型照样拿到完整候选表，抽不出来的句式仍由模型负责。
+ */
+export function collectProgramPairs(
+  candidates: Candidate[],
+  rosterNames: string[],
+  dict: NameDict,
+): ProgramPair[] {
+  const best = new Map<string, ProgramPair>();
+  for (const c of candidates) {
+    for (const p of extractPairs(c.text, rosterNames, dict)) {
+      const key = `${p.from}\u0000${p.to}`;
+      const prev = best.get(key);
+      const score = (c.source !== "danmaku" ? 1e9 : 0) + c.likes;
+      const prevScore = prev ? (prev.source !== "danmaku" ? 1e9 : 0) + prev.likes : -1;
+      if (!prev || score > prevScore) {
+        best.set(key, {
+          from: p.from,
+          to: p.to,
+          text: stripDanmakuPrefix(c.text),
+          candidateIndex: c.i,
+          source: c.source,
+          likes: c.likes,
+          ...(c.rpid != null ? { rpid: c.rpid } : {}),
+        });
+      }
+    }
+  }
+  return [...best.values()];
+}
+
+/**
+ * 把程序对并进模型结果：模型自己没产出的（按 `from→to` 比对）补进来。
+ * 这样"模型漏项"不再等于"这条建议消失"——两份日志里模型漏掉的 6 条就是这么补回来的。
+ * 说明：抽取器实测精确（真实弹幕 14/14 正确、边界用例零假阳性），故只做去重、不做否决；
+ * 万一抽错，界面上带着**原文引用**，用户一眼能看出并自行判断。
+ */
+export function mergeProgramPairs(
+  subs: Substitution[],
+  pairs: ProgramPair[],
+  stage: string,
+  videoId: string,
+): Substitution[] {
+  if (!pairs.length) return subs;
+  const out = [...subs];
+  const have = new Set(out.map((s) => `${s.removed}\u0000${s.replacement}`));
+  for (const p of pairs) {
+    const key = `${p.from}\u0000${p.to}`;
+    if (have.has(key)) continue;
+    have.add(key);
+    out.push({
+      removed: p.from,
+      replacement: p.to,
+      stage,
+      evidence: p.text.slice(0, 200),
+      source: p.source,
+      kind: "operator_swap",
+      likes: p.likes,
+      verified: true,
+      ...(p.rpid != null ? { evidenceUrl: replyUrl(videoId, p.rpid) } : {}),
+    });
+  }
+  return out;
+}
+
 /** 挖掘任务的提示词正文（rosterNames 为 null 时引用前文阵容；combined 控制输出格式说明归属；
  *  includeAliases=false 用于合并提示词——第一步正文已带对照表，避免重复占用 token） */
 function buildMiningPromptText(
@@ -128,6 +207,7 @@ function buildMiningPromptText(
   candidates: Candidate[],
   combined: boolean,
   includeAliases = true,
+  pairs: ProgramPair[] = [],
 ): string {
   const refPrev = rosterNames === null;
   const rosterSection = refPrev
@@ -136,6 +216,17 @@ function buildMiningPromptText(
   const outputLine = combined
     ? `（最终输出格式见文末统一说明）`
     : `\n仅输出 JSON 数组：[{"removed":"","replacement":"","kind":"","evidence":"","commentIndex":编号}]，无建议输出 []`;
+  // 程序预抽的候选对：作为「核对清单」给出（API 模式阵容已知，可以定向预抽）
+  const pairSection = pairs.length
+    ? [
+        `【程序预抽的候选替代对（共 ${pairs.length} 条）】`,
+        `下表是插件按「X 替/换 Y」句式从上面的候选里**程序抽出来的**，请你**逐条核对**：`,
+        `- 抽对了 → 不必在输出里重复（插件会直接采用）；`,
+        `- 抽错了（方向反了 / 名字不对 / 其实是求助玩笑）→ 按你的判断处理，别照抄。`,
+        pairs.map((p, i) => `P${i + 1} | ${p.from} → ${p.to} | 原文：${p.text.slice(0, 60)}`).join("\n"),
+        ``,
+      ]
+    : [];
   return [
     `任务：从B站弹幕/评论中提取「干员替代建议」——观众认为视频阵容中的干员X可以用干员Y代替。`,
     ``,
@@ -147,30 +238,34 @@ function buildMiningPromptText(
     `弹幕/评论列表（编号|来源|点赞|内容）：`,
     candidates.map((c) => `${c.i} | ${c.source} | ${c.likes} | ${c.text}`).join("\n"),
     ``,
+    ...pairSection,
     `规则：`,
     `- removed：用阵容中的干员全名；弹幕提到的干员若在阵容中只有异格/升变版本（如「星熊」→阵容里的「斩业星熊」），视为同一干员，用阵容中的名字`,
     `- replacement：替代干员全名（昵称/简称先还原）；练度修饰词不属于名字，剥离后再还原（「高练机械师」→「机械师」）`,
     `- kind：operator_swap(默认)/skill_swap(换技能或攻速)/position_swap(换部署位置)/manual(改手动)`,
-    `- 弹幕口语极简（如「老玛可以替askl」），结合阵容与对照表谨慎判断；不确定就忽略`,
+    `- **候选里凡是「用 Y 换 X」语义、且 X/Y 都能对上真实干员的，都要产出**（口语极简也照办：「老玛可以替askl」→ removed=玛恩纳、replacement=史尔特尔）。只有**任一侧对不上真实干员、或方向实在判断不了**时才忽略`,
     `- 只提取替代建议；求助、吐槽、讨论练度等一律忽略；evidence 摘录原文`,
     outputLine,
   ].join("\n");
 }
 
-/** API 模式：挖掘提示词（阵容显式列出，输出纯数组） */
+/** API 模式：挖掘提示词（阵容显式列出，输出纯数组）。
+ *  `dict` 可省略——省略时不做程序预抽（老调用点/自测保持可用）。 */
 export function prepareMining(
   stage: string,
   rosterNames: string[] | null,
   comments: CommentItem[],
   danmaku: Array<{ time: number; text: string }>,
   caps: CandidateCaps = {},
+  dict?: NameDict,
 ): MiningPrepared {
   const candidates = buildCandidates(comments, danmaku, caps);
+  const pairs = dict && rosterNames ? collectProgramPairs(candidates, rosterNames, dict) : [];
   const messages: ChatMessage[] = [
     { role: "system", content: "你是明日方舟攻略数据提取引擎，只输出 JSON。" },
-    { role: "user", content: buildMiningPromptText(stage, rosterNames, candidates, false) },
+    { role: "user", content: buildMiningPromptText(stage, rosterNames, candidates, false, true, pairs) },
   ];
-  return { messages, candidates };
+  return { messages, candidates, pairs };
 }
 
 /**
@@ -186,6 +281,10 @@ export function buildWebCombinedMessages(
   caps: CandidateCaps = {},
 ): MiningPrepared {
   const candidates = buildCandidates(comments, danmaku, caps);
+  // 注意：网页版是**一次调用同时认阵容 + 挖建议**，发提示词时阵容还没识别出来，
+  // 因此这里没法定向、也就不放「预抽清单」——程序预抽放到收到回复之后做
+  // （background 拿到 roster 再 collectProgramPairs → mergeProgramPairs，召回照样兜住）。
+  const pairs: ProgramPair[] = [];
   const outputSchema =
     `【最终输出】仅输出一个 JSON：\n` +
     `{"stageResolution":{"explicitCode":"","matchedName":"","gridRows":0,"gridColumnsTotal":0,"enabledSupplies":0,"gridPosition":0,"gridRow":0,"gridColumn":0,"gridColumns":0,"gridName":"","gridCells":[{"position":0,"row":0,"column":0,"columns":0,"name":""}],"note":""},"roster":{"operators":[{"name":"","support":false,"isKey":false,"keyReason":""}]},"substitutions":[{"removed":"","replacement":"","kind":"","evidence":"","commentIndex":编号}]}\n` +
@@ -233,7 +332,7 @@ export function buildWebCombinedMessages(
       ],
     },
   ];
-  return { messages, candidates };
+  return { messages, candidates, pairs };
 }
 
 /** 解析挖掘回复（数组或 {"substitutions":[...]} 合并格式）并做字典校验/去重 */
@@ -296,7 +395,7 @@ export async function mineSubstitutions(
   ask: AskFn = callLLM,
 ): Promise<Substitution[]> {
   const rosterNames = roster.slots.map((s) => s.operator);
-  const { messages, candidates } = prepareMining(roster.stage, rosterNames, comments, danmaku);
+  const { messages, candidates, pairs } = prepareMining(roster.stage, rosterNames, comments, danmaku, {}, opDB);
   if (candidates.length === 0) return [];
 
   const raw = await ask(messages);
@@ -305,7 +404,8 @@ export async function mineSubstitutions(
     const v = parseJsonLoose<unknown>(raw);
     items = Array.isArray(v) ? v : ((v as { substitutions?: unknown[] })?.substitutions ?? []);
   } catch {
-    return [];
+    items = [];
   }
-  return parseMiningReply(items, rosterNames, candidates, roster.stage, roster.videoId, opDB);
+  const subs = parseMiningReply(items, rosterNames, candidates, roster.stage, roster.videoId, opDB);
+  return mergeProgramPairs(subs, pairs, roster.stage, roster.videoId);
 }

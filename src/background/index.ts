@@ -12,7 +12,13 @@
 
 import { locateStage, buildTextContext, buildRosterPromptText, parseRosterReply } from "../shared/roster";
 import { fetchComments, fetchDanmaku } from "../shared/bilibili";
-import { buildWebCombinedMessages, parseMiningReply, type Candidate } from "../shared/miner";
+import {
+  buildWebCombinedMessages,
+  collectProgramPairs,
+  mergeProgramPairs,
+  parseMiningReply,
+  type Candidate,
+} from "../shared/miner";
 import { recommend } from "../shared/recommender";
 import { OperatorDB } from "../shared/operatorDB";
 import { loadAliases } from "../shared/aliases";
@@ -408,15 +414,24 @@ async function analyzeVideo(
     if (t && !unknownNames.includes(t)) unknownNames.push(t);
   };
   const roster: Roster = parseRosterReply(JSON.stringify(parsed.roster), meta, opDB, onUnknown);
+  const rosterNames = roster.slots.map((s) => s.operator);
   const items = Array.isArray(parsed.substitutions) ? parsed.substitutions : [];
-  const substitutions: Substitution[] = parseMiningReply(
+  const fromModel: Substitution[] = parseMiningReply(
     items,
-    roster.slots.map((s) => s.operator),
+    rosterNames,
     candidates,
     roster.stage,
     roster.videoId,
     opDB,
     onUnknown,
+  );
+  // 第十六轮 q2：程序预抽「X→Y」并合并（模型漏项不再等于建议消失）。
+  // 网页版是一次调用同时认阵容，发提示词时还没有阵容 → 预抽只能放在这里（拿到 roster 之后）。
+  const substitutions: Substitution[] = mergeProgramPairs(
+    fromModel,
+    collectProgramPairs(candidates, rosterNames, opDB),
+    roster.stage,
+    roster.videoId,
   );
 
   const recommendations = recommend(roster, substitutions, box, await getLockedOps());

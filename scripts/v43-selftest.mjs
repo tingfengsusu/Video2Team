@@ -40,6 +40,7 @@ await esbuild.build({
       export * from "../src/shared/remoteFile.ts";
       export * from "../src/shared/recommender.ts";
       export * from "../src/shared/stageRecode.ts";
+      export * from "../src/shared/pairExtract.ts";
     `,
     resolveDir: join(root, "scripts"),
     sourcefile: "v43-selftest-entry.ts",
@@ -1425,6 +1426,112 @@ check(
     "调试来源覆盖：设了 devRemoteBase 就只走它（可用本地文件测更新/公告）",
     withDev.length === 1 && withDev[0] === "http://127.0.0.1:8787/docs/version.json" && without.length === 2,
     withDev.join(",") + " / " + without.join(","),
+  );
+}
+
+console.log("\n== 第十六轮 q2：程序预抽替代对（把『召回』从模型手里拿回来）+ 候选降噪 ==");
+{
+  // 真实数据：用户 VEC-C 那份分析的阵容与弹幕（两份日志对比后，模型昨天漏了 6 条）
+  const VEC_C_ROSTER = [
+    "凛御银灰", "怒潮凛冬", "黍", "烛煌", "歌蕾蒂娅",
+    "德克萨斯", "乌尔比安", "圣聆初雪", "遥", "结城理",
+  ];
+  const pairsOf = (t) => v43.extractPairs(t, VEC_C_ROSTER, db).map((p) => `${p.from}→${p.to}`);
+
+  // ① 关键召回：模型漏掉的那几条必须能程序抽出来
+  check("预抽：珊比可以替52 → 乌尔比安→珊比（用户报的这条）", pairsOf("珊比可以替52，这样歌蒂就可以换望别开始臭棋炸炸炸").includes("乌尔比安→珊比"));
+  check("预抽：天猫2可以代替遥 → 遥→凯尔希·思衡托", pairsOf("天猫2可以代替遥").includes("遥→凯尔希·思衡托"));
+  check("预抽：凛冬可以换ins2技能 → 怒潮凛冬→伊内丝", pairsOf("凛冬可以换ins2技能 一直开技能就能过 我也不知道怎么突发奇想试出来的").includes("怒潮凛冬→伊内丝"));
+  check("预抽：林雨霞可换烛煌 → 烛煌→林", pairsOf("林雨霞可换烛煌").includes("烛煌→林"));
+  check("预抽：祥子可换凛冬 → 怒潮凛冬→丰川祥子（模型两次都没产出）", pairsOf("亲测熊2可换理，祥子可换凛冬，开银灰技能补伤害").includes("怒潮凛冬→丰川祥子"));
+  check("预抽：单字干员名兜底（黍可换塞雷娅）", pairsOf("凛冬可换斩业星熊带2，黍可换塞雷娅").includes("黍→塞雷娅"));
+  check("预抽：异格归一（ins2可换银灰 → 凛御银灰→伊内丝）", pairsOf("ins2可换银灰").includes("凛御银灰→伊内丝"));
+  check(
+    "预抽：另一侧在阵容里也认（凛冬可换星熊2 → 怒潮凛冬→星熊；遥可换天猫2 → 遥→凯尔希·思衡托）",
+    pairsOf("凛冬可换星熊2，遥可换天猫2").includes("怒潮凛冬→星熊") && pairsOf("凛冬可换星熊2，遥可换天猫2").includes("遥→凯尔希·思衡托"),
+  );
+
+  check(
+    "预抽：错别字也对得上（没有低练灼煌可以换若叶睦 → 烛煌→若叶睦，模型昨天漏了）",
+    pairsOf("没有低练灼煌可以换精二一级的若叶睦，摆瑶右边能活").includes("烛煌→若叶睦"),
+  );
+
+  // ② 边界：不该抽的一条都不能有（调参依据；全是真实噪声句）
+  const noFalse = [
+    "建议带一个快活。后面德狗暴毙了 可以代替他",
+    "德可以换任何生命值比烛煌高的干员，只需要保证烛煌血量最低被boss打就行",
+    "银灰可替，但是黍不太能替，满练塞雷娅替不了，但银灰可换1ns",
+    "所以德狗可以换凛冬吗？",
+    "凛冬能换斩熊吗",
+    "瑶可以换谁",
+    "银灰能用奸商替吗，没烛煌和银灰还得刚需烛煌对策",
+  ];
+  check(
+    "预抽边界：疑问句/求助句/纯闲聊都抽不出对",
+    noFalse.every((t) => pairsOf(t).length === 0),
+    noFalse.map((t) => `${t.slice(0, 10)}=${pairsOf(t).length}`).join(" "),
+  );
+  check(
+    "预抽边界：长句缺逗号不跨窗误配（银灰可换yns二…刷烛煌 不得产出 凛御银灰→烛煌）",
+    !pairsOf("凛冬可换斩熊二，银灰可换yns二唯一的难点是助战刷烛煌").includes("凛御银灰→烛煌"),
+  );
+  check("预抽边界：否定句「不要换」不当作建议", pairsOf("留烛煌不要换小逻朝上可以替初雪").length === 0);
+  check(
+    "预抽边界：两侧都在阵容里时不猜方向（凛冬可以换烛煌；猜错会给出反向建议，留给模型）",
+    pairsOf("凛冬可以换烛煌").length === 0 && pairsOf("煌可以代替凛冬").length === 0,
+  );
+
+  // ③ 候选降噪（改 2）：高赞兜底已移除，纯闲聊的高赞评论不进候选
+  const comments = [
+    { text: "看我的满编无增益😎", likes: 9999, isPinned: false, rpid: 1 },
+    { text: "作业自己刷新在屏幕上✍🏻", likes: 8888, isPinned: false, rpid: 2 },
+    { text: "没有泥岩可以用星熊顶，注意技能", likes: 12, isPinned: false, rpid: 3 },
+    { text: "UP置顶：缺干员看评论区", likes: 0, isPinned: true, rpid: 4 },
+  ];
+  const danmaku = [
+    { time: 3, text: "珊比可以替52，这样歌蒂就可以换望别开始臭棋炸炸炸" },
+    { time: 5, text: "天猫2可以代替遥" },
+    { time: 7, text: "凛冬可换星熊2" },
+    { time: 7, text: "所以德狗可以换凛冬吗？" },
+  ];
+  const cands = v43.buildCandidates(comments, danmaku);
+  check(
+    "候选降噪：高赞闲聊评论不再进候选（只剩置顶 + 命中替代语义的）",
+    !cands.some((c) => c.text.includes("满编无增益")) && !cands.some((c) => c.text.includes("作业自己刷新")),
+    cands.map((c) => `${c.source}:${c.text.slice(0, 8)}`).join(" | "),
+  );
+  check("候选降噪：置顶与命中项都还在", cands.some((c) => c.isPinned) && cands.some((c) => c.text.includes("泥岩")) && cands.some((c) => c.source === "danmaku"));
+
+  // ④ 合并（改 1 的核心）：模型漏项时，程序对必须补进最终结果
+  const programPairs = v43.collectProgramPairs(cands, VEC_C_ROSTER, db);
+  check("合并：程序对已按 from→to 去重", programPairs.length >= 3 && new Set(programPairs.map((p) => `${p.from}→${p.to}`)).size === programPairs.length, programPairs.map((p) => `${p.from}→${p.to}`).join(" "));
+  const modelMissedAll = v43.mergeProgramPairs([], programPairs, "VEC-C", "BV1");
+  check(
+    "合并：模型一条都没产出时建议仍在（模型漏项 ≠ 建议消失）",
+    modelMissedAll.length === programPairs.length && modelMissedAll.some((s) => s.removed === "乌尔比安" && s.replacement === "珊比"),
+    modelMissedAll.map((s) => `${s.removed}→${s.replacement}`).join(" "),
+  );
+  check("合并：带上原文与来源（弹幕无赞、不伪造溯源链接）", modelMissedAll.every((s) => s.evidence.length > 0 && s.verified === true && s.evidenceUrl === undefined));
+  const keptModel = v43.mergeProgramPairs(
+    [
+      {
+        removed: programPairs[0].from,
+        replacement: programPairs[0].to,
+        stage: "VEC-C",
+        evidence: "模型原文",
+        source: "comment",
+        kind: "skill_swap",
+        likes: 3,
+        verified: true,
+      },
+    ],
+    programPairs,
+    "VEC-C",
+    "BV1",
+  );
+  check(
+    "合并：模型已产出的不重复补（保留模型那条，kind/赞数不丢）",
+    keptModel.length === programPairs.length && keptModel[0].evidence === "模型原文" && keptModel[0].kind === "skill_swap",
   );
 }
 
