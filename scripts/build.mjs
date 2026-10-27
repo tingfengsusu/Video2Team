@@ -74,4 +74,9 @@ mkdirSync(join(dist, "data"), { recursive: true });
 cpSync(join(root, "data/operators.json"), join(dist, "data/operators.json"));
 cpSync(join(root, "data/aliases.json"), join(dist, "data/aliases.json"));
 
+// GitHub Pages 源是 /docs，别名编辑器读不到仓库根的 data/，这里同步一份站点内快照
+mkdirSync(join(root, "docs/data"), { recursive: true });
+cpSync(join(root, "data/operators.json"), join(root, "docs/data/operators.json"));
+cpSync(join(root, "data/aliases.json"), join(root, "docs/data/aliases.json"));
+
 console.log("✓ dist 构建完成");

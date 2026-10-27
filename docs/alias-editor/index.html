@@ -814,7 +814,7 @@
           <div class="status-card">
             <div class="status-label">当前数据源</div>
             <div class="status-line"><span id="sourceDot" class="dot"></span><span id="sourceText">正在载入…</span></div>
-            <div id="sourceNote" class="source-note">优先读取仓库 data/aliases.json，失败时回退到 jsDelivr / raw GitHub。</div>
+            <div id="sourceNote" class="source-note">优先读取本站 data/aliases.json 快照，失败时回退到 jsDelivr / raw GitHub。</div>
           </div>
           <div class="status-card">
             <div class="status-label">提交出口</div>
@@ -938,7 +938,7 @@
         const REPO = "tingfengsusu/Video2Team";
         const BRANCH = "main";
         const GITHUB_EDIT_URL = `https://github.com/${REPO}/edit/${BRANCH}/data/aliases.json`;
-        const LOCAL_DATA_URL = new URL("../../data/aliases.json", location.href).href;
+        const LOCAL_DATA_URL = new URL("../data/aliases.json", location.href).href;
         const REMOTE_DATA_URLS = [
           `https://cdn.jsdelivr.net/gh/${REPO}@${BRANCH}/data/aliases.json`,
           `https://raw.githubusercontent.com/${REPO}/${BRANCH}/data/aliases.json`,
@@ -1174,11 +1174,11 @@
           if (force && state.dirty && !window.confirm("重新载入会丢弃当前未复制的修改，继续吗？")) return;
           $("sourceDot").className = "dot";
           $("sourceText").textContent = "正在载入…";
-          $("sourceNote").textContent = "优先读取仓库 data/aliases.json，失败时回退到 jsDelivr / raw GitHub。";
+          $("sourceNote").textContent = "优先读取本站 data/aliases.json 快照，失败时回退到 jsDelivr / raw GitHub。";
 
           const extra = new URLSearchParams(location.search).get("data");
           const urls = [...(extra ? [extra] : []), LOCAL_DATA_URL, ...REMOTE_DATA_URLS];
-          let lastError = "";
+          const errors = [];
           for (const url of urls) {
             try {
               const aliases = await fetchAliases(url);
@@ -1189,19 +1189,19 @@
               showToast(`已载入 ${Object.keys(aliases).length} 条别名`);
               return;
             } catch (error) {
-              lastError = error instanceof Error ? error.message : String(error);
+              errors.push(`${sourceLabel(url)}（${url}）：${error instanceof Error ? error.message : String(error)}`);
             }
           }
 
           $("sourceDot").className = "dot bad";
           $("sourceText").textContent = "载入失败";
-          $("sourceNote").textContent = `${lastError}。仍可手动新增条目，或在网络恢复后重试。`;
+          $("sourceNote").textContent = `${errors.join("；")}。仍可手动新增条目，或在网络恢复后重试。`;
           if (state.rows.length === 0) renderTable();
         }
 
         async function loadOperatorNames() {
           const urls = [
-            new URL("../../data/operators.json", location.href).href,
+            new URL("../data/operators.json", location.href).href,
             `https://cdn.jsdelivr.net/gh/${REPO}@${BRANCH}/data/operators.json`,
             `https://raw.githubusercontent.com/${REPO}/${BRANCH}/data/operators.json`,
           ];
